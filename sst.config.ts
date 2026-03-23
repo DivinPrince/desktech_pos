@@ -1,3 +1,12 @@
+declare const $config: <
+  T extends {
+    app?: (input?: { stage: string }) => unknown;
+    run?: () => unknown | Promise<unknown>;
+  },
+>(
+  config: T,
+) => T;
+
 export default $config({
   app(input?: { stage: string }) {
     return {
