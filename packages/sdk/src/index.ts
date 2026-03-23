@@ -1,10 +1,10 @@
 import { APIClient } from "./core";
-import { DemoResource } from "./resources/demo";
+import { BusinessesResource } from "./resources/businesses";
 import { HealthResource } from "./resources/health";
 
 export * from "./error";
 export * from "./types";
-export * from "./resources/demo";
+export * from "./resources/businesses";
 export * from "./resources/health";
 
 export interface SdkOptions {
@@ -18,7 +18,7 @@ export interface SdkOptions {
 }
 
 export class Sdk extends APIClient {
-  demo: DemoResource;
+  businesses: BusinessesResource;
   health: HealthResource;
 
   constructor(options: SdkOptions = {}) {
@@ -42,7 +42,7 @@ export class Sdk extends APIClient {
       headers,
     });
 
-    this.demo = new DemoResource(this);
+    this.businesses = new BusinessesResource(this);
     this.health = new HealthResource(this);
   }
 }
