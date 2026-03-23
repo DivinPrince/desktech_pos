@@ -1,0 +1,8 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "env": { "browser": true },
+  "ignorePatterns": ["dist"],
+  "settings": {
+    "react": { "version": "19.0" }
+  }
+}

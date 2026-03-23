@@ -32,7 +32,6 @@ export default $config({
     }
     const { domain } = await import("./infra/" + "dns.ts");
     const apiUrl = "https://api." + domain;
-    console.log("[SST]    API URL:   " + apiUrl);
     return outputs;
   },
 });

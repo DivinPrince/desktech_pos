@@ -1,7 +1,7 @@
 name: desktech-pos
 processes:
   sst:dev:
-    command: bun run sst:dev
+    command: bun run sst dev
     auto_start: true
   build:web:
     command: bun run build
