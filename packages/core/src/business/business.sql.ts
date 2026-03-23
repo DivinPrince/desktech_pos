@@ -10,6 +10,7 @@ export const businessTable = pgTable("business", {
   name: varchar("name", { length: 255 }).notNull(),
   slug: varchar("slug", { length: 120 }),
   timezone: varchar("timezone", { length: 64 }).notNull().default("UTC"),
+  currency: varchar("currency", { length: 3 }).notNull().default("USD"),
   ...timestamps,
 });
 

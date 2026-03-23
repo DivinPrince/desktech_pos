@@ -103,6 +103,7 @@ const authOptions = {
               name: ctx.body.name,
               slug: ctx.body.slug,
               timezone: ctx.body.timezone,
+              currency: ctx.body.currency,
               ownerUserId: userId,
             });
           },

@@ -10,12 +10,19 @@ import { userTable } from "../user/user.sql";
 export * from "./business.sql";
 export * from "./authz";
 
+const iso4217Currency = z
+  .string()
+  .length(3)
+  .regex(/^[A-Za-z]{3}$/, "Must be a 3-letter ISO 4217 currency code")
+  .transform((s) => s.toUpperCase());
+
 export namespace BusinessService {
   export const Info = z.object({
     id: z.string(),
     name: z.string(),
     slug: z.string().nullable(),
     timezone: z.string(),
+    currency: z.string(),
     createdAt: z.date(),
     updatedAt: z.date(),
   });
@@ -37,6 +44,7 @@ export namespace BusinessService {
       name: row.name,
       slug: row.slug,
       timezone: row.timezone,
+      currency: row.currency,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };
@@ -46,6 +54,7 @@ export namespace BusinessService {
     name: z.string().min(1).max(255),
     slug: z.string().min(1).max(120).optional(),
     timezone: z.string().max(64).optional(),
+    currency: iso4217Currency.optional(),
     ownerUserId: z.string(),
   });
 
@@ -54,6 +63,7 @@ export namespace BusinessService {
     name: z.string().min(1).max(255).optional(),
     slug: z.string().min(1).max(120).nullable().optional(),
     timezone: z.string().max(64).optional(),
+    currency: iso4217Currency.optional(),
   });
 
   export const AddMemberInput = z.object({
@@ -117,6 +127,7 @@ export namespace BusinessService {
           name: input.name,
           slug: input.slug ?? null,
           timezone: input.timezone ?? "UTC",
+          currency: input.currency ?? "USD",
         })
         .returning();
       if (!biz) throw new Error("Failed to create business");
@@ -140,6 +151,9 @@ export namespace BusinessService {
           ...("slug" in patch ? { slug: patch.slug ?? null } : {}),
           ...("timezone" in patch && patch.timezone !== undefined
             ? { timezone: patch.timezone }
+            : {}),
+          ...("currency" in patch && patch.currency !== undefined
+            ? { currency: patch.currency }
             : {}),
         })
         .where(eq(businessTable.id, id))

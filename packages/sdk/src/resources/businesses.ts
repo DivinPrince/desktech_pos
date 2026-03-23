@@ -10,14 +10,10 @@ import {
   SaleService,
 } from "@repo/core/pos";
 import type { z } from "zod";
+import type { CreateBusinessBody } from "../business";
 import { APIResource, type APIClient } from "../core";
 
 type Data<T> = { data: T };
-
-type CreateBusinessBody = Omit<
-  z.infer<typeof BusinessService.CreateInput>,
-  "ownerUserId"
->;
 
 type StockAdjustBody = {
   productId: string;
