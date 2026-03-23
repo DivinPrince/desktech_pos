@@ -39,6 +39,7 @@
     "create-admin": "bun run src/cli/create-admin.ts"
   },
   "dependencies": {
+    "@better-auth-extended/onboarding": "^0.1.1",
     "@hono/zod-validator": "^0.7.6",
     "@better-auth/infra": "^0.1.8",
     "better-auth": "^1.5.4",

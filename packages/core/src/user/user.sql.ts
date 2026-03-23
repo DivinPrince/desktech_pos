@@ -12,6 +12,8 @@ export const userTable = pgTable("user", {
   banned: boolean("banned").default(false),
   banReason: text("ban_reason"),
   banExpires: timestamp("ban_expires"),
+  shouldOnboard: boolean("should_onboard").notNull().default(false),
+  completedSteps: text("completed_steps"),
   ...timestamps,
 });
 

@@ -1,9 +1,11 @@
 import "../../sst-env.d.ts";
-import { betterAuth, type BetterAuthOptions } from "better-auth";
+import { betterAuth, type BetterAuthOptions, type BetterAuthPlugin } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin, openAPI, bearer } from "better-auth/plugins";
 import { dash } from "@better-auth/infra";
+import { createOnboardingStep, onboarding } from "@better-auth-extended/onboarding";
 import { db } from "../drizzle";
+import { BusinessService } from "../business";
 import {
   sendVerificationEmail,
   sendPasswordResetEmail,
@@ -89,6 +91,25 @@ const authOptions = {
     openAPI({
       disableDefaultReference: true,
     }),
+    onboarding({
+      steps: {
+        firstBusiness: createOnboardingStep({
+          input: BusinessService.CreateInput.omit({ ownerUserId: true }),
+          required: true,
+          once: true,
+          async handler(ctx) {
+            const userId = ctx.context.session!.user.id;
+            return BusinessService.create({
+              name: ctx.body.name,
+              slug: ctx.body.slug,
+              timezone: ctx.body.timezone,
+              ownerUserId: userId,
+            });
+          },
+        }),
+      },
+      completionStep: "firstBusiness",
+    }) as unknown as BetterAuthPlugin,
     dash(),
   ],
 } satisfies BetterAuthOptions;
