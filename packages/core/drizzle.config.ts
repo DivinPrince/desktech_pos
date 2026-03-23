@@ -1,16 +1,13 @@
-import { config } from "dotenv";
-import { resolve } from "node:path";
 import { defineConfig } from "drizzle-kit";
+import { Resource } from "sst";
 
-// Load root .env when running from packages/core
-config({ path: resolve(import.meta.dir, "../../.env") });
-
+/** Run via `sst shell -- bun run --cwd packages/core db:*` so linked `NeonDatabase` is available. */
 export default defineConfig({
   out: "./migrations",
   schema: "./src/**/*.sql.ts",
   dialect: "postgresql",
   dbCredentials: {
-    url: process.env.DATABASE_URL!,
+    url: Resource.NeonDatabase.connectionString,
   },
   verbose: true,
   strict: true,

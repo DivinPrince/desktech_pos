@@ -3,10 +3,9 @@ import { Pool } from "pg";
 import { Resource } from "sst";
 
 function resolveConnectionString(): string {
-  const linked = (
-    Resource as { NeonDatabase?: { connectionString?: string } }
-  ).NeonDatabase?.connectionString;
-  return linked ?? process.env.DATABASE_URL ?? "";
+  const fromEnv = process.env.DATABASE_URL;
+  if (fromEnv) return fromEnv;
+  return Resource.NeonDatabase.connectionString;
 }
 
 const connectionString = resolveConnectionString();

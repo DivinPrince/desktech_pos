@@ -7,6 +7,6 @@
     "moduleResolution": "Bundler",
     "baseUrl": "."
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "../../sst-env.d.ts"],
   "exclude": ["node_modules", "dist"]
 }
