@@ -12,7 +12,9 @@ function Home() {
         <p className="hero-description">{siteTheme.brand.strapline}</p>
         <p className="mt-4 text-slate-600">
           Backend: Hono on Lambda (SST), Postgres + Drizzle, Better Auth, EventBridge bus hook in{' '}
-          <code className="rounded bg-slate-100 px-1 py-0.5 text-sm">packages/functions/src/event</code>
+          <code className="rounded bg-slate-100 px-1 py-0.5 text-sm">
+            packages/core/src/functions/event
+          </code>
           .
         </p>
         <div className="hero-actions mt-8 flex flex-wrap gap-3">

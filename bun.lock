@@ -52,9 +52,11 @@
       "version": "0.0.1",
       "dependencies": {
         "@better-auth/infra": "^0.1.8",
+        "@hono/zod-validator": "^0.7.6",
         "better-auth": "^1.5.4",
         "dotenv": "^17.2.3",
         "drizzle-orm": "^0.38.3",
+        "hono": "4.12.5",
         "pg": "^8.13.1",
         "resend": "^4.0.1",
         "sst": "^4.2.2",
@@ -68,21 +70,6 @@
         "drizzle-kit": "^0.31.9",
         "oxlint": "^1.0.0",
         "typescript": "^5.7.2",
-      },
-    },
-    "packages/functions": {
-      "name": "@repo/functions",
-      "version": "0.0.1",
-      "dependencies": {
-        "@hono/zod-validator": "^0.7.6",
-        "@repo/core": "workspace:*",
-        "hono": "4.12.5",
-        "zod": "^4.3.6",
-      },
-      "devDependencies": {
-        "@repo/typescript-config": "*",
-        "oxlint": "^1.0.0",
-        "typescript": "5.9.2",
       },
     },
     "packages/sdk": {
@@ -649,8 +636,6 @@
     "@react-email/render": ["@react-email/render@1.1.2", "", { "dependencies": { "html-to-text": "^9.0.5", "prettier": "^3.5.3", "react-promise-suspense": "^0.3.4" }, "peerDependencies": { "react": "^18.0 || ^19.0 || ^19.0.0-rc", "react-dom": "^18.0 || ^19.0 || ^19.0.0-rc" } }, "sha512-RnRehYN3v9gVlNMehHPHhyp2RQo7+pSkHDtXPvg3s0GbzM9SQMW4Qrf8GRNvtpLC4gsI+Wt0VatNRUFqjvevbw=="],
 
     "@repo/core": ["@repo/core@workspace:packages/core"],
-
-    "@repo/functions": ["@repo/functions@workspace:packages/functions"],
 
     "@repo/sdk": ["@repo/sdk@workspace:packages/sdk"],
 

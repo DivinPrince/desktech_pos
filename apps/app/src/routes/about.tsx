@@ -11,7 +11,8 @@ function About() {
       <h1 className="text-3xl font-semibold text-slate-900">Monorepo template</h1>
       <p className="story-copy mt-4 text-slate-600">
         This repository is a stripped-down scaffold: TanStack Start in <code className="text-sm">apps/app</code>
-        , API handlers in <code className="text-sm">packages/functions</code>, shared domain in{' '}
+        , API handlers in{' '}
+        <code className="text-sm">packages/core/src/functions</code>, shared domain in{' '}
         <code className="text-sm">packages/core</code>, and typed HTTP client in{' '}
         <code className="text-sm">packages/sdk</code>. Configure <code className="text-sm">infra/dns.ts</code>
         , SST secrets, and <code className="text-sm">.env</code> for your own project name and domains.

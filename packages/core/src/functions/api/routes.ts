@@ -9,14 +9,14 @@ import { usersApi } from "./users";
 const apiRoutes = new Hono<AppEnv>()
   .get("/", (c) =>
     c.json({
-      name: "@repo/functions",
+      name: "@repo/core",
       status: "ok",
       routes: ["/api/auth/*", "/api/users", "/api/demo"],
     }),
   )
   .get("/doc", (c) =>
     c.json({
-      name: "@repo/functions",
+      name: "@repo/core",
       version: "0.0.1",
       note: "Route inventory. Add OpenAPI when your API grows.",
       groups: {

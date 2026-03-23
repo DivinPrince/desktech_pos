@@ -17,7 +17,7 @@ export const urls = new sst.Linkable("Urls", {
 });
 
 const apiFn = new sst.aws.Function("ApiFn", {
-  handler: "./packages/functions/src/index.handler",
+  handler: "./packages/core/src/functions/index.handler",
   streaming: !$dev,
   link: [bus, mediaBucket, neonDatabase, urls, ...allSecrets],
   url: {

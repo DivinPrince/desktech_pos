@@ -59,7 +59,7 @@ function DemoPage() {
       <p className="mt-2 text-slate-600">
         Postgres + Drizzle (<code className="text-sm">demo_item</code>), service in{' '}
         <code className="text-sm">@repo/core/demo</code>, REST in{' '}
-        <code className="text-sm">packages/functions</code>, client via{' '}
+        <code className="text-sm">packages/core/src/functions</code>, client via{' '}
         <code className="text-sm">@repo/sdk</code>. Anyone can list; sign in to add or delete your rows
         (admins can delete any).
       </p>
