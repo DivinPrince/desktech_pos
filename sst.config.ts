@@ -1,7 +1,7 @@
 export default $config({
-  app(input) {
+  app(input?: { stage: string }) {
     return {
-      name: "monorepo-starter",
+      name: "desktech-pos",
       removal: input?.stage === "production" ? "retain" : "remove",
       home: "aws",
       providers: {
@@ -9,19 +9,21 @@ export default $config({
           region: "us-east-1",
         },
         cloudflare: true,
+        neon: "0.9.0",
       },
     };
   },
   async run() {
+    const { readdirSync } = await import("node:fs");
     const outputs: Record<string, unknown> = {};
-    const { readdirSync } = await import("fs");
-
     for (const value of readdirSync("./infra/")) {
       if (!value.endsWith(".ts") && !value.endsWith(".js")) continue;
       const result = await import("./infra/" + value);
       if (result.outputs) Object.assign(outputs, result.outputs);
     }
-
+    const { domain } = await import("./infra/" + "dns.ts");
+    const apiUrl = "https://api." + domain;
+    console.log("[SST]    API URL:   " + apiUrl);
     return outputs;
   },
 });

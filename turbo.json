@@ -24,7 +24,10 @@
     "SEED_SHOPPER_EMAIL",
     "SEED_SHOPPER_PASSWORD",
     "DRIZZLE_LOG",
-    "PAYMENT_PROVIDER"
+    "PAYMENT_PROVIDER",
+    "NEON_ORG_ID",
+    "NEON_PROJECT_ID",
+    "NEON_PROJECT_NAME"
   ],
   "tasks": {
     "build": {
@@ -35,7 +38,13 @@
     },
     "lint": {
       "dependsOn": ["^lint"],
-      "env": ["API_URL", "VITE_API_URL"]
+      "env": [
+        "API_URL",
+        "VITE_API_URL",
+        "NEON_ORG_ID",
+        "NEON_PROJECT_ID",
+        "NEON_PROJECT_NAME"
+      ]
     },
     "check-types": {
       "dependsOn": ["^check-types"],

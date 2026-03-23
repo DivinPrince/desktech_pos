@@ -97,7 +97,10 @@
       {
         "allowList": [
           "^API_URL$",
-          "^VITE_API_URL$"
+          "^VITE_API_URL$",
+          "^NEON_ORG_ID$",
+          "^NEON_PROJECT_ID$",
+          "^NEON_PROJECT_NAME$"
         ]
       }
     ],

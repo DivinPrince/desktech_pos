@@ -1,19 +1,4 @@
-name: monorepo-starter
-agents:
-  Codex:
-    command: codex
-    preset: codex
-  Claude Code:
-    command: claude
-    preset: claude-code
-  Cursor Agent:
-    command: agent
-    preset: cursor
-  GitHub Copilot:
-    command: copilot
-    auto_start: true
-    auto_restart: true
-    preset: github-copilot
+name: desktech-pos
 processes:
   sst:dev:
     command: bun run sst:dev

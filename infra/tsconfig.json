@@ -7,5 +7,5 @@
     "noEmit": true,
     "rootDir": "."
   },
-  "include": ["./**/*.ts", "./sst-ion-globals.d.ts"]
+  "include": ["./**/*.ts"]
 }

@@ -1,16 +1,13 @@
-/// <reference path="./sst-ion-globals.d.ts" />
-import { secret } from "./secret";
+import "./sst-ion-globals";
+import { neonDatabase } from "./neon";
 
 const migrator = new sst.aws.Function("DatabaseMigrator", {
   handler: "./packages/core/src/drizzle/migrator.handler",
   timeout: "120 seconds",
   memory: "512 MB",
-  link: [secret.DatabaseUrl],
+  link: [neonDatabase],
   nodejs: {
     install: ["pg"],
-  },
-  environment: {
-    DATABASE_URL: secret.DatabaseUrl.value,
   },
   copyFiles: [
     {

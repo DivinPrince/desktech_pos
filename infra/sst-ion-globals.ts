@@ -11,6 +11,68 @@ declare global {
     readonly stage: string;
   };
 
+  namespace neon {
+    class Project {
+      readonly id: unknown;
+      readonly connectionUri: unknown;
+      constructor(
+        name: string,
+        args: { orgId: string } | Record<string, unknown>,
+        opts?: { import: string },
+      );
+    }
+
+    class Branch {
+      readonly id: unknown;
+      constructor(
+        name: string,
+        args: {
+          projectId: unknown;
+          name: string;
+          "protected"?: string;
+        },
+      );
+    }
+
+    class Endpoint {
+      readonly host: unknown;
+      constructor(
+        name: string,
+        args: {
+          projectId: unknown;
+          branchId: unknown;
+          type: string;
+        },
+      );
+    }
+
+    class Role {
+      readonly name: unknown;
+      readonly password: unknown;
+      constructor(
+        name: string,
+        args: {
+          projectId: unknown;
+          branchId: unknown;
+          name: string;
+        },
+      );
+    }
+
+    class Database {
+      readonly name: unknown;
+      constructor(
+        name: string,
+        args: {
+          projectId: unknown;
+          branchId: unknown;
+          name: string;
+          ownerName: unknown;
+        },
+      );
+    }
+  }
+
   namespace aws {
     namespace lambda {
       class Invocation {

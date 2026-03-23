@@ -4,7 +4,7 @@ SST (AWS Lambda + Cloudflare DNS), TanStack Start (`apps/app`), Hono API (`packa
 
 ## Quick start
 
-1. Copy `packages/env/.env.example` to the repo root as `.env` and set `DATABASE_URL`, `BETTER_AUTH_SECRET` (32+ chars), and URLs.
+1. Copy `.env.example` to the repo root as `.env` and set `DATABASE_URL`, `BETTER_AUTH_SECRET` (32+ chars), and URLs. For the web app, add `VITE_API_URL` in `apps/app/.env.local` if needed. Production secrets are wired via SST (`infra/secret.ts`, `Resource.*`).
 2. Start Postgres (e.g. `docker compose up -d`) or point `DATABASE_URL` at your instance.
 3. Run migrations: `bun run db:migrate` (uses `sst shell` per root `package.json`).
 4. `bun run sst:dev` for the API, and in another terminal `bun run dev` (or `turbo dev --filter=app`) for the web app.

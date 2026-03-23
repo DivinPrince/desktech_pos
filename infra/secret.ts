@@ -1,5 +1,4 @@
 export const secret = {
-  DatabaseUrl: new sst.Secret("DatabaseUrl"),
   BetterAuthSecret: new sst.Secret("BetterAuthSecret"),
   FrontendUrl: new sst.Secret("FrontendUrl"),
 };

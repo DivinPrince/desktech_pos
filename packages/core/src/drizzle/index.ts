@@ -1,17 +1,27 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
+import { Resource } from "sst";
 
-const connectionString = process.env.DATABASE_URL;
-
-if (!connectionString) {
-  throw new Error("DATABASE_URL is not defined");
+function resolveConnectionString(): string {
+  const linked = (
+    Resource as { NeonDatabase?: { connectionString?: string } }
+  ).NeonDatabase?.connectionString;
+  return linked ?? process.env.DATABASE_URL ?? "";
 }
 
-const databaseUrl = new URL(connectionString);
+const connectionString = resolveConnectionString();
+
+if (!connectionString) {
+  throw new Error(
+    "Database URL missing: link NeonDatabase (SST) or set DATABASE_URL",
+  );
+}
+
+const parsedDatabaseUrl = new URL(connectionString);
 const isLocalDatabase = ["localhost", "127.0.0.1", "::1"].includes(
-  databaseUrl.hostname,
+  parsedDatabaseUrl.hostname,
 );
-const sslMode = databaseUrl.searchParams.get("sslmode");
+const sslMode = parsedDatabaseUrl.searchParams.get("sslmode");
 
 const pool = new Pool({
   connectionString,

@@ -4,6 +4,6 @@
  */
 export const domain =
   {
-    production: "example.com",
-    dev: "dev.example.com",
-  }[$app.stage] || `${$app.stage}.dev.example.com`;
+    production: "desktech-pos.spura.app",
+    dev: "dev.desktech-pos.spura.app",
+  }[$app.stage] || `${$app.stage}.dev.desktech-pos.spura.app`;
