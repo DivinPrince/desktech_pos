@@ -2,8 +2,8 @@ import { auth } from "@repo/core/auth";
 import { Hono } from "hono";
 import { logger } from "hono/logger";
 import { cors } from "hono/cors";
+import { businessScopedApi, businessesRootApi } from "./businesses";
 import { handleError, type AppEnv, sessionMiddleware } from "./common";
-import { demoApi } from "./demo";
 import { usersApi } from "./users";
 
 const apiRoutes = new Hono<AppEnv>()
@@ -11,7 +11,12 @@ const apiRoutes = new Hono<AppEnv>()
     c.json({
       name: "@repo/core",
       status: "ok",
-      routes: ["/api/auth/*", "/api/users", "/api/demo"],
+      routes: [
+        "/api/auth/*",
+        "/api/users",
+        "/api/businesses",
+        "/api/businesses/:businessId/*",
+      ],
     }),
   )
   .get("/doc", (c) =>
@@ -22,11 +27,13 @@ const apiRoutes = new Hono<AppEnv>()
       groups: {
         auth: "/api/auth/*",
         users: "/api/users",
-        demo: "/api/demo",
+        businesses: "/api/businesses",
+        businessScoped: "/api/businesses/:businessId",
       },
     }),
   )
-  .route("/demo", demoApi)
+  .route("/businesses", businessesRootApi)
+  .route("/businesses/:businessId", businessScopedApi)
   .route("/users", usersApi);
 
 export const app = new Hono<AppEnv>();

@@ -2,6 +2,11 @@ import { zValidator } from "@hono/zod-validator";
 import { Actor } from "@repo/core/actor";
 import { auth, type Session, type User } from "@repo/core/auth";
 import {
+  BusinessService,
+  businessRoleAtLeast,
+  type BusinessMemberRole,
+} from "@repo/core/business";
+import {
   AppError,
   ErrorCodes,
   type ErrorResponseType,
@@ -15,6 +20,8 @@ export type AppEnv = {
   Variables: {
     session: Session | null;
     user: User | null;
+    businessId?: string;
+    businessRole?: BusinessMemberRole;
   };
 };
 
@@ -72,6 +79,48 @@ export const requireAuth: MiddlewareHandler<AppEnv> = async (c, next) => {
   }
   await next();
 };
+
+/** Resolve :businessId from the path and require active membership. */
+export const requireBusinessMembership: MiddlewareHandler<AppEnv> = async (c, next) => {
+  const businessId = c.req.param("businessId");
+  if (!businessId) {
+    throw new VisibleError(
+      "validation",
+      ErrorCodes.Validation.MISSING_REQUIRED_FIELD,
+      "businessId is required",
+      "businessId",
+    );
+  }
+  const user = c.get("user");
+  if (!user) {
+    throw new VisibleError(
+      "authentication",
+      ErrorCodes.Authentication.UNAUTHORIZED,
+      "Authentication required",
+    );
+  }
+  const role = await BusinessService.assertMember(businessId, user.id);
+  c.set("businessId", businessId);
+  c.set("businessRole", role);
+  await next();
+};
+
+/** Require business role at least `minimum` (owner > manager > cashier). Run after requireBusinessMembership. */
+export function requireBusinessMinimum(
+  minimum: BusinessMemberRole,
+): MiddlewareHandler<AppEnv> {
+  return async (c, next) => {
+    const role = c.get("businessRole");
+    if (!role || !businessRoleAtLeast(role, minimum)) {
+      throw new VisibleError(
+        "forbidden",
+        ErrorCodes.Permission.INSUFFICIENT_PERMISSIONS,
+        "Insufficient permissions for this action",
+      );
+    }
+    await next();
+  };
+}
 
 export const requireAdmin: MiddlewareHandler<AppEnv> = async (c, next) => {
   const user = c.get("user");

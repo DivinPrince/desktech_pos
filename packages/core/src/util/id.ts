@@ -34,7 +34,13 @@ export type EntityPrefix =
   | "pco"
   | "stm"
   | "fil"
-  | "dmi";
+  | "bus"
+  | "bsm"
+  | "ibt"
+  | "dtb"
+  | "sal"
+  | "sli"
+  | "exp";
 
 const prefixMap: Record<string, EntityPrefix> = {
   user: "usr",
@@ -70,7 +76,13 @@ const prefixMap: Record<string, EntityPrefix> = {
   product_compatibility: "pco",
   stock_movement: "stm",
   file: "fil",
-  demo_item: "dmi",
+  business: "bus",
+  business_member: "bsm",
+  inventory_batch: "ibt",
+  dining_table: "dtb",
+  sale: "sal",
+  sale_line: "sli",
+  expense: "exp",
 };
 
 export function createID(entity: keyof typeof prefixMap): string {

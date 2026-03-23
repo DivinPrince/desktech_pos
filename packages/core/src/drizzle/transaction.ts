@@ -10,7 +10,7 @@ export type Transaction = PgTransaction<
   ExtractTablesWithRelations<Record<string, never>>
 >;
 
-type TxOrDb = Transaction | typeof db;
+export type TxOrDb = Transaction | typeof db;
 
 const TransactionContext = createContext<{
   tx: Transaction;
