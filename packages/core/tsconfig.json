@@ -1,4 +1,4 @@
-﻿{
+{
   "extends": "../typescript-config/base.json",
   "compilerOptions": {
     "outDir": "dist",
@@ -13,6 +13,13 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*.ts", "drizzle.config.ts", "sst-env.d.ts"],
+  "include": [
+    "src/**/*.ts",
+    "test/**/*.ts",
+    "scripts/**/*.ts",
+    "drizzle.config.ts",
+    "sst-env.d.ts",
+    "vitest.config.ts"
+  ],
   "exclude": ["node_modules", "dist"]
 }

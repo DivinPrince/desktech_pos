@@ -50,6 +50,18 @@
       "dependsOn": ["^check-types"],
       "env": ["API_URL", "VITE_API_URL"]
     },
+    "test": {
+      "env": [
+        "DATABASE_URL",
+        "AUTH_TEST_UTILS",
+        "BETTER_AUTH_SECRET",
+        "BETTER_AUTH_URL",
+        "FRONTEND_URL",
+        "ADMIN_URL",
+        "NODE_ENV"
+      ],
+      "outputs": []
+    },
     "dev": {
       "cache": false,
       "persistent": true,

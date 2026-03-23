@@ -12,6 +12,7 @@
     "lint:fix": "oxlint --fix",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types",
+    "test": "turbo run test",
     "sst:dev": "sst dev",
     "sst:deploy": "sst deploy",
     "sst:remove": "sst remove",

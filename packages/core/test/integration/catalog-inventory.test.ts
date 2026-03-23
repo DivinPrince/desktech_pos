@@ -1,0 +1,327 @@
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { app } from "../../src/functions/api/routes";
+import { getTestHelpers } from "../helpers/auth-context";
+import { seedBusinessWithTeam, type UserGarbage } from "../helpers/business-fixture";
+import { jsonHeaders } from "../helpers/headers";
+import { readJson } from "../helpers/http";
+
+describe("Catalog, products & inventory", () => {
+  const garbage: UserGarbage = { userIds: [] };
+  const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+  beforeAll(async () => {
+    await getTestHelpers();
+  });
+
+  afterAll(async () => {
+    const helpers = await getTestHelpers();
+    for (const id of garbage.userIds) {
+      await helpers.deleteUser(id).catch(() => {});
+    }
+  });
+
+  it("categories CRUD + cashier forbidden on POST", async () => {
+    const helpers = await getTestHelpers();
+    const fx = await seedBusinessWithTeam(helpers, garbage, `cat-${runId}`);
+
+    const cashPost = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/categories`,
+      {
+        method: "POST",
+        headers: jsonHeaders(fx.cashierHeaders),
+        body: JSON.stringify({ name: "X" }),
+      },
+    );
+    expect(cashPost.status).toBe(403);
+
+    const post = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/categories`,
+      {
+        method: "POST",
+        headers: jsonHeaders(fx.managerHeaders),
+        body: JSON.stringify({ name: "Drinks" }),
+      },
+    );
+    const { data: cat } = await readJson<{ data: { id: string; name: string } }>(post, 201);
+
+    const list = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/categories`,
+      { method: "GET", headers: fx.cashierHeaders },
+    );
+    const listed = await readJson<{ data: { id: string }[] }>(list, 200);
+    expect(listed.data.some((c) => c.id === cat.id)).toBe(true);
+
+    const patch = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/categories/${cat.id}`,
+      {
+        method: "PATCH",
+        headers: jsonHeaders(fx.managerHeaders),
+        body: JSON.stringify({ name: "Soft drinks" }),
+      },
+    );
+    const patched = await readJson<{ data: { name: string } }>(patch, 200);
+    expect(patched.data.name).toBe("Soft drinks");
+
+    const del = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/categories/${cat.id}`,
+      { method: "DELETE", headers: fx.managerHeaders },
+    );
+    await readJson(del, 200);
+  });
+
+  it("products list, get, create, patch, 404", async () => {
+    const helpers = await getTestHelpers();
+    const fx = await seedBusinessWithTeam(helpers, garbage, `prd-${runId}`);
+
+    const catPost = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/categories`,
+      {
+        method: "POST",
+        headers: jsonHeaders(fx.managerHeaders),
+        body: JSON.stringify({ name: "P Cat" }),
+      },
+    );
+    const { data: cat } = await readJson<{ data: { id: string } }>(catPost, 201);
+
+    const create = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/products`,
+      {
+        method: "POST",
+        headers: jsonHeaders(fx.managerHeaders),
+        body: JSON.stringify({
+          name: "Widget",
+          categoryId: cat.id,
+          priceCents: 999,
+          trackStock: false,
+        }),
+      },
+    );
+    const { data: prod } = await readJson<{ data: { id: string; name: string } }>(create, 201);
+
+    const listQ = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/products?search=Wid&activeOnly=true`,
+      { method: "GET", headers: fx.cashierHeaders },
+    );
+    const listed = await readJson<{ data: { id: string }[] }>(listQ, 200);
+    expect(listed.data.some((p) => p.id === prod.id)).toBe(true);
+
+    const one = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/products/${prod.id}`,
+      { method: "GET", headers: fx.cashierHeaders },
+    );
+    await readJson(one, 200);
+
+    const missing = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/products/pro_missing_0000000000000000`,
+      { method: "GET", headers: fx.managerHeaders },
+    );
+    expect(missing.status).toBe(404);
+
+    const patch = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/products/${prod.id}`,
+      {
+        method: "PATCH",
+        headers: jsonHeaders(fx.managerHeaders),
+        body: JSON.stringify({ name: "Widget Pro", sku: "W-1" }),
+      },
+    );
+    const updated = await readJson<{ data: { name: string } }>(patch, 200);
+    expect(updated.data.name).toBe("Widget Pro");
+
+    const cashProd = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/products`,
+      {
+        method: "POST",
+        headers: jsonHeaders(fx.cashierHeaders),
+        body: JSON.stringify({ name: "Nope", priceCents: 1, trackStock: false }),
+      },
+    );
+    expect(cashProd.status).toBe(403);
+
+    const delProd = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/products/${prod.id}`,
+      { method: "DELETE", headers: fx.managerHeaders },
+    );
+    await readJson(delProd, 200);
+
+    const gone = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/products/${prod.id}`,
+      { method: "GET", headers: fx.managerHeaders },
+    );
+    expect(gone.status).toBe(404);
+  });
+
+  it("DELETE product forbidden when referenced on a sale", async () => {
+    const helpers = await getTestHelpers();
+    const fx = await seedBusinessWithTeam(helpers, garbage, `pdel-${runId}`);
+
+    const prodRes = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/products`,
+      {
+        method: "POST",
+        headers: jsonHeaders(fx.managerHeaders),
+        body: JSON.stringify({ name: "Sold once", priceCents: 100, trackStock: false }),
+      },
+    );
+    const { data: prod } = await readJson<{ data: { id: string } }>(prodRes, 201);
+
+    const saleRes = await app.request(`http://localhost/api/businesses/${fx.businessId}/sales`, {
+      method: "POST",
+      headers: jsonHeaders(fx.managerHeaders),
+      body: JSON.stringify({}),
+    });
+    const { data: sale } = await readJson<{ data: { id: string } }>(saleRes, 201);
+
+    await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/sales/${sale.id}/lines`,
+      {
+        method: "PUT",
+        headers: jsonHeaders(fx.managerHeaders),
+        body: JSON.stringify({ lines: [{ productId: prod.id, quantity: 1 }] }),
+      },
+    );
+
+    const del = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/products/${prod.id}`,
+      { method: "DELETE", headers: fx.managerHeaders },
+    );
+    expect(del.status).toBe(400);
+  });
+
+  it("stock movements, adjust; reject adjust when trackStock false", async () => {
+    const helpers = await getTestHelpers();
+    const fx = await seedBusinessWithTeam(helpers, garbage, `stk-${runId}`);
+
+    const noTrack = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/products`,
+      {
+        method: "POST",
+        headers: jsonHeaders(fx.managerHeaders),
+        body: JSON.stringify({
+          name: "Service",
+          priceCents: 100,
+          trackStock: false,
+        }),
+      },
+    );
+    const { data: p0 } = await readJson<{ data: { id: string } }>(noTrack, 201);
+
+    const badAdj = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/stock/adjust`,
+      {
+        method: "POST",
+        headers: jsonHeaders(fx.managerHeaders),
+        body: JSON.stringify({
+          productId: p0.id,
+          quantityDelta: 1,
+          type: "adjustment",
+        }),
+      },
+    );
+    expect(badAdj.status).toBe(400);
+
+    const tracked = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/products`,
+      {
+        method: "POST",
+        headers: jsonHeaders(fx.managerHeaders),
+        body: JSON.stringify({
+          name: "Stocked",
+          priceCents: 200,
+          trackStock: true,
+        }),
+      },
+    );
+    const { data: p1 } = await readJson<{ data: { id: string } }>(tracked, 201);
+
+    const adj = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/stock/adjust`,
+      {
+        method: "POST",
+        headers: jsonHeaders(fx.managerHeaders),
+        body: JSON.stringify({
+          productId: p1.id,
+          quantityDelta: 7,
+          type: "purchase",
+          note: "delivery",
+        }),
+      },
+    );
+    await readJson(adj, 201);
+
+    const mov = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/stock/movements?limit=5&productId=${encodeURIComponent(p1.id)}`,
+      { method: "GET", headers: fx.managerHeaders },
+    );
+    const movements = await readJson<{ data: unknown[] }>(mov, 200);
+    expect(movements.data.length).toBeGreaterThanOrEqual(1);
+
+    const cashMov = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/stock/movements`,
+      { method: "GET", headers: fx.cashierHeaders },
+    );
+    expect(cashMov.status).toBe(403);
+
+    const cashBatch = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/batches`,
+      { method: "GET", headers: fx.cashierHeaders },
+    );
+    expect(cashBatch.status).toBe(403);
+  });
+
+  it("batches receive, list, patch quantity", async () => {
+    const helpers = await getTestHelpers();
+    const fx = await seedBusinessWithTeam(helpers, garbage, `bat-${runId}`);
+
+    const prodRes = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/products`,
+      {
+        method: "POST",
+        headers: jsonHeaders(fx.managerHeaders),
+        body: JSON.stringify({
+          name: "Batchable",
+          priceCents: 50,
+          trackStock: true,
+        }),
+      },
+    );
+    const { data: prod } = await readJson<{ data: { id: string } }>(prodRes, 201);
+
+    const exp = new Date();
+    exp.setFullYear(exp.getFullYear() + 1);
+    const batchPost = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/batches`,
+      {
+        method: "POST",
+        headers: jsonHeaders(fx.managerHeaders),
+        body: JSON.stringify({
+          productId: prod.id,
+          quantity: 10,
+          expiresOn: exp.toISOString(),
+          lotCode: "LOT-A",
+        }),
+      },
+    );
+    const { data: batch } = await readJson<{ data: { id: string; quantity: number } }>(
+      batchPost,
+      201,
+    );
+
+    const list = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/batches?productId=${encodeURIComponent(prod.id)}`,
+      { method: "GET", headers: fx.managerHeaders },
+    );
+    const batches = await readJson<{ data: { id: string }[] }>(list, 200);
+    expect(batches.data.some((b) => b.id === batch.id)).toBe(true);
+
+    const patch = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/batches/${batch.id}`,
+      {
+        method: "PATCH",
+        headers: jsonHeaders(fx.managerHeaders),
+        body: JSON.stringify({ quantityDelta: -2, note: "shrink" }),
+      },
+    );
+    await readJson(patch, 200);
+  });
+});

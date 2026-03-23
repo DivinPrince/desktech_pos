@@ -1,0 +1,49 @@
+name: Backend tests
+
+on:
+  push:
+    paths:
+      - "packages/core/**"
+      - ".github/workflows/backend-test.yml"
+  pull_request:
+    paths:
+      - "packages/core/**"
+      - ".github/workflows/backend-test.yml"
+
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/test
+      AUTH_TEST_UTILS: "1"
+      BETTER_AUTH_SECRET: test-better-auth-secret-min-32-chars!!
+      BETTER_AUTH_URL: http://localhost
+      FRONTEND_URL: http://localhost:3000
+      ADMIN_URL: http://localhost:3001
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.6
+      - run: bun install --frozen-lockfile
+      - run: bun run src/drizzle/migrate.ts
+        working-directory: packages/core
+      - run: bun run exec-vitest run
+        working-directory: packages/core

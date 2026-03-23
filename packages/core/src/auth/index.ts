@@ -1,7 +1,7 @@
 import "../../sst-env.d.ts";
 import { betterAuth, type BetterAuthOptions, type BetterAuthPlugin } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { admin, openAPI, bearer } from "better-auth/plugins";
+import { admin, openAPI, bearer, testUtils } from "better-auth/plugins";
 import { dash } from "@better-auth/infra";
 import { createOnboardingStep, onboarding } from "@better-auth-extended/onboarding";
 import { db } from "../drizzle";
@@ -111,7 +111,9 @@ const authOptions = {
       },
       completionStep: "firstBusiness",
     }) as unknown as BetterAuthPlugin,
-    dash(),
+    ...(process.env.AUTH_TEST_UTILS === "1"
+      ? [testUtils() as unknown as BetterAuthPlugin]
+      : [dash() as unknown as BetterAuthPlugin]),
   ],
 } satisfies BetterAuthOptions;
 

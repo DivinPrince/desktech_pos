@@ -1,0 +1,20 @@
+# Ephemeral Postgres for `bun run test` when DATABASE_URL is not set.
+# Requires Docker Desktop (or Docker Engine) running.
+#
+# Port 54329 avoids clashing with a local Postgres on 5432.
+
+services:
+  postgres-test:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: desktech_test
+    ports:
+      - "54329:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d desktech_test"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 5s

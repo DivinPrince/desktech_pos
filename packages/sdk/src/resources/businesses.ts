@@ -163,6 +163,10 @@ export class BusinessScopedResource extends APIResource {
     );
   }
 
+  deleteProduct(id: string) {
+    return this._client.delete<{ success: boolean }>(this.prefix(`/products/${id}`));
+  }
+
   listStockMovements(query?: {
     productId?: string;
     from?: string;

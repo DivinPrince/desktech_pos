@@ -1,11 +1,12 @@
-import { and, asc, eq, ilike, or } from "drizzle-orm";
+import { and, asc, count, eq, ilike, or } from "drizzle-orm";
 import { z } from "zod";
 import { withTransaction, createTransaction } from "../drizzle/transaction";
-import { NotFoundError } from "../error";
+import { ErrorCodes, NotFoundError, VisibleError } from "../error";
 import { createID } from "../util/id";
 import { fn } from "../util/fn";
 import { categoryTable, productTable } from "./catalog.sql";
 import { productStockTable } from "./inventory.sql";
+import { saleLineTable, saleTable } from "./sale.sql";
 
 export namespace ProductService {
   export const Info = z.object({
@@ -239,4 +240,38 @@ export namespace ProductService {
       return serialize(row, qty);
     });
   });
+
+  export const remove = fn(
+    z.object({ businessId: z.string(), id: z.string() }),
+    async ({ businessId, id }) => {
+      return createTransaction(async (tx) => {
+        const [p] = await tx
+          .select()
+          .from(productTable)
+          .where(and(eq(productTable.id, id), eq(productTable.businessId, businessId)))
+          .limit(1);
+        if (!p) throw new NotFoundError("Product", id);
+
+        const [lineCount] = await tx
+          .select({ n: count() })
+          .from(saleLineTable)
+          .innerJoin(saleTable, eq(saleLineTable.saleId, saleTable.id))
+          .where(
+            and(eq(saleLineTable.productId, id), eq(saleTable.businessId, businessId)),
+          );
+        if (Number(lineCount?.n ?? 0) > 0) {
+          throw new VisibleError(
+            "validation",
+            ErrorCodes.Validation.IN_USE,
+            "Cannot delete a product that appears on sales",
+            "productId",
+          );
+        }
+
+        await tx
+          .delete(productTable)
+          .where(and(eq(productTable.id, id), eq(productTable.businessId, businessId)));
+      });
+    },
+  );
 }

@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { pgTable, varchar, integer, uniqueIndex } from "drizzle-orm/pg-core";
 import { id, timestamps, ulid } from "../drizzle/types";
 import { userTable } from "../user/user.sql";
@@ -5,14 +6,22 @@ import { userTable } from "../user/user.sql";
 export const businessMemberRoleEnum = ["owner", "manager", "cashier"] as const;
 export type BusinessMemberRole = (typeof businessMemberRoleEnum)[number];
 
-export const businessTable = pgTable("business", {
-  ...id,
-  name: varchar("name", { length: 255 }).notNull(),
-  slug: varchar("slug", { length: 120 }),
-  timezone: varchar("timezone", { length: 64 }).notNull().default("UTC"),
-  currency: varchar("currency", { length: 3 }).notNull().default("USD"),
-  ...timestamps,
-});
+export const businessTable = pgTable(
+  "business",
+  {
+    ...id,
+    name: varchar("name", { length: 255 }).notNull(),
+    slug: varchar("slug", { length: 120 }),
+    timezone: varchar("timezone", { length: 64 }).notNull().default("UTC"),
+    currency: varchar("currency", { length: 3 }).notNull().default("USD"),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("business_slug_unique")
+      .on(t.slug)
+      .where(sql`${t.slug} is not null`),
+  ],
+);
 
 export const businessMemberTable = pgTable(
   "business_member",

@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 import { z } from "zod";
 import { withTransaction, createTransaction } from "../drizzle/transaction";
 import { ErrorCodes, NotFoundError, VisibleError } from "../error";
@@ -9,6 +9,13 @@ import { userTable } from "../user/user.sql";
 
 export * from "./business.sql";
 export * from "./authz";
+
+/** Lowercase trimmed slug, or null if empty / omitted. */
+function normalizeBusinessSlug(slug: string | undefined | null): string | null {
+  if (slug === undefined || slug === null) return null;
+  const s = slug.trim().toLowerCase();
+  return s.length > 0 ? s : null;
+}
 
 const iso4217Currency = z
   .string()
@@ -118,6 +125,23 @@ export namespace BusinessService {
 
   export const create = fn(CreateInput, async (input) => {
     return createTransaction(async (tx) => {
+      const slug = normalizeBusinessSlug(input.slug);
+      if (slug) {
+        const [existing] = await tx
+          .select()
+          .from(businessTable)
+          .where(eq(businessTable.slug, slug))
+          .limit(1);
+        if (existing) {
+          throw new VisibleError(
+            "validation",
+            ErrorCodes.Validation.ALREADY_EXISTS,
+            "A business with this slug already exists",
+            "slug",
+          );
+        }
+      }
+
       const businessId = createID("business");
       const memberId = createID("business_member");
       const [biz] = await tx
@@ -125,7 +149,7 @@ export namespace BusinessService {
         .values({
           id: businessId,
           name: input.name,
-          slug: input.slug ?? null,
+          slug,
           timezone: input.timezone ?? "UTC",
           currency: input.currency ?? "USD",
         })
@@ -144,11 +168,32 @@ export namespace BusinessService {
   export const update = fn(UpdateInput, async (input) => {
     return createTransaction(async (tx) => {
       const { id, ...patch } = input;
+
+      let nextSlug: string | null | undefined;
+      if ("slug" in patch) {
+        nextSlug = patch.slug === null ? null : normalizeBusinessSlug(patch.slug);
+        if (nextSlug) {
+          const [other] = await tx
+            .select()
+            .from(businessTable)
+            .where(and(eq(businessTable.slug, nextSlug), ne(businessTable.id, id)))
+            .limit(1);
+          if (other) {
+            throw new VisibleError(
+              "validation",
+              ErrorCodes.Validation.ALREADY_EXISTS,
+              "A business with this slug already exists",
+              "slug",
+            );
+          }
+        }
+      }
+
       const [row] = await tx
         .update(businessTable)
         .set({
           ...("name" in patch && patch.name !== undefined ? { name: patch.name } : {}),
-          ...("slug" in patch ? { slug: patch.slug ?? null } : {}),
+          ...("slug" in patch ? { slug: nextSlug ?? null } : {}),
           ...("timezone" in patch && patch.timezone !== undefined
             ? { timezone: patch.timezone }
             : {}),

@@ -235,6 +235,17 @@ export const businessScopedApi = new Hono<AppEnv>()
       );
     },
   )
+  .delete(
+    "/products/:id",
+    requireBusinessMinimum("manager"),
+    validate("param", idParam),
+    async (c) => {
+      const businessId = c.req.param("businessId")!;
+      const { id } = c.req.valid("param");
+      await ProductService.remove({ businessId, id });
+      return success(c);
+    },
+  )
   .get(
     "/stock/movements",
     requireBusinessMinimum("manager"),
