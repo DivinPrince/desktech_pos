@@ -1,6 +1,11 @@
+import { randomBytes } from "node:crypto";
 import { and, desc, eq, ne } from "drizzle-orm";
 import { z } from "zod";
-import { withTransaction, createTransaction } from "../drizzle/transaction";
+import {
+  createTransaction,
+  type Transaction,
+  withTransaction,
+} from "../drizzle/transaction";
 import { ErrorCodes, NotFoundError, VisibleError } from "../error";
 import { createID } from "../util/id";
 import { fn } from "../util/fn";
@@ -10,11 +15,54 @@ import { userTable } from "../user/user.sql";
 export * from "./business.sql";
 export * from "./authz";
 
+const BUSINESS_SLUG_MAX_LEN = 120;
+/** Room for `-` plus an 8-char hex suffix when the base slug is already taken. */
+const BUSINESS_SLUG_SUFFIX_ROOM = 9;
+
 /** Lowercase trimmed slug, or null if empty / omitted. */
 function normalizeBusinessSlug(slug: string | undefined | null): string | null {
   if (slug === undefined || slug === null) return null;
   const s = slug.trim().toLowerCase();
   return s.length > 0 ? s : null;
+}
+
+function slugifyBusinessName(name: string): string {
+  const s = name
+    .trim()
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-+/g, "-");
+  const maxBase = BUSINESS_SLUG_MAX_LEN - BUSINESS_SLUG_SUFFIX_ROOM;
+  const capped = s.slice(0, maxBase);
+  return capped.length > 0 ? capped : "business";
+}
+
+function resolveCreateSlugBase(name: string, slugInput: string | undefined | null): string {
+  const fromInput = normalizeBusinessSlug(slugInput);
+  if (fromInput) {
+    return fromInput.slice(0, BUSINESS_SLUG_MAX_LEN - BUSINESS_SLUG_SUFFIX_ROOM);
+  }
+  return slugifyBusinessName(name);
+}
+
+async function allocateUniqueBusinessSlug(tx: Transaction, base: string): Promise<string> {
+  const maxBase = BUSINESS_SLUG_MAX_LEN - BUSINESS_SLUG_SUFFIX_ROOM;
+  const trimmedBase = (base.slice(0, maxBase) || "business").toLowerCase();
+  let candidate = trimmedBase;
+  for (let attempt = 0; attempt < 64; attempt++) {
+    const [existing] = await tx
+      .select({ id: businessTable.id })
+      .from(businessTable)
+      .where(eq(businessTable.slug, candidate))
+      .limit(1);
+    if (!existing) return candidate;
+    const suffix = randomBytes(4).toString("hex");
+    candidate = `${trimmedBase}-${suffix}`.slice(0, BUSINESS_SLUG_MAX_LEN);
+  }
+  throw new Error("Failed to allocate unique business slug");
 }
 
 const iso4217Currency = z
@@ -125,22 +173,8 @@ export namespace BusinessService {
 
   export const create = fn(CreateInput, async (input) => {
     return createTransaction(async (tx) => {
-      const slug = normalizeBusinessSlug(input.slug);
-      if (slug) {
-        const [existing] = await tx
-          .select()
-          .from(businessTable)
-          .where(eq(businessTable.slug, slug))
-          .limit(1);
-        if (existing) {
-          throw new VisibleError(
-            "validation",
-            ErrorCodes.Validation.ALREADY_EXISTS,
-            "A business with this slug already exists",
-            "slug",
-          );
-        }
-      }
+      const slugBase = resolveCreateSlugBase(input.name, input.slug);
+      const slug = await allocateUniqueBusinessSlug(tx, slugBase);
 
       const businessId = createID("business");
       const memberId = createID("business_member");
