@@ -2,8 +2,6 @@ import { Button } from "heroui-native/button";
 import React from "react";
 import type { PressableProps } from "react-native";
 
-import { AUTH_CORAL } from "./auth-theme";
-
 type AuthPrimaryButtonProps = {
   label: string;
   loadingLabel?: string;
@@ -19,13 +17,13 @@ export function AuthPrimaryButton({
 }: AuthPrimaryButtonProps) {
   return (
     <Button
+      variant="primary"
       size="md"
       className="w-full"
-      style={{ backgroundColor: AUTH_CORAL }}
       isDisabled={loading}
       onPress={onPress}
     >
-      <Button.Label className="font-semibold text-white">
+      <Button.Label className="font-semibold text-accent-foreground">
         {loading ? loadingLabel : label}
       </Button.Label>
     </Button>

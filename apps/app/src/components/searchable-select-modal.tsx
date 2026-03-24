@@ -74,20 +74,27 @@ export function SearchableSelectModal({
           onPress={() => onPick(item.value)}
           className="border-b border-border px-4 py-3.5 active:bg-accent/10"
         >
-          <Text
-            className={`text-[15px] leading-5 ${selected ? "font-semibold text-accent" : "text-foreground"}`}
-          >
-            {item.title}
-          </Text>
-          {item.subtitle ? (
-            <Text className="mt-0.5 text-[13px] text-muted">
-              {item.subtitle}
-            </Text>
-          ) : null}
+          <View className="flex-row items-center gap-3">
+            <View className="min-w-0 flex-1">
+              <Text
+                className={`text-[15px] leading-5 ${selected ? "font-semibold text-accent" : "text-foreground"}`}
+              >
+                {item.title}
+              </Text>
+              {item.subtitle ? (
+                <Text className="mt-0.5 text-[13px] text-muted">
+                  {item.subtitle}
+                </Text>
+              ) : null}
+            </View>
+            {selected ? (
+              <Ionicons name="checkmark-circle" size={22} color={accentColor} />
+            ) : null}
+          </View>
         </Pressable>
       );
     },
-    [onPick, selectedValue],
+    [onPick, selectedValue, accentColor],
   );
 
   const keyExtractor = useCallback((item: SearchableSelectItem) => item.value, []);

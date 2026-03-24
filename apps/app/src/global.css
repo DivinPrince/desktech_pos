@@ -5,25 +5,126 @@
 
 @source "../node_modules/heroui-native/lib";
 
-/* Desktech brand + HeroUI tokens: warm accent (replaces default blue) so primary buttons and press feedback stay on-brand */
+/**
+ * Desktech theme — full HeroUI Native semantic tokens (light + dark).
+ * @see https://heroui.com/docs/native/getting-started/theming
+ * @see heroui-native/.../styles/variables.css (same variable names; we override after import)
+ *
+ * Cards / Surface components use `--surface`, `--surface-secondary`, `--border`, `--surface-shadow`.
+ * Defining the complete set keeps `bg-surface`, `border-border`, `shadow-surface`, fields, and status colors coherent.
+ */
 @layer theme {
   :root {
     @variant light {
+      /* Base */
       --background: oklch(0.972 0.018 65);
       --foreground: oklch(0.22 0.02 285);
+
+      /* Surface — cards, accordions (HeroUI Card `variant=default` → bg-surface) */
+      --surface: oklch(0.995 0.006 65);
+      --surface-foreground: oklch(0.22 0.02 285);
+      --surface-secondary: oklch(0.948 0.014 65);
+      --surface-secondary-foreground: oklch(0.22 0.02 285);
+      --surface-tertiary: oklch(0.922 0.018 65);
+      --surface-tertiary-foreground: oklch(0.22 0.02 285);
+
+      /* Overlay — dialogs, menus, popovers */
+      --overlay: oklch(0.995 0.006 65);
+      --overlay-foreground: oklch(0.22 0.02 285);
+
       --muted: oklch(0.52 0.02 285);
+
+      --default: oklch(0.94 0.012 65);
+      --default-foreground: oklch(0.28 0.03 285);
+
+      /* Brand accent (warm coral / amber) */
       --accent: oklch(0.76 0.14 42);
       --accent-foreground: oklch(0.99 0.01 95);
-      --link: var(--accent);
+
+      /* Form fields */
+      --field-background: oklch(0.995 0.006 65);
+      --field-foreground: oklch(0.22 0.02 285);
+      --field-placeholder: oklch(0.55 0.02 285);
+      --field-border: transparent;
+
+      /* Status */
+      --success: oklch(0.62 0.16 155);
+      --success-foreground: oklch(0.99 0.01 95);
+      --warning: oklch(0.78 0.12 72);
+      --warning-foreground: oklch(0.22 0.04 72);
+      --danger: oklch(0.58 0.22 25);
+      --danger-foreground: oklch(0.99 0.005 25);
+
+      /* Segments / tabs */
+      --segment: oklch(0.995 0.006 65);
+      --segment-foreground: oklch(0.22 0.02 285);
+
+      /* Misc — visible card borders on warm UI */
+      --border: oklch(0.86 0.018 65);
+      --separator: oklch(0.8 0.02 65);
       --focus: var(--accent);
-      --field-placeholder: oklch(0.58 0.02 285);
+      --link: var(--accent);
+
+      /* Shadows — slight warm tint so cards sit on cream background */
+      --surface-shadow:
+        0 2px 4px 0 rgba(45, 35, 20, 0.05),
+        0 1px 2px 0 rgba(45, 35, 20, 0.06),
+        0 0 1px 0 rgba(45, 35, 20, 0.04);
+      --overlay-shadow:
+        0 2px 8px 0 rgba(0, 0, 0, 0.06),
+        0 -6px 12px 0 rgba(0, 0, 0, 0.03),
+        0 14px 28px 0 rgba(0, 0, 0, 0.05);
+      --field-shadow:
+        0 2px 4px 0 rgba(45, 35, 20, 0.04),
+        0 1px 2px 0 rgba(45, 35, 20, 0.05),
+        0 0 1px 0 rgba(45, 35, 20, 0.04);
     }
 
     @variant dark {
+      --background: oklch(0.14 0.02 65);
+      --foreground: oklch(0.97 0.01 95);
+
+      --surface: oklch(0.2 0.022 65);
+      --surface-foreground: oklch(0.97 0.01 95);
+      --surface-secondary: oklch(0.24 0.025 65);
+      --surface-secondary-foreground: oklch(0.97 0.01 95);
+      --surface-tertiary: oklch(0.28 0.028 65);
+      --surface-tertiary-foreground: oklch(0.97 0.01 95);
+
+      --overlay: oklch(0.22 0.025 65);
+      --overlay-foreground: oklch(0.97 0.01 95);
+
+      --muted: oklch(0.62 0.02 285);
+
+      --default: oklch(0.26 0.03 65);
+      --default-foreground: oklch(0.94 0.02 95);
+
       --accent: oklch(0.72 0.13 42);
       --accent-foreground: oklch(0.99 0.01 95);
-      --link: var(--accent);
+
+      --field-background: oklch(0.22 0.025 65);
+      --field-foreground: oklch(0.97 0.01 95);
+      --field-placeholder: oklch(0.55 0.02 285);
+      --field-border: transparent;
+
+      --success: oklch(0.58 0.14 155);
+      --success-foreground: oklch(0.97 0.02 95);
+      --warning: oklch(0.75 0.12 75);
+      --warning-foreground: oklch(0.18 0.03 75);
+      --danger: oklch(0.58 0.18 22);
+      --danger-foreground: oklch(0.98 0.01 95);
+
+      --segment: oklch(0.2 0.022 65);
+      --segment-foreground: oklch(0.97 0.01 95);
+
+      --border: oklch(0.32 0.03 65);
+      --separator: oklch(0.38 0.03 65);
       --focus: var(--accent);
+      --link: var(--accent);
+
+      --surface-shadow: 0 0 0 0 transparent inset;
+      --overlay-shadow: 0 0 1px 0 rgba(255, 255, 255, 0.12) inset;
+      --field-shadow: 0 0 0 0 transparent inset;
     }
   }
 }

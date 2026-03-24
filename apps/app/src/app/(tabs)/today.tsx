@@ -44,7 +44,9 @@ export default function TodayTab() {
   );
 
   const categoriesQuery = useCategoriesQuery(firstBusinessId, signedIn);
-  const productsQuery = useProductsQuery(firstBusinessId, signedIn);
+  const productsQuery = useProductsQuery(firstBusinessId, signedIn, {
+    activeOnly: true,
+  });
 
   const pendingOutboxQuery = useQuery({
     queryKey: outboxPendingKey,

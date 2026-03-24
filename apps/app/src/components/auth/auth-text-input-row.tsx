@@ -1,9 +1,10 @@
 import { Input } from "heroui-native/input";
 import { TextField } from "heroui-native/text-field";
+import { useThemeColor } from "heroui-native/hooks";
 import React from "react";
 import type { TextInputProps } from "react-native";
 
-import { AUTH_INPUT_ROW_CLASS, AUTH_PLACEHOLDER } from "./auth-theme";
+import { AUTH_INPUT_ROW_CLASS } from "./auth-theme";
 
 export type AuthTextInputRowProps = TextInputProps & {
   placeholder: string;
@@ -12,11 +13,14 @@ export type AuthTextInputRowProps = TextInputProps & {
 
 export function AuthTextInputRow({
   placeholder,
-  placeholderTextColor = AUTH_PLACEHOLDER,
+  placeholderTextColor: placeholderTextColorProp,
   variant = "secondary",
   className,
   ...rest
 }: AuthTextInputRowProps) {
+  const fieldPlaceholder = useThemeColor("field-placeholder");
+  const placeholderTextColor = placeholderTextColorProp ?? fieldPlaceholder;
+
   return (
     <TextField className="gap-0">
       <Input

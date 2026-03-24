@@ -6,7 +6,7 @@ export function AuthFieldSeparator() {
   return (
     <Separator
       orientation="horizontal"
-      className="bg-neutral-200"
+      className="bg-border"
       thickness={StyleSheet.hairlineWidth}
     />
   );

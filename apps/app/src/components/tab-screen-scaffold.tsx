@@ -18,6 +18,8 @@ type TabScreenScaffoldProps = {
   belowTitle?: ReactNode;
   subtitle?: string;
   paragraphs: string[];
+  /** Extra blocks after body copy (e.g. dev links). */
+  children?: ReactNode;
 };
 
 /**
@@ -30,6 +32,7 @@ export function TabScreenScaffold({
   belowTitle,
   subtitle,
   paragraphs,
+  children,
 }: TabScreenScaffoldProps) {
   const foreground = useThemeColor("foreground");
   const muted = useThemeColor("muted");
@@ -86,6 +89,7 @@ export function TabScreenScaffold({
               {body}
             </Text>
           ))}
+          {children}
         </ScrollView>
       </SafeAreaView>
     </View>
