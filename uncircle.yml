@@ -1,13 +1,12 @@
 name: desktech-pos
 processes:
-  sst:dev:
-    command: bun run sst dev
-    auto_start: true
   build:web:
     command: bun run build
     working_dir: apps/app
-  web:dev:
-    command: bun run dev
+  expo:dev:
+    command: bunx expo start
     working_dir: apps/app
     auto_start: true
-    auto_restart: true
+  sst:dev:
+    command: bun run sst dev
+    auto_start: true

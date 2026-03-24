@@ -1,6 +1,7 @@
 import "../../sst-env.d.ts";
 import { betterAuth, type BetterAuthOptions, type BetterAuthPlugin } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { expo } from "@better-auth/expo";
 import { admin, openAPI, bearer, testUtils } from "better-auth/plugins";
 import { dash } from "@better-auth/infra";
 import { createOnboardingStep, onboarding } from "@better-auth-extended/onboarding";
@@ -21,9 +22,20 @@ import {
 } from "../user/user.sql";
 import { createID } from "../util/id";
 
+/** Local Node uses NODE_ENV=development; SST Live (`sst dev`) runs the handler with NODE_ENV=production but sets SST_DEV=true. */
+const allowExpoDevOrigins =
+  process.env.NODE_ENV === "development" || process.env.SST_DEV === "true";
+
 const authOptions = {
   basePath: "/api/auth",
-  trustedOrigins: [process.env.FRONTEND_URL || ""],
+  trustedOrigins: [
+    process.env.FRONTEND_URL || "",
+    "desktech://",
+    "desktech://*",
+    ...(allowExpoDevOrigins
+      ? (["exp://", "exp://**", "exp://192.168.*.*:*/**"] as const)
+      : []),
+  ].filter(Boolean),
   database: drizzleAdapter(db, {
     provider: "pg",
     schema: {
@@ -80,6 +92,7 @@ const authOptions = {
     },
   },
   plugins: [
+    expo(),
     bearer(),
     admin({
       ac,

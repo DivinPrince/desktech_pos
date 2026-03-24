@@ -8,8 +8,24 @@ import { HeroUINativeProvider } from "heroui-native/provider";
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <HeroUINativeProvider>
-        <Stack />
+      <HeroUINativeProvider
+        config={{
+          toast: {
+            defaultProps: {
+              placement: "bottom",
+            },
+          },
+        }}
+      >
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: {
+              backgroundColor: "transparent",
+              flex: 1,
+            },
+          }}
+        />
       </HeroUINativeProvider>
     </GestureHandlerRootView>
   );

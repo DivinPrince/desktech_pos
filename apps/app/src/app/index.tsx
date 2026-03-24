@@ -1,11 +1,5 @@
-import React from "react";
-import { View } from "react-native";
-import { Button } from "heroui-native/button";
+import { Redirect } from "expo-router";
 
 export default function Index() {
-  return (
-    <View className="flex-1 items-center justify-center bg-background">
-      <Button onPress={() => console.log("Pressed!")}>Get started</Button>
-    </View>
-  );
+  return <Redirect href="/login" />;
 }

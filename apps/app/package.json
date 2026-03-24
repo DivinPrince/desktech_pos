@@ -1,5 +1,5 @@
 {
-  "name": "app",
+  "name": "@repo/mobile",
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
@@ -11,17 +11,22 @@
     "lint": "expo lint"
   },
   "dependencies": {
+    "@better-auth-extended/onboarding": "^0.1.1",
+    "@better-auth/expo": "^1.5.4",
     "@expo/vector-icons": "^15.0.3",
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.8",
+    "better-auth": "^1.5.4",
     "expo": "~54.0.33",
     "expo-constants": "~18.0.13",
     "expo-font": "~14.0.11",
     "expo-haptics": "~15.0.8",
     "expo-image": "~3.0.11",
     "expo-linking": "~8.0.11",
+    "expo-network": "~8.0.8",
     "expo-router": "~6.0.23",
+    "expo-secure-store": "~15.0.8",
     "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",
     "expo-symbols": "~1.0.8",
