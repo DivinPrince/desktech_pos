@@ -140,7 +140,7 @@ describe("API /api/businesses (full)", () => {
     expect(body.data.role).toBe("manager");
   });
 
-  it("rejects duplicate business slug (case-insensitive)", async () => {
+  it("dedupes duplicate business slug with a random suffix", async () => {
     const helpers = await getTestHelpers();
     const owner = await saveUserAndTrack(
       helpers,
@@ -155,14 +155,16 @@ describe("API /api/businesses (full)", () => {
       headers: jsonHeaders(h),
       body: JSON.stringify({ name: "First", slug: sharedSlug, currency: "USD" }),
     });
-    await readJson(first, 201);
+    const { data: firstBiz } = await readJson<{ data: { slug: string } }>(first, 201);
 
     const second = await app.request("http://localhost/api/businesses", {
       method: "POST",
       headers: jsonHeaders(h),
       body: JSON.stringify({ name: "Second", slug: sharedSlug.toUpperCase(), currency: "USD" }),
     });
-    expect(second.status).toBe(400);
+    const { data: secondBiz } = await readJson<{ data: { slug: string } }>(second, 201);
+    expect(secondBiz.slug).not.toBe(firstBiz.slug);
+    expect(secondBiz.slug.startsWith(`${sharedSlug.toLowerCase()}-`)).toBe(true);
   });
 
   it("PATCH business rejects slug taken by another business", async () => {
@@ -181,7 +183,7 @@ describe("API /api/businesses (full)", () => {
       headers: jsonHeaders(h),
       body: JSON.stringify({ name: "B1", slug: slugA, currency: "USD" }),
     });
-    const { data: biz1 } = await readJson<{ data: { id: string } }>(b1, 201);
+    await readJson(b1, 201);
 
     const b2 = await app.request("http://localhost/api/businesses", {
       method: "POST",

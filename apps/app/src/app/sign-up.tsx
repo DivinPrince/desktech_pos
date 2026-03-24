@@ -26,6 +26,7 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 
+import { GuestRouteGuard } from "@/components/auth/guest-route-guard";
 import { authClient } from "@/lib/auth-client";
 
 const INPUT_ROW_CLASS =
@@ -130,10 +131,11 @@ export default function SignUpScreen() {
   }, [confirmPassword, email, name, password, router, toast]);
 
   return (
-    <View className="flex-1 bg-background">
-      <StatusBar style="dark" />
+    <GuestRouteGuard>
+      <View className="flex-1 bg-background">
+        <StatusBar style="dark" />
 
-      <SafeAreaView style={styles.fill} edges={["top", "left", "right"]}>
+        <SafeAreaView style={styles.fill} edges={["top", "left", "right"]}>
         <View
           pointerEvents="box-none"
           style={[
@@ -308,8 +310,9 @@ export default function SignUpScreen() {
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
-      </SafeAreaView>
-    </View>
+        </SafeAreaView>
+      </View>
+    </GuestRouteGuard>
   );
 }
 
