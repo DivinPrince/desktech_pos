@@ -10,8 +10,8 @@ import {
   SaleService,
 } from "@repo/core/pos";
 import type { z } from "zod";
-import type { CreateBusinessBody } from "../business";
 import { APIResource, type APIClient } from "../core";
+import type { RequestOptions } from "../types";
 
 type Data<T> = { data: T };
 
@@ -54,6 +54,8 @@ type CompleteSaleBody = {
 };
 
 type VoidSaleBody = { reason: string };
+
+type CreateBusinessBody = Omit<z.infer<typeof BusinessService.CreateInput>, "ownerUserId">;
 
 export class BusinessScopedResource extends APIResource {
   constructor(
@@ -102,8 +104,8 @@ export class BusinessScopedResource extends APIResource {
     return this._client.delete<{ success: boolean }>(this.prefix(`/members/${userId}`));
   }
 
-  listCategories() {
-    return this._client.get<Data<z.infer<typeof CategoryService.Info>[]>>(this.prefix("/categories"));
+  listCategories(request?: RequestOptions) {
+    return this._client.get<Data<z.infer<typeof CategoryService.Info>[]>>(this.prefix("/categories"), request);
   }
 
   createCategory(body: Omit<z.infer<typeof CategoryService.CreateInput>, "businessId">) {
@@ -127,11 +129,14 @@ export class BusinessScopedResource extends APIResource {
     return this._client.delete<{ success: boolean }>(this.prefix(`/categories/${id}`));
   }
 
-  listProducts(query?: {
-    search?: string;
-    categoryId?: string;
-    activeOnly?: boolean;
-  }) {
+  listProducts(
+    query?: {
+      search?: string;
+      categoryId?: string;
+      activeOnly?: boolean;
+    },
+    request?: RequestOptions,
+  ) {
     return this._client.get<Data<z.infer<typeof ProductService.Info>[]>>(this.prefix("/products"), {
       query: {
         search: query?.search,
@@ -139,6 +144,7 @@ export class BusinessScopedResource extends APIResource {
         activeOnly:
           query?.activeOnly === undefined ? undefined : query.activeOnly ? "true" : "false",
       },
+      ...request,
     });
   }
 
@@ -179,10 +185,10 @@ export class BusinessScopedResource extends APIResource {
     );
   }
 
-  adjustStock(body: StockAdjustBody) {
+  adjustStock(body: StockAdjustBody, request?: RequestOptions) {
     return this._client.post<StockAdjustBody, Data<z.infer<typeof InventoryService.MovementInfo>>>(
       this.prefix("/stock/adjust"),
-      { body },
+      { body, ...request },
     );
   }
 
@@ -193,10 +199,10 @@ export class BusinessScopedResource extends APIResource {
     );
   }
 
-  receiveBatch(body: ReceiveBatchBody) {
+  receiveBatch(body: ReceiveBatchBody, request?: RequestOptions) {
     return this._client.post<ReceiveBatchBody, Data<z.infer<typeof InventoryService.BatchInfo>>>(
       this.prefix("/batches"),
-      { body },
+      { body, ...request },
     );
   }
 
@@ -251,10 +257,10 @@ export class BusinessScopedResource extends APIResource {
     );
   }
 
-  createDraftSale(body?: { tableId?: string }) {
+  createDraftSale(body?: { tableId?: string }, request?: RequestOptions) {
     return this._client.post<{ tableId?: string }, Data<z.infer<typeof SaleService.SaleInfo>>>(
       this.prefix("/sales"),
-      { body: body ?? {} },
+      { body: body ?? {}, ...request },
     );
   }
 
@@ -269,17 +275,17 @@ export class BusinessScopedResource extends APIResource {
     );
   }
 
-  completeSale(id: string, body: CompleteSaleBody) {
+  completeSale(id: string, body: CompleteSaleBody, request?: RequestOptions) {
     return this._client.post<CompleteSaleBody, Data<z.infer<typeof SaleService.SaleInfo>>>(
       this.prefix(`/sales/${id}/complete`),
-      { body },
+      { body, ...request },
     );
   }
 
-  voidSale(id: string, body: VoidSaleBody) {
+  voidSale(id: string, body: VoidSaleBody, request?: RequestOptions) {
     return this._client.post<VoidSaleBody, Data<z.infer<typeof SaleService.SaleInfo>>>(
       this.prefix(`/sales/${id}/void`),
-      { body },
+      { body, ...request },
     );
   }
 
@@ -348,8 +354,8 @@ export class BusinessesResource extends APIResource {
     super(client);
   }
 
-  list() {
-    return this._client.get<Data<z.infer<typeof BusinessService.Info>[]>>(`/api/businesses`);
+  list(request?: RequestOptions) {
+    return this._client.get<Data<z.infer<typeof BusinessService.Info>[]>>(`/api/businesses`, request);
   }
 
   create(body: CreateBusinessBody) {
