@@ -9,17 +9,10 @@ import { Chip } from "heroui-native/chip";
 import { useThemeColor } from "heroui-native/hooks";
 import type { ThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
-import { Spinner } from "heroui-native/spinner";
 import { Switch } from "heroui-native/switch";
 import { useToast } from "heroui-native/toast";
 import React, { useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -135,9 +128,9 @@ export default function UiPlaygroundScreen() {
 
   if (isPending) {
     return (
-      <View className="flex-1 items-center justify-center bg-background">
+      <View className="flex-1 items-center justify-center bg-background px-6">
         <StatusBar style="dark" />
-        <ActivityIndicator size="large" color={accent} />
+        <Text className="text-center text-[15px] text-muted">Loading…</Text>
       </View>
     );
   }
@@ -442,9 +435,11 @@ export default function UiPlaygroundScreen() {
                 <Text className="text-[15px] text-foreground">Dark preview</Text>
               </View>
             </View>
-            <View className="mt-4 flex-row items-center gap-4">
-              <Spinner size="md" color={accent} />
-              <Skeleton className="h-10 flex-1 rounded-xl" />
+            <View className="mt-4 gap-2">
+              <Text className="text-[13px] text-muted">
+                Prefer muted “Loading…” copy over spinners in screens.
+              </Text>
+              <Skeleton className="h-10 w-full rounded-xl" />
             </View>
           </View>
 

@@ -324,4 +324,99 @@ describe("Catalog, products & inventory", () => {
     );
     await readJson(patch, 200);
   });
+
+  it("product variants: create, stock adjust on variant, list includes variants", async () => {
+    const helpers = await getTestHelpers();
+    const fx = await seedBusinessWithTeam(helpers, garbage, `var-${runId}`);
+
+    const prodRes = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/products`,
+      {
+        method: "POST",
+        headers: jsonHeaders(fx.managerHeaders),
+        body: JSON.stringify({
+          name: "T-Shirt",
+          priceCents: 1999,
+          trackStock: true,
+        }),
+      },
+    );
+    const { data: prod } = await readJson<{ data: { id: string } }>(prodRes, 201);
+
+    const baseAdj = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/stock/adjust`,
+      {
+        method: "POST",
+        headers: jsonHeaders(fx.managerHeaders),
+        body: JSON.stringify({
+          productId: prod.id,
+          quantityDelta: 3,
+          type: "purchase",
+        }),
+      },
+    );
+    await readJson(baseAdj, 201);
+
+    const varRes = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/products/${prod.id}/variants`,
+      {
+        method: "POST",
+        headers: jsonHeaders(fx.managerHeaders),
+        body: JSON.stringify({
+          name: "M",
+          priceCents: 2199,
+        }),
+      },
+    );
+    const { data: variant } = await readJson<{ data: { id: string; quantityOnHand: number } }>(
+      varRes,
+      201,
+    );
+    expect(variant.quantityOnHand).toBe(3);
+
+    const badBaseAdj = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/stock/adjust`,
+      {
+        method: "POST",
+        headers: jsonHeaders(fx.managerHeaders),
+        body: JSON.stringify({
+          productId: prod.id,
+          quantityDelta: 1,
+          type: "adjustment",
+        }),
+      },
+    );
+    expect(badBaseAdj.status).toBe(400);
+
+    const varAdj = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/stock/adjust`,
+      {
+        method: "POST",
+        headers: jsonHeaders(fx.managerHeaders),
+        body: JSON.stringify({
+          productId: prod.id,
+          productVariantId: variant.id,
+          quantityDelta: 5,
+          type: "purchase",
+        }),
+      },
+    );
+    await readJson(varAdj, 201);
+
+    const getProd = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/products/${prod.id}`,
+      { method: "GET", headers: fx.managerHeaders },
+    );
+    const one = await readJson<{
+      data: {
+        quantityOnHand: number;
+        variants: { id: string; quantityOnHand: number }[];
+      };
+    }>(getProd, 200);
+    expect(one.data.variants.length).toBe(1);
+    const v0 = one.data.variants[0];
+    expect(v0).toBeDefined();
+    expect(v0!.quantityOnHand).toBe(8);
+    expect(one.data.quantityOnHand).toBe(8);
+  });
 });

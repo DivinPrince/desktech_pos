@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import { useApiSdk } from "../api-sdk";
 
@@ -62,6 +67,39 @@ export type CategoryUpdateBody = {
   name?: string;
   parentId?: string | null;
   sortOrder?: number;
+};
+
+export type ProductVariantCreateBody = {
+  name: string;
+  sku?: string | null;
+  priceCents: number;
+  costCents?: number | null;
+  active?: boolean;
+  sortOrder?: number;
+};
+
+export type ProductVariantUpdateBody = {
+  name?: string;
+  sku?: string | null;
+  priceCents?: number;
+  costCents?: number | null;
+  active?: boolean;
+  sortOrder?: number;
+};
+
+export type StockAdjustBody = {
+  productId: string;
+  productVariantId?: string;
+  quantityDelta: number;
+  type:
+    | "adjustment"
+    | "purchase"
+    | "waste"
+    | "sale"
+    | "sale_return"
+    | "transfer_in"
+    | "transfer_out";
+  note?: string;
 };
 
 export function useBusinessesQuery(enabled: boolean) {
@@ -132,6 +170,7 @@ export function useProductQuery(
   return useQuery({
     queryKey: catalogKeys.product(businessId ?? "", productId ?? ""),
     enabled: Boolean(businessId && productId && enabled),
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       const { data } = await sdk
         .businesses
@@ -239,6 +278,78 @@ export function useDeleteCategoryMutation(businessId: string | undefined) {
   return useMutation({
     mutationFn: async (categoryId: string) => {
       await sdk.businesses.business(businessId!).deleteCategory(categoryId).withResponse();
+    },
+    onSuccess: invalidate,
+  });
+}
+
+export function useAdjustStockMutation(businessId: string | undefined) {
+  const sdk = useApiSdk();
+  const invalidate = useInvalidateCatalog(businessId);
+  return useMutation({
+    mutationFn: async (body: StockAdjustBody) => {
+      const { data } = await sdk
+        .businesses
+        .business(businessId!)
+        .adjustStock(body)
+        .withResponse();
+      return data.data;
+    },
+    onSuccess: invalidate,
+  });
+}
+
+export function useCreateProductVariantMutation(
+  businessId: string | undefined,
+  productId: string | undefined,
+) {
+  const sdk = useApiSdk();
+  const invalidate = useInvalidateCatalog(businessId);
+  return useMutation({
+    mutationFn: async (body: ProductVariantCreateBody) => {
+      const { data } = await sdk
+        .businesses
+        .business(businessId!)
+        .createProductVariant(productId!, body)
+        .withResponse();
+      return data.data;
+    },
+    onSuccess: invalidate,
+  });
+}
+
+export function useUpdateProductVariantMutation(
+  businessId: string | undefined,
+  productId: string | undefined,
+) {
+  const sdk = useApiSdk();
+  const invalidate = useInvalidateCatalog(businessId);
+  return useMutation({
+    mutationFn: async (input: { variantId: string; body: ProductVariantUpdateBody }) => {
+      const { data } = await sdk
+        .businesses
+        .business(businessId!)
+        .updateProductVariant(productId!, input.variantId, input.body)
+        .withResponse();
+      return data.data;
+    },
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteProductVariantMutation(
+  businessId: string | undefined,
+  productId: string | undefined,
+) {
+  const sdk = useApiSdk();
+  const invalidate = useInvalidateCatalog(businessId);
+  return useMutation({
+    mutationFn: async (variantId: string) => {
+      await sdk
+        .businesses
+        .business(businessId!)
+        .deleteProductVariant(productId!, variantId)
+        .withResponse();
     },
     onSuccess: invalidate,
   });

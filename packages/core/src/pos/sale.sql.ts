@@ -2,7 +2,7 @@ import { pgTable, varchar, integer, text, index } from "drizzle-orm/pg-core";
 import { id, timestamps, ulid, timestamp, money } from "../drizzle/types";
 import { businessTable } from "../business/business.sql";
 import { userTable } from "../user/user.sql";
-import { productTable } from "./catalog.sql";
+import { productTable, productVariantTable } from "./catalog.sql";
 import { diningTableTable } from "./dining.sql";
 
 export const saleStatusEnum = ["draft", "completed", "voided"] as const;
@@ -46,6 +46,9 @@ export const saleLineTable = pgTable(
     productId: ulid("product_id")
       .notNull()
       .references(() => productTable.id, { onDelete: "restrict" }),
+    productVariantId: ulid("product_variant_id").references(() => productVariantTable.id, {
+      onDelete: "restrict",
+    }),
     quantity: integer("quantity").notNull(),
     unitPriceCents: money("unit_price_cents").notNull(),
     lineDiscountCents: money("line_discount_cents").notNull().default(0),

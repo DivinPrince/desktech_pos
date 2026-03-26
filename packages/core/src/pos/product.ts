@@ -6,6 +6,7 @@ import { createID } from "../util/id";
 import { fn } from "../util/fn";
 import { categoryTable, productTable } from "./catalog.sql";
 import { productStockTable } from "./inventory.sql";
+import { ProductVariantService } from "./product-variant";
 import { saleLineTable, saleTable } from "./sale.sql";
 
 export namespace ProductService {
@@ -23,6 +24,7 @@ export namespace ProductService {
     trackStock: z.boolean(),
     active: z.boolean(),
     quantityOnHand: z.number(),
+    variants: z.array(ProductVariantService.Info),
     createdAt: z.date(),
     updatedAt: z.date(),
   });
@@ -59,6 +61,7 @@ export namespace ProductService {
   function serialize(
     row: typeof productTable.$inferSelect,
     quantityOnHand: number,
+    variants: z.infer<typeof ProductVariantService.Info>[],
   ): z.infer<typeof Info> {
     return {
       id: row.id,
@@ -74,6 +77,7 @@ export namespace ProductService {
       trackStock: row.trackStock,
       active: row.active,
       quantityOnHand,
+      variants,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };
@@ -117,7 +121,17 @@ export namespace ProductService {
           .where(and(...conditions))
           .orderBy(asc(productTable.name));
 
-        return rows.map((r) => serialize(r.product, r.qty ?? 0));
+        const ids = rows.map((r) => r.product.id);
+        const variantMap = await ProductVariantService.listRowsForProducts(tx, businessId, ids);
+
+        return rows.map((r) => {
+          const variants = variantMap.get(r.product.id) ?? [];
+          const quantityOnHand =
+            variants.length > 0
+              ? variants.reduce((s, v) => s + v.quantityOnHand, 0)
+              : (r.qty ?? 0);
+          return serialize(r.product, quantityOnHand, variants);
+        });
       });
     },
   );
@@ -142,7 +156,15 @@ export namespace ProductService {
           .where(and(eq(productTable.id, id), eq(productTable.businessId, businessId)))
           .limit(1);
         if (!row) return undefined;
-        return serialize(row.product, row.qty ?? 0);
+        const variantMap = await ProductVariantService.listRowsForProducts(tx, businessId, [
+          row.product.id,
+        ]);
+        const variants = variantMap.get(row.product.id) ?? [];
+        const quantityOnHand =
+          variants.length > 0
+            ? variants.reduce((s, v) => s + v.quantityOnHand, 0)
+            : (row.qty ?? 0);
+        return serialize(row.product, quantityOnHand, variants);
       });
     },
   );
@@ -184,7 +206,7 @@ export namespace ProductService {
         quantity: 0,
       });
 
-      return serialize(row, 0);
+      return serialize(row, 0, []);
     });
   });
 
@@ -237,7 +259,13 @@ export namespace ProductService {
           ),
         );
       const qty = stk?.quantity ?? 0;
-      return serialize(row, qty);
+      const variantMap = await ProductVariantService.listRowsForProducts(tx, input.businessId, [
+        input.id,
+      ]);
+      const variants = variantMap.get(input.id) ?? [];
+      const quantityOnHand =
+        variants.length > 0 ? variants.reduce((s, v) => s + v.quantityOnHand, 0) : qty;
+      return serialize(row, quantityOnHand, variants);
     });
   });
 

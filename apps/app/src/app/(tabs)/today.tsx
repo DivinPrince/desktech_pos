@@ -1,12 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useThemeColor } from "heroui-native/hooks";
 import React, { useCallback, useMemo } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  Text,
-  View,
-} from "react-native";
+import { Pressable, Text, View } from "react-native";
 
 import { TabScreenScaffold } from "@/components/tab-screen-scaffold";
 import { flushOutboxOnce } from "@/lib/db/flush-outbox";
@@ -88,7 +83,7 @@ export default function TodayTab() {
             Catalog (persisted when offline)
           </Text>
           {catalogLoading ? (
-            <ActivityIndicator color={accentColor} />
+            <Text style={{ color: muted, fontSize: 14 }}>Loading catalog…</Text>
           ) : catalogError ? (
             <Text style={{ color: muted, fontSize: 14 }}>Failed to load catalog.</Text>
           ) : (

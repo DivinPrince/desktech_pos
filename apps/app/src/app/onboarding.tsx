@@ -11,7 +11,6 @@ import { TextField } from "heroui-native/text-field";
 import { useToast } from "heroui-native/toast";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -215,10 +214,9 @@ export default function OnboardingScreen() {
 
   if (checking) {
     return (
-      <View className="flex-1 items-center justify-center bg-background">
+      <View className="flex-1 items-center justify-center bg-background px-6">
         <StatusBar style="dark" />
-        <ActivityIndicator size="large" color={accentColor} />
-        <Text className="mt-3 text-[15px] text-muted">Loading setup…</Text>
+        <Text className="text-center text-[15px] text-muted">Loading setup…</Text>
       </View>
     );
   }

@@ -6,7 +6,6 @@ import { StatusBar } from "expo-status-bar";
 import { useThemeColor } from "heroui-native/hooks";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
@@ -98,21 +97,20 @@ export default function InventoryScreen() {
     signedIn && segment === "categories",
   );
 
+  /** Only true during explicit pull-to-refresh — avoids native refresh spinner over list on background refetch. */
+  const [pullRefreshing, setPullRefreshing] = useState(false);
+
   const onRefresh = useCallback(async () => {
     if (!businessId) return;
-    await queryClient.invalidateQueries({
-      queryKey: catalogKeys.all(businessId),
-    });
+    setPullRefreshing(true);
+    try {
+      await queryClient.refetchQueries({
+        queryKey: catalogKeys.all(businessId),
+      });
+    } finally {
+      setPullRefreshing(false);
+    }
   }, [businessId, queryClient]);
-
-  const refreshingProducts =
-    productsQuery.isFetching && !productsQuery.isPending && !productsQuery.isLoading;
-  const refreshingCategories =
-    categoriesQuery.isFetching &&
-    !categoriesQuery.isPending &&
-    !categoriesQuery.isLoading;
-  const refreshing =
-    segment === "products" ? refreshingProducts : refreshingCategories;
 
   const tabBarClearance = 72;
   const listBottomPad = Math.max(insets.bottom, 12) + tabBarClearance;
@@ -130,15 +128,15 @@ export default function InventoryScreen() {
     );
   }, [categoriesRaw, categorySearch]);
 
-  const catalogLoading =
-    businessesQuery.isPending ||
-    (Boolean(businessId) &&
-      (segment === "products" ? productsQuery.isPending : categoriesQuery.isPending));
-
   const listError =
     segment === "products" ? productsQuery.error : categoriesQuery.error;
 
-  const showLists = signedIn && businessId && !catalogLoading && !listError;
+  const productsInitialLoad =
+    Boolean(businessId) && productsQuery.isPending && products.length === 0;
+  const categoriesInitialLoad =
+    Boolean(businessId) && categoriesQuery.isPending && categoriesRaw.length === 0;
+
+  const showLists = signedIn && businessId && !listError;
 
   return (
     <View style={styles.root} className="bg-background">
@@ -248,12 +246,12 @@ export default function InventoryScreen() {
           <Text className="px-4 text-[15px] text-muted">
             Could not load businesses. Pull to refresh.
           </Text>
+        ) : businessesQuery.isPending ? (
+          <Text className="px-4 text-[15px] text-muted">Loading your workspace…</Text>
         ) : !businessId ? (
           <Text className="px-4 text-[15px] text-muted">
             No business selected. Finish onboarding first.
           </Text>
-        ) : catalogLoading ? (
-          <ActivityIndicator color={accent} className="mt-8" />
         ) : listError ? (
           <Text className="px-4 text-[15px] text-muted">
             Failed to load. Pull to try again.
@@ -266,7 +264,7 @@ export default function InventoryScreen() {
               keyExtractor={(p) => p.id}
               refreshControl={
                 <RefreshControl
-                  refreshing={refreshing}
+                  refreshing={pullRefreshing}
                   onRefresh={() => void onRefresh()}
                   tintColor={accent}
                 />
@@ -324,9 +322,11 @@ export default function InventoryScreen() {
               )}
               ListEmptyComponent={
                 <Text className="py-10 text-center text-[15px] text-muted">
-                  {debouncedSearch.length > 0
-                    ? "No matching products."
-                    : "No products yet. Tap + to add one."}
+                  {productsInitialLoad
+                    ? "Loading products…"
+                    : debouncedSearch.length > 0
+                      ? "No matching products."
+                      : "No products yet. Tap + to add one."}
                 </Text>
               }
             />
@@ -337,7 +337,7 @@ export default function InventoryScreen() {
               keyExtractor={(c) => c.id}
               refreshControl={
                 <RefreshControl
-                  refreshing={refreshing}
+                  refreshing={pullRefreshing}
                   onRefresh={() => void onRefresh()}
                   tintColor={accent}
                 />
@@ -375,9 +375,11 @@ export default function InventoryScreen() {
               )}
               ListEmptyComponent={
                 <Text className="py-10 text-center text-[15px] text-muted">
-                  {categorySearch.length > 0
-                    ? "No matching categories."
-                    : "No categories yet. Tap + to add one."}
+                  {categoriesInitialLoad
+                    ? "Loading categories…"
+                    : categorySearch.length > 0
+                      ? "No matching categories."
+                      : "No categories yet. Tap + to add one."}
                 </Text>
               }
             />

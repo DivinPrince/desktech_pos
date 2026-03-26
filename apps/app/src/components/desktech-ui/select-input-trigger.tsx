@@ -13,9 +13,12 @@ export type SelectInputTriggerProps = {
   errorMessage?: string;
 };
 
+/** Padding / typography aligned with HeroUI `Input` + `INPUT_ROW_CLASS` (borderless rows). */
+const ROW_CLASS =
+  "flex-row items-center rounded-xl border-0 bg-transparent px-3 py-2.5 shadow-none active:opacity-80";
+
 /**
- * Looks like a normal form select: label + single-line control with chevron,
- * aligned with HeroUI `Input` rows on inventory/editor screens.
+ * Select trigger that matches borderless `Input` rows on product/category editors.
  */
 export function SelectInputTrigger({
   label,
@@ -25,8 +28,9 @@ export function SelectInputTrigger({
   disabled = false,
   errorMessage,
 }: SelectInputTriggerProps) {
-  const muted = useThemeColor("muted");
+  const fieldPlaceholder = useThemeColor("field-placeholder");
   const fg = useThemeColor("foreground");
+  const muted = useThemeColor("muted");
 
   const trimmed = displayValue.trim();
   const showPlaceholder = trimmed.length === 0;
@@ -40,12 +44,12 @@ export function SelectInputTrigger({
         accessibilityHint="Opens list to choose an option"
         disabled={disabled}
         onPress={onPress}
-        className="flex-row items-center rounded-xl border border-border bg-surface-secondary px-3 py-2.5 active:opacity-90"
-        style={{ minHeight: 48, opacity: disabled ? 0.55 : 1 }}
+        className={ROW_CLASS}
+        style={{ opacity: disabled ? 0.55 : 1 }}
       >
         <Text
-          className="min-w-0 flex-1 text-[15px] leading-5"
-          style={{ color: showPlaceholder ? muted : fg }}
+          className="min-w-0 flex-1 text-[15px] leading-5 text-field-foreground"
+          style={{ color: showPlaceholder ? fieldPlaceholder : fg }}
           numberOfLines={1}
         >
           {showPlaceholder ? placeholder : displayValue}

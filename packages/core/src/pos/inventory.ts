@@ -1,13 +1,14 @@
-import { and, desc, eq, gt, gte, lte } from "drizzle-orm";
+import { and, count, desc, eq, gt, gte, lte } from "drizzle-orm";
 import { z } from "zod";
 import { withTransaction, createTransaction, type TxOrDb } from "../drizzle/transaction";
 import { ErrorCodes, NotFoundError, VisibleError } from "../error";
 import { createID } from "../util/id";
 import { fn } from "../util/fn";
-import { productTable } from "./catalog.sql";
+import { productTable, productVariantTable } from "./catalog.sql";
 import {
   inventoryBatchTable,
   productStockTable,
+  productVariantStockTable,
   stockMovementTable,
   type StockMovementType,
   stockMovementTypeEnum,
@@ -18,6 +19,7 @@ export namespace InventoryService {
     id: z.string(),
     businessId: z.string(),
     productId: z.string(),
+    productVariantId: z.string().nullable(),
     type: z.enum(stockMovementTypeEnum),
     quantityDelta: z.number(),
     referenceSaleId: z.string().nullable(),
@@ -43,6 +45,7 @@ export namespace InventoryService {
       id: row.id,
       businessId: row.businessId,
       productId: row.productId,
+      productVariantId: row.productVariantId ?? null,
       type: row.type as StockMovementType,
       quantityDelta: row.quantityDelta,
       referenceSaleId: row.referenceSaleId,
@@ -83,10 +86,24 @@ export namespace InventoryService {
     return p;
   }
 
+  async function productHasVariants(tx: TxOrDb, businessId: string, productId: string) {
+    const [r] = await tx
+      .select({ n: count() })
+      .from(productVariantTable)
+      .where(
+        and(
+          eq(productVariantTable.businessId, businessId),
+          eq(productVariantTable.productId, productId),
+        ),
+      );
+    return Number(r?.n ?? 0) > 0;
+  }
+
   export const adjustStock = fn(
     z.object({
       businessId: z.string(),
       productId: z.string(),
+      productVariantId: z.string().optional(),
       quantityDelta: z.number().int(),
       type: z.enum(stockMovementTypeEnum),
       note: z.string().max(2000).optional(),
@@ -95,6 +112,79 @@ export namespace InventoryService {
     async (input) => {
       return createTransaction(async (tx) => {
         await ensureProduct(tx, input.businessId, input.productId);
+
+        if (input.productVariantId) {
+          const [v] = await tx
+            .select()
+            .from(productVariantTable)
+            .where(
+              and(
+                eq(productVariantTable.id, input.productVariantId),
+                eq(productVariantTable.businessId, input.businessId),
+                eq(productVariantTable.productId, input.productId),
+              ),
+            )
+            .limit(1);
+          if (!v) {
+            throw new NotFoundError("ProductVariant", input.productVariantId);
+          }
+
+          const [stk] = await tx
+            .select()
+            .from(productVariantStockTable)
+            .where(
+              and(
+                eq(productVariantStockTable.businessId, input.businessId),
+                eq(productVariantStockTable.productVariantId, input.productVariantId),
+              ),
+            );
+          if (!stk) {
+            throw new NotFoundError("ProductVariantStock", input.productVariantId);
+          }
+          const nextQty = stk.quantity + input.quantityDelta;
+          if (nextQty < 0) {
+            throw new VisibleError(
+              "validation",
+              ErrorCodes.Validation.INVALID_STATE,
+              "Insufficient stock for this adjustment",
+            );
+          }
+
+          await tx
+            .update(productVariantStockTable)
+            .set({ quantity: nextQty })
+            .where(
+              and(
+                eq(productVariantStockTable.businessId, input.businessId),
+                eq(productVariantStockTable.productVariantId, input.productVariantId),
+              ),
+            );
+
+          const id = createID("stock_movement");
+          const [mov] = await tx
+            .insert(stockMovementTable)
+            .values({
+              id,
+              businessId: input.businessId,
+              productId: input.productId,
+              productVariantId: input.productVariantId,
+              type: input.type,
+              quantityDelta: input.quantityDelta,
+              note: input.note ?? null,
+              createdByUserId: input.userId,
+            })
+            .returning();
+          if (!mov) throw new Error("Failed to record stock movement");
+          return movSerialize(mov);
+        }
+
+        if (await productHasVariants(tx, input.businessId, input.productId)) {
+          throw new VisibleError(
+            "validation",
+            ErrorCodes.Validation.INVALID_STATE,
+            "This product uses variants — adjust stock on a specific variant",
+          );
+        }
 
         const [stk] = await tx
           .select()
@@ -134,6 +224,7 @@ export namespace InventoryService {
             id,
             businessId: input.businessId,
             productId: input.productId,
+            productVariantId: null,
             type: input.type,
             quantityDelta: input.quantityDelta,
             note: input.note ?? null,
@@ -184,6 +275,13 @@ export namespace InventoryService {
     async (input) => {
       return createTransaction(async (tx) => {
         await ensureProduct(tx, input.businessId, input.productId);
+        if (await productHasVariants(tx, input.businessId, input.productId)) {
+          throw new VisibleError(
+            "validation",
+            ErrorCodes.Validation.INVALID_STATE,
+            "Batch receiving is not available for products that use variants",
+          );
+        }
 
         const batchId = createID("inventory_batch");
         const [batch] = await tx
@@ -225,6 +323,7 @@ export namespace InventoryService {
           id: movId,
           businessId: input.businessId,
           productId: input.productId,
+          productVariantId: null,
           type: "purchase",
           quantityDelta: input.quantity,
           note: input.lotCode ? `Lot ${input.lotCode}` : null,
@@ -285,6 +384,13 @@ export namespace InventoryService {
         }
 
         await ensureProduct(tx, input.businessId, b.productId);
+        if (await productHasVariants(tx, input.businessId, b.productId)) {
+          throw new VisibleError(
+            "validation",
+            ErrorCodes.Validation.INVALID_STATE,
+            "Batch adjustments are not available for products that use variants",
+          );
+        }
 
         const [stk] = await tx
           .select()
@@ -327,6 +433,7 @@ export namespace InventoryService {
             id: movId,
             businessId: input.businessId,
             productId: b.productId,
+            productVariantId: null,
             type: "adjustment",
             quantityDelta: input.quantityDelta,
             note: input.note ?? `Batch ${input.batchId}`,

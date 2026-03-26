@@ -8,6 +8,7 @@ export * from "./expense.sql";
 export * from "./inventory";
 export * from "./inventory.sql";
 export * from "./product";
+export * from "./product-variant";
 export * from "./reports";
 export * from "./sale";
 export * from "./sale.sql";

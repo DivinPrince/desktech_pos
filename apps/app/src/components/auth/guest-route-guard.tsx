@@ -1,7 +1,6 @@
 import { Redirect } from "expo-router";
-import { useThemeColor } from "heroui-native/hooks";
 import React from "react";
-import { ActivityIndicator, View } from "react-native";
+import { Text, View } from "react-native";
 
 import { authClient } from "@/lib/auth-client";
 import { postAuthRoute } from "@/lib/auth-session";
@@ -11,13 +10,12 @@ type GuestRouteGuardProps = {
 };
 
 export function GuestRouteGuard({ children }: GuestRouteGuardProps) {
-  const accentColor = useThemeColor("accent");
   const { data: session, isPending } = authClient.useSession();
 
   if (isPending) {
     return (
-      <View className="flex-1 items-center justify-center bg-background">
-        <ActivityIndicator size="large" color={accentColor} />
+      <View className="flex-1 items-center justify-center bg-background px-6">
+        <Text className="text-center text-[15px] text-muted">Loading…</Text>
       </View>
     );
   }

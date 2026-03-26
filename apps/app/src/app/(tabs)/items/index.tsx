@@ -5,7 +5,6 @@ import { StatusBar } from "expo-status-bar";
 import { useThemeColor } from "heroui-native/hooks";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -77,26 +76,30 @@ export default function ItemsTab() {
     search: debouncedSearch,
   });
 
+  const [pullRefreshing, setPullRefreshing] = useState(false);
+
   const onRefresh = useCallback(async () => {
     if (!businessId) return;
-    await queryClient.invalidateQueries({
-      queryKey: catalogKeys.all(businessId),
-    });
+    setPullRefreshing(true);
+    try {
+      await queryClient.refetchQueries({
+        queryKey: catalogKeys.all(businessId),
+      });
+    } finally {
+      setPullRefreshing(false);
+    }
   }, [businessId, queryClient]);
-
-  const refreshing =
-    productsQuery.isFetching && !productsQuery.isPending && !productsQuery.isLoading;
 
   const tabBarClearance = 72;
   const scrollBottomPad = Math.max(insets.bottom, 12) + tabBarClearance + 16;
 
-  const catalogLoading =
-    businessesQuery.isPending || (Boolean(businessId) && productsQuery.isPending);
   const catalogError = businessesQuery.error ?? productsQuery.error;
 
   const products = productsQuery.data ?? [];
-  const showCatalogGrid =
-    signedIn && businessId && !catalogLoading && !catalogError;
+  const productsInitialLoad =
+    Boolean(businessId) && productsQuery.isPending && products.length === 0;
+
+  const showCatalogContent = signedIn && businessId && !catalogError;
 
   return (
     <View style={styles.root} className="bg-background">
@@ -166,7 +169,7 @@ export default function ItemsTab() {
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
+            refreshing={pullRefreshing}
             onRefresh={() => void onRefresh()}
             tintColor={accent}
           />
@@ -190,6 +193,8 @@ export default function ItemsTab() {
           >
             Could not load businesses. Pull to refresh when the API is reachable.
           </Text>
+        ) : businessesQuery.isPending ? (
+          <Text style={{ color: muted, fontSize: 15 }}>Loading your workspace…</Text>
         ) : !businessId ? (
           <Text
             style={{
@@ -199,8 +204,6 @@ export default function ItemsTab() {
           >
             No business yet — finish onboarding or create a business on the server.
           </Text>
-        ) : catalogLoading ? (
-          <ActivityIndicator color={accent} style={{ marginTop: 24 }} />
         ) : catalogError ? (
           <Text
             style={{
@@ -210,7 +213,7 @@ export default function ItemsTab() {
           >
             Failed to load products. Pull to try again.
           </Text>
-        ) : showCatalogGrid ? (
+        ) : showCatalogContent ? (
           <View>
             <ProductListGrid>
               {products.map((p) => (
@@ -225,7 +228,18 @@ export default function ItemsTab() {
                 label="Add item"
               />
             </ProductListGrid>
-            {products.length === 0 ? (
+            {productsInitialLoad ? (
+              <Text
+                style={{
+                  color: muted,
+                  fontSize: 14,
+                  marginTop: 12,
+                  textAlign: "center",
+                }}
+              >
+                Loading products…
+              </Text>
+            ) : products.length === 0 ? (
               <Text
                 style={{
                   color: muted,

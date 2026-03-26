@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Redirect, Tabs } from "expo-router";
 import { useThemeColor } from "heroui-native/hooks";
 import React, { useMemo } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { Text, View } from "react-native";
 
 import { authClient } from "@/lib/auth-client";
 import { sessionNeedsOnboarding, type SessionPayload } from "@/lib/auth-session";
@@ -84,8 +84,8 @@ export default function TabsLayout() {
 
   if (isPending) {
     return (
-      <View className="flex-1 items-center justify-center bg-background">
-        <ActivityIndicator size="large" color={accentColor} />
+      <View className="flex-1 items-center justify-center bg-background px-6">
+        <Text className="text-center text-[15px] text-muted">Loading…</Text>
       </View>
     );
   }

@@ -8,7 +8,6 @@ import { useToast } from "heroui-native/toast";
 import { APIError } from "@repo/sdk";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -59,7 +58,6 @@ export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProp
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { toast } = useToast();
-  const accent = useThemeColor("accent");
   const fg = useThemeColor("foreground");
   const danger = useThemeColor("danger");
 
@@ -240,8 +238,8 @@ export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProp
 
   if (!signedIn || businessesQuery.isPending) {
     return (
-      <View className="flex-1 items-center justify-center bg-background">
-        <ActivityIndicator color={accent} />
+      <View className="flex-1 items-center justify-center bg-background px-6">
+        <Text className="text-center text-[15px] text-muted">Loading…</Text>
       </View>
     );
   }
@@ -261,8 +259,8 @@ export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProp
 
   if (isEdit && categoriesQuery.isPending && !editingCategory) {
     return (
-      <View className="flex-1 items-center justify-center bg-background">
-        <ActivityIndicator color={accent} />
+      <View className="flex-1 items-center justify-center bg-background px-6">
+        <Text className="text-center text-[15px] text-muted">Loading category…</Text>
       </View>
     );
   }
@@ -306,6 +304,8 @@ export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProp
       <ScrollView
         style={styles.fill}
         keyboardShouldPersistTaps="handled"
+        overScrollMode="never"
+        alwaysBounceVertical={false}
         contentContainerStyle={{
           paddingHorizontal: 16,
           paddingTop: 16,
