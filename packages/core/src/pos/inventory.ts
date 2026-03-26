@@ -5,6 +5,7 @@ import { ErrorCodes, NotFoundError, VisibleError } from "../error";
 import { createID } from "../util/id";
 import { fn } from "../util/fn";
 import { productTable, productVariantTable } from "./catalog.sql";
+import { ProductService } from "./product";
 import {
   inventoryBatchTable,
   productStockTable,
@@ -99,6 +100,11 @@ export namespace InventoryService {
     return Number(r?.n ?? 0) > 0;
   }
 
+  export const AdjustStockResult = z.object({
+    movement: MovementInfo,
+    product: ProductService.Info,
+  });
+
   export const adjustStock = fn(
     z.object({
       businessId: z.string(),
@@ -110,7 +116,7 @@ export namespace InventoryService {
       userId: z.string(),
     }),
     async (input) => {
-      return createTransaction(async (tx) => {
+      const movement = await createTransaction(async (tx) => {
         await ensureProduct(tx, input.businessId, input.productId);
 
         if (input.productVariantId) {
@@ -234,6 +240,12 @@ export namespace InventoryService {
         if (!mov) throw new Error("Failed to record stock movement");
         return movSerialize(mov);
       });
+
+      const product = await ProductService.byId({ businessId: input.businessId, id: input.productId });
+      if (!product) {
+        throw new NotFoundError("Product", input.productId);
+      }
+      return { movement, product };
     },
   );
 

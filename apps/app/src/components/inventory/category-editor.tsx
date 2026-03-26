@@ -120,8 +120,8 @@ export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProp
     return [
       {
         value: "",
-        label: "None (top level)",
-        searchText: "none top level root",
+        label: "None",
+        searchText: "none no parent root",
       },
     ];
   }, []);
@@ -138,7 +138,7 @@ export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProp
 
   const parentLabel =
     parentId == null
-      ? "Top level"
+      ? "None"
       : (categories.find((c) => c.id === parentId)?.name ?? "Unknown parent");
 
   const saving =

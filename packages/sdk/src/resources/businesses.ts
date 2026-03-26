@@ -216,10 +216,10 @@ export class BusinessScopedResource extends APIResource {
   }
 
   adjustStock(body: StockAdjustBody, request?: RequestOptions) {
-    return this._client.post<StockAdjustBody, Data<z.infer<typeof InventoryService.MovementInfo>>>(
-      this.prefix("/stock/adjust"),
-      { body, ...request },
-    );
+    return this._client.post<
+      StockAdjustBody,
+      Data<z.infer<typeof InventoryService.AdjustStockResult>>
+    >(this.prefix("/stock/adjust"), { body, ...request });
   }
 
   listBatches(query?: { productId?: string }) {

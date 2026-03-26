@@ -282,6 +282,7 @@ export function useDeleteCategoryMutation(businessId: string | undefined) {
 
 export function useAdjustStockMutation(businessId: string | undefined) {
   const sdk = useApiSdk();
+  const queryClient = useQueryClient();
   const invalidate = useInvalidateCatalog(businessId);
   return useMutation({
     mutationFn: async (body: StockAdjustBody) => {
@@ -292,7 +293,15 @@ export function useAdjustStockMutation(businessId: string | undefined) {
         .withResponse();
       return data.data;
     },
-    onSuccess: invalidate,
+    onSuccess: (result, variables) => {
+      if (businessId) {
+        queryClient.setQueryData(
+          catalogKeys.product(businessId, variables.productId),
+          result.product,
+        );
+      }
+      invalidate();
+    },
   });
 }
 

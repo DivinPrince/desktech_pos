@@ -639,8 +639,7 @@ export function ProductEditor({ productId }: ProductEditorProps) {
               product.variants.length > 0 ? (
                 <View className="gap-3">
                   <Text className="text-[13px] leading-5 text-muted">
-                    Variants each have their own price and stock. Sales must pick a variant for this
-                    product.
+                    Each variant has its own price and stock.
                   </Text>
                   {product.variants.map((v) => (
                     <View
@@ -690,12 +689,12 @@ export function ProductEditor({ productId }: ProductEditorProps) {
                         className="mt-3 rounded-xl bg-background/90 px-3 py-2.5 active:opacity-80"
                       >
                         <Text className="text-[12px] font-medium uppercase text-muted">
-                          Stock on hand
+                          Available to sell
                         </Text>
                         <Text className="mt-0.5 text-[18px] font-semibold tabular-nums text-foreground">
                           {v.quantityOnHand}
                         </Text>
-                        <Text className="mt-1 text-[12px] text-accent">Tap to add, remove, or adjust</Text>
+                        <Text className="mt-1 text-[12px] text-accent">Tap to adjust</Text>
                       </Pressable>
                     </View>
                   ))}
@@ -745,7 +744,7 @@ export function ProductEditor({ productId }: ProductEditorProps) {
                   className="rounded-xl bg-surface-secondary/50 px-3 py-3 active:opacity-80"
                 >
                   <Text className="text-[12px] font-medium uppercase text-muted">
-                    Quantity on hand
+                    Available to sell
                   </Text>
                   <TextField className="mt-1 gap-0" pointerEvents="none">
                     <Input
@@ -755,12 +754,12 @@ export function ProductEditor({ productId }: ProductEditorProps) {
                       className={INPUT_ROW_CLASS}
                     />
                   </TextField>
-                  <Text className="mt-2 text-[12px] text-accent">Tap to manage stock</Text>
+                  <Text className="mt-2 text-[12px] text-accent">Tap to adjust</Text>
                 </Pressable>
               )
             ) : (
               <Text className="text-[13px] text-muted">
-                Save this product first, then you can set on-hand quantity and optional variants.
+                Save the product first to set stock and variants.
               </Text>
             )}
 
@@ -834,7 +833,7 @@ export function ProductEditor({ productId }: ProductEditorProps) {
               ? (product.variants.find((v) => v.id === stockVariantId)?.quantityOnHand ?? 0)
               : product.quantityOnHand
           }
-          trackStock={trackStock}
+          trackStock={product.trackStock}
         />
       ) : null}
 

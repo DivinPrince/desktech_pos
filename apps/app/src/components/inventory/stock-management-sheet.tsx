@@ -9,6 +9,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   Text,
   View,
   type KeyboardAvoidingViewProps,
@@ -18,6 +19,24 @@ import { useAdjustStockMutation, type StockAdjustBody } from "@/lib/queries/busi
 
 const INPUT_ROW_CLASS =
   "border-0 border-transparent bg-transparent rounded-xl py-2.5 px-3 text-[15px] leading-5 shadow-none ios:shadow-none android:shadow-none focus:border-transparent text-field-foreground";
+
+const RECORD_AS_OPTIONS: { apiType: StockAdjustBody["type"]; label: string }[] = [
+  { apiType: "purchase", label: "Purchase" },
+  { apiType: "waste", label: "Waste / damage" },
+  { apiType: "adjustment", label: "Correction" },
+];
+
+type Direction = "add" | "remove";
+
+function RadioOuter({ selected }: { selected: boolean }) {
+  return (
+    <View
+      className={`h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2 ${selected ? "border-accent" : "border-border"}`}
+    >
+      {selected ? <View className="h-2.5 w-2.5 rounded-full bg-accent" /> : null}
+    </View>
+  );
+}
 
 function errorMessage(err: unknown): string {
   if (err instanceof APIError) return err.message;
@@ -38,12 +57,6 @@ export type StockManagementSheetProps = {
   trackStock: boolean;
 };
 
-const MOVE_TYPES: { id: StockAdjustBody["type"]; label: string }[] = [
-  { id: "adjustment", label: "Adjustment" },
-  { id: "purchase", label: "Purchase / receive" },
-  { id: "waste", label: "Waste / damage" },
-];
-
 export function StockManagementSheet({
   visible,
   onClose,
@@ -59,56 +72,75 @@ export function StockManagementSheet({
   const adjustMutation = useAdjustStockMutation(businessId);
 
   const [amountStr, setAmountStr] = useState("1");
-  const [moveType, setMoveType] = useState<StockAdjustBody["type"]>("adjustment");
+  const [recordKey, setRecordKey] = useState(0);
+  const [direction, setDirection] = useState<Direction>("add");
   const [note, setNote] = useState("");
+
+  const recordAs = RECORD_AS_OPTIONS[recordKey] ?? RECORD_AS_OPTIONS[0]!;
+  const isCorrection = recordAs.apiType === "adjustment";
+
+  const selectRecordKey = useCallback((idx: number) => {
+    setRecordKey(idx);
+    const t = RECORD_AS_OPTIONS[idx]?.apiType;
+    if (t === "waste") setDirection("remove");
+    else if (t === "purchase") setDirection("add");
+    else if (t === "adjustment") setDirection("add");
+  }, []);
 
   useEffect(() => {
     if (!visible) return;
     setAmountStr("1");
-    setMoveType("adjustment");
+    setRecordKey(0);
+    setDirection("add");
     setNote("");
   }, [visible, productId, productVariantId]);
 
-  const applyDelta = useCallback(
-    (sign: 1 | -1) => {
-      if (!businessId || !trackStock) return;
-      const n = Number.parseInt(amountStr, 10);
-      if (!Number.isFinite(n) || n <= 0) {
-        toast.show({ variant: "danger", label: "Enter a positive whole number" });
-        return;
-      }
-      const quantityDelta = sign * n;
-      const body: StockAdjustBody = {
-        productId,
-        quantityDelta,
-        type: moveType,
-        note: note.trim() || undefined,
-      };
-      if (productVariantId) body.productVariantId = productVariantId;
-
-      adjustMutation.mutate(body, {
-        onSuccess: () => {
-          toast.show({ variant: "success", label: "Stock updated" });
-          onClose();
-        },
-        onError: (e) => {
-          toast.show({ variant: "danger", label: errorMessage(e) });
-        },
-      });
-    },
-    [
-      amountStr,
-      businessId,
-      moveType,
-      note,
-      onClose,
+  const onSave = useCallback(() => {
+    if (!businessId || !trackStock) return;
+    const n = Number.parseInt(amountStr, 10);
+    if (!Number.isFinite(n) || n <= 0) {
+      toast.show({ variant: "danger", label: "Enter a positive whole number" });
+      return;
+    }
+    let quantityDelta: number;
+    if (recordAs.apiType === "purchase") {
+      quantityDelta = n;
+    } else if (recordAs.apiType === "waste") {
+      quantityDelta = -n;
+    } else {
+      const sign: 1 | -1 = direction === "add" ? 1 : -1;
+      quantityDelta = sign * n;
+    }
+    const body: StockAdjustBody = {
       productId,
-      productVariantId,
-      adjustMutation,
-      toast,
-      trackStock,
-    ],
-  );
+      quantityDelta,
+      type: recordAs.apiType,
+      note: note.trim() || undefined,
+    };
+    if (productVariantId) body.productVariantId = productVariantId;
+
+    adjustMutation.mutate(body, {
+      onSuccess: () => {
+        toast.show({ variant: "success", label: "Stock saved" });
+        onClose();
+      },
+      onError: (e) => {
+        toast.show({ variant: "danger", label: errorMessage(e) });
+      },
+    });
+  }, [
+    amountStr,
+    businessId,
+    direction,
+    note,
+    onClose,
+    productId,
+    productVariantId,
+    recordAs.apiType,
+    adjustMutation,
+    toast,
+    trackStock,
+  ]);
 
   const kbBehavior: KeyboardAvoidingViewProps["behavior"] =
     Platform.OS === "ios" ? "padding" : undefined;
@@ -117,7 +149,7 @@ export function StockManagementSheet({
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={kbBehavior} className="flex-1 justify-end bg-black/45">
         <Pressable className="flex-1" onPress={onClose} accessibilityLabel="Dismiss" />
-        <View className="max-h-[85%] rounded-t-3xl bg-background px-4 pb-6 pt-4">
+        <View className="max-h-[88%] rounded-t-3xl bg-background px-4 pb-6 pt-4">
           <View className="mb-3 h-1 w-10 self-center rounded-full bg-muted" />
           <Text className="text-[18px] font-semibold text-foreground">{title}</Text>
           {subtitle ? (
@@ -126,39 +158,74 @@ export function StockManagementSheet({
 
           {!trackStock ? (
             <Text className="mt-4 text-[15px] text-muted">
-              Stock tracking is off for this product. Turn on “Track stock” to manage quantities.
+              Turn on “Track stock” and save.
             </Text>
           ) : (
-            <>
-              <View className="mt-4 rounded-xl bg-surface-secondary/60 px-3 py-3">
-                <Text className="text-[12px] font-medium uppercase text-muted">On hand</Text>
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              className="mt-2 max-h-[520px]"
+            >
+              <View className="mt-2 rounded-xl bg-surface-secondary/60 px-3 py-3">
+                <Text className="text-[12px] font-medium uppercase text-muted">
+                  Available to sell
+                </Text>
                 <Text className="mt-1 text-[24px] font-semibold tabular-nums text-foreground">
                   {currentQuantity}
                 </Text>
               </View>
 
-              <Text className="mt-4 text-[14px] font-medium text-foreground">Movement type</Text>
-              <View className="mt-2 flex-row flex-wrap gap-2">
-                {MOVE_TYPES.map((m) => {
-                  const selected = moveType === m.id;
+              <Text className="mt-4 text-[14px] font-medium text-foreground">Type</Text>
+              <View className="mt-2 flex-row flex-wrap gap-2" accessibilityRole="tablist">
+                {RECORD_AS_OPTIONS.map((opt, idx) => {
+                  const selected = recordKey === idx;
                   return (
                     <Pressable
-                      key={m.id}
-                      onPress={() => setMoveType(m.id)}
-                      className={`rounded-full px-3 py-2 ${selected ? "bg-accent" : "bg-surface-secondary"}`}
+                      key={opt.apiType}
+                      onPress={() => selectRecordKey(idx)}
+                      accessibilityRole="tab"
+                      accessibilityState={{ selected }}
+                      accessibilityLabel={opt.label}
+                      className={`rounded-full px-3.5 py-2.5 ${selected ? "bg-accent" : "bg-surface-secondary"}`}
                     >
                       <Text
-                        className={`text-[13px] font-medium ${selected ? "text-accent-foreground" : "text-foreground"}`}
+                        className={`text-[13px] font-semibold ${selected ? "text-accent-foreground" : "text-foreground"}`}
                       >
-                        {m.label}
+                        {opt.label}
                       </Text>
                     </Pressable>
                   );
                 })}
               </View>
 
+              {isCorrection ? (
+                <>
+                  <Text className="mt-4 text-[14px] font-medium text-foreground">Direction</Text>
+                  <View className="mt-2 overflow-hidden rounded-xl border border-border">
+                    <Pressable
+                      onPress={() => setDirection("remove")}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: direction === "remove" }}
+                      className={`flex-row items-center gap-3 px-3 py-3 ${direction === "remove" ? "bg-accent/10" : "bg-background"}`}
+                    >
+                      <RadioOuter selected={direction === "remove"} />
+                      <Text className="text-[15px] font-semibold text-foreground">Decrease</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => setDirection("add")}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: direction === "add" }}
+                      className={`flex-row items-center gap-3 border-t border-border px-3 py-3 ${direction === "add" ? "bg-accent/10" : "bg-background"}`}
+                    >
+                      <RadioOuter selected={direction === "add"} />
+                      <Text className="text-[15px] font-semibold text-foreground">Increase</Text>
+                    </Pressable>
+                  </View>
+                </>
+              ) : null}
+
               <View className="mt-4 gap-1">
-                <Text className="text-[14px] font-medium text-foreground">Units</Text>
+                <Text className="text-[14px] font-medium text-foreground">Quantity</Text>
                 <TextField className="gap-0">
                   <Input
                     value={amountStr}
@@ -171,40 +238,26 @@ export function StockManagementSheet({
                 </TextField>
               </View>
 
-              <View className="mt-4 gap-1">
-                <Text className="text-[14px] font-medium text-foreground">Note (optional)</Text>
+              <View className="mt-3 gap-1">
+                <Text className="text-[14px] font-medium text-foreground">Note</Text>
                 <TextField className="gap-0">
                   <Input
                     value={note}
                     onChangeText={setNote}
-                    placeholder="Reason or reference"
+                    placeholder="Optional"
                     variant="secondary"
                     className={INPUT_ROW_CLASS}
                   />
                 </TextField>
               </View>
 
-              <View className="mt-5 flex-row gap-3">
-                <Button
-                  variant="secondary"
-                  className="flex-1"
-                  onPress={() => applyDelta(-1)}
-                  isDisabled={adjustMutation.isPending}
-                >
-                  <Button.Label className="font-semibold">Remove</Button.Label>
-                </Button>
-                <Button
-                  className="flex-1"
-                  onPress={() => applyDelta(1)}
-                  isDisabled={adjustMutation.isPending}
-                >
-                  <Button.Label className="font-semibold text-accent-foreground">Add</Button.Label>
-                </Button>
-              </View>
-            </>
+              <Button className="mt-6" onPress={onSave} isDisabled={adjustMutation.isPending}>
+                <Button.Label className="font-semibold text-accent-foreground">Save</Button.Label>
+              </Button>
+            </ScrollView>
           )}
 
-          <Button variant="secondary" className="mt-4" onPress={onClose}>
+          <Button variant="secondary" className="mt-3" onPress={onClose}>
             <Button.Label className="font-semibold">Close</Button.Label>
           </Button>
         </View>

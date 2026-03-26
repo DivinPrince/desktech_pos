@@ -247,7 +247,12 @@ describe("Catalog, products & inventory", () => {
         }),
       },
     );
-    await readJson(adj, 201);
+    const adjBody = await readJson<{
+      data: { movement: { quantityDelta: number }; product: { id: string; quantityOnHand: number } };
+    }>(adj, 201);
+    expect(adjBody.data.movement.quantityDelta).toBe(7);
+    expect(adjBody.data.product.id).toBe(p1.id);
+    expect(adjBody.data.product.quantityOnHand).toBe(7);
 
     const mov = await app.request(
       `http://localhost/api/businesses/${fx.businessId}/stock/movements?limit=5&productId=${encodeURIComponent(p1.id)}`,
@@ -401,7 +406,16 @@ describe("Catalog, products & inventory", () => {
         }),
       },
     );
-    await readJson(varAdj, 201);
+    const varAdjBody = await readJson<{
+      data: {
+        product: {
+          quantityOnHand: number;
+          variants: { id: string; quantityOnHand: number }[];
+        };
+      };
+    }>(varAdj, 201);
+    expect(varAdjBody.data.product.quantityOnHand).toBe(8);
+    expect(varAdjBody.data.product.variants[0]!.quantityOnHand).toBe(8);
 
     const getProd = await app.request(
       `http://localhost/api/businesses/${fx.businessId}/products/${prod.id}`,
