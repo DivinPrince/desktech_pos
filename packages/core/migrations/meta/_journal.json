@@ -43,6 +43,13 @@
       "when": 1774302532090,
       "tag": "0005_product_variants",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1774496584378,
+      "tag": "0006_drop_api_idempotency_key",
+      "breakpoints": true
     }
   ]
 }

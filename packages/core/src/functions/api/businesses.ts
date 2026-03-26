@@ -23,7 +23,6 @@ import {
   success,
   validate,
 } from "./common";
-import { idempotentMutation } from "./idempotency-middleware";
 import { ErrorCodes, VisibleError } from "@repo/core/error";
 
 const idParam = z.object({
@@ -332,7 +331,6 @@ export const businessScopedApi = new Hono<AppEnv>()
   .post(
     "/stock/adjust",
     requireBusinessMinimum("manager"),
-    idempotentMutation(),
     validate(
       "json",
       z.object({
@@ -372,7 +370,6 @@ export const businessScopedApi = new Hono<AppEnv>()
   .post(
     "/batches",
     requireBusinessMinimum("manager"),
-    idempotentMutation(),
     validate(
       "json",
       z.object({
@@ -509,7 +506,6 @@ export const businessScopedApi = new Hono<AppEnv>()
   )
   .post(
     "/sales",
-    idempotentMutation(),
     validate(
       "json",
       z.object({
@@ -568,7 +564,6 @@ export const businessScopedApi = new Hono<AppEnv>()
   )
   .post(
     "/sales/:id/complete",
-    idempotentMutation(),
     validate("param", idParam),
     validate(
       "json",
@@ -593,7 +588,6 @@ export const businessScopedApi = new Hono<AppEnv>()
   )
   .post(
     "/sales/:id/void",
-    idempotentMutation(),
     validate("param", idParam),
     validate("json", z.object({ reason: z.string().min(1).max(2000) })),
     async (c) => {

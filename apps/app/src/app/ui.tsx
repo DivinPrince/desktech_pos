@@ -407,15 +407,6 @@ export default function UiPlaygroundScreen() {
                 </Alert.Description>
               </Alert.Content>
             </Alert>
-            <Alert status="warning" className="mt-3 rounded-2xl">
-              <Alert.Indicator />
-              <Alert.Content>
-                <Alert.Title>Offline queue</Alert.Title>
-                <Alert.Description>
-                  Three sales will upload when you are back online.
-                </Alert.Description>
-              </Alert.Content>
-            </Alert>
             <View className="mt-4 flex-row flex-wrap items-center gap-4">
               <View className="flex-row items-center gap-2">
                 <Switch

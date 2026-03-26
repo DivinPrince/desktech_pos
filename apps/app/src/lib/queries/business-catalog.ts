@@ -107,7 +107,6 @@ export function useBusinessesQuery(enabled: boolean) {
   return useQuery({
     queryKey: businessKeys.list(),
     enabled,
-    meta: { persist: true },
     queryFn: async () => {
       const { data } = await sdk.businesses.list().withResponse();
       return data.data;
@@ -120,7 +119,6 @@ export function useCategoriesQuery(businessId: string | undefined, enabled: bool
   return useQuery({
     queryKey: catalogKeys.categories(businessId ?? ""),
     enabled: Boolean(businessId) && enabled,
-    meta: { persist: true },
     queryFn: async () => {
       const { data } = await sdk
         .businesses
@@ -146,7 +144,6 @@ export function useProductsQuery(
       search,
     }),
     enabled: Boolean(businessId) && enabled,
-    meta: { persist: true },
     queryFn: async () => {
       const { data } = await sdk
         .businesses
