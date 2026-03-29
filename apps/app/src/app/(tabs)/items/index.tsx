@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
+import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useThemeColor } from "heroui-native/hooks";
@@ -16,6 +17,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ProductListGrid } from "@/components/desktech-ui/product-list-grid";
+import { useCounterCart } from "@/lib/counter-cart/counter-cart";
 import { authClient } from "@/lib/auth-client";
 import type { SessionPayload } from "@/lib/auth-session";
 import { formatMinorUnitsToCurrency } from "@/lib/format-money";
@@ -49,6 +51,7 @@ export default function ItemsTab() {
   const accent = useThemeColor("accent");
   const accentFg = useThemeColor("accent-foreground");
   const queryClient = useQueryClient();
+  const { addProduct, decrementProduct, getQuantity } = useCounterCart();
 
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -222,13 +225,41 @@ export default function ItemsTab() {
         ) : showCatalogContent ? (
           <View>
             <ProductListGrid>
-              {filteredProducts.map((p) => (
-                <ProductListGrid.ProductCard
-                  key={p.id}
-                  title={p.active ? p.name : `${p.name} · Inactive`}
-                  price={formatMinorUnitsToCurrency(p.priceCents, currency)}
-                />
-              ))}
+              {filteredProducts.map((p) => {
+                const qty = getQuantity(p.id);
+                return (
+                  <ProductListGrid.ProductCard
+                    key={p.id}
+                    title={p.active ? p.name : `${p.name} · Inactive`}
+                    price={formatMinorUnitsToCurrency(p.priceCents, currency)}
+                    quantityLabel={qty}
+                    onPress={
+                      p.active
+                        ? () => {
+                            void Haptics.impactAsync(
+                              Haptics.ImpactFeedbackStyle.Light,
+                            );
+                            addProduct({
+                              productId: p.id,
+                              name: p.name,
+                              priceCents: p.priceCents,
+                            });
+                          }
+                        : undefined
+                    }
+                    onLongPress={
+                      p.active && qty > 0
+                        ? () => {
+                            void Haptics.impactAsync(
+                              Haptics.ImpactFeedbackStyle.Medium,
+                            );
+                            decrementProduct({ productId: p.id });
+                          }
+                        : undefined
+                    }
+                  />
+                );
+              })}
               <ProductListGrid.AddItemCard
                 onPress={() => router.push("/items/inventory")}
                 label="Add item"

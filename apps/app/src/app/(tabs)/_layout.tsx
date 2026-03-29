@@ -6,6 +6,7 @@ import { Text, View } from "react-native";
 
 import { authClient } from "@/lib/auth-client";
 import { sessionNeedsOnboarding, type SessionPayload } from "@/lib/auth-session";
+import { CounterCartProvider } from "@/lib/counter-cart/counter-cart";
 import { OfflineExecutorProvider } from "@/lib/data/offline/offline-executor-provider";
 import { useBusinessesQuery } from "@/lib/queries/business-catalog";
 
@@ -106,13 +107,15 @@ export default function TabsLayout() {
 
   return (
     <OfflineExecutorProvider businessId={offlineBusinessId}>
-      <Tabs initialRouteName="today" screenOptions={screenOptions}>
-        <Tabs.Screen name="reports" options={reportsOptions} />
-        <Tabs.Screen name="today" options={todayOptions} />
-        <Tabs.Screen name="counter" options={counterOptions} />
-        <Tabs.Screen name="items" options={itemsOptions} />
-        <Tabs.Screen name="more" options={moreOptions} />
-      </Tabs>
+      <CounterCartProvider>
+        <Tabs initialRouteName="today" screenOptions={screenOptions}>
+          <Tabs.Screen name="reports" options={reportsOptions} />
+          <Tabs.Screen name="today" options={todayOptions} />
+          <Tabs.Screen name="counter" options={counterOptions} />
+          <Tabs.Screen name="items" options={itemsOptions} />
+          <Tabs.Screen name="more" options={moreOptions} />
+        </Tabs>
+      </CounterCartProvider>
     </OfflineExecutorProvider>
   );
 }

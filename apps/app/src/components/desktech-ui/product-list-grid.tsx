@@ -2,8 +2,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { Card } from "heroui-native/card";
 import { useThemeColor } from "heroui-native/hooks";
 import type { SurfaceVariant } from "heroui-native/surface";
-import React, { createContext, useContext, type ReactNode } from "react";
-import { Pressable, View } from "react-native";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useRef,
+  type ReactNode,
+} from "react";
+import { Pressable, Text, View } from "react-native";
 
 type GridRootProps = {
   children: ReactNode;
@@ -59,6 +65,9 @@ type ProductCardProps = {
   title: string;
   price: string;
   onPress?: () => void;
+  onLongPress?: () => void;
+  /** When &gt; 0, shows an `Nx` pill on the tile (e.g. counter quantity). */
+  quantityLabel?: number;
   /** HeroUI `Card` / `Surface` variant */
   variant?: SurfaceVariant;
   /** Classes on the root `Card` (layout, border, radius). */
@@ -69,10 +78,36 @@ function ProductCard({
   title,
   price,
   onPress,
+  onLongPress,
+  quantityLabel = 0,
   variant = "default",
   className = "",
 }: ProductCardProps) {
   const danger = useThemeColor("danger");
+  const accent = useThemeColor("accent");
+  const accentFg = useThemeColor("accent-foreground");
+
+  /** After a long press, RN often still fires `onPress` on release — that re-added one unit. */
+  const suppressNextPressRef = useRef(false);
+
+  const handlePress = useCallback(() => {
+    if (!onPress) return;
+    if (suppressNextPressRef.current) {
+      suppressNextPressRef.current = false;
+      return;
+    }
+    onPress();
+  }, [onPress]);
+
+  const handleLongPress = useCallback(() => {
+    if (!onLongPress) return;
+    suppressNextPressRef.current = true;
+    onLongPress();
+    // If the platform never sends `onPress` after long press, avoid blocking the next tap.
+    setTimeout(() => {
+      suppressNextPressRef.current = false;
+    }, 800);
+  }, [onLongPress]);
 
   const card = (
     <Card
@@ -102,20 +137,39 @@ function ProductCard({
     </Card>
   );
 
+  const showQty = quantityLabel > 0;
+
   return (
     <GridCell>
-      {onPress ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`${title}, ${price}`}
-          onPress={onPress}
-          className="active:opacity-90"
-        >
-          {card}
-        </Pressable>
-      ) : (
-        card
-      )}
+      <View className="relative">
+        {showQty ? (
+          <View
+            className="absolute right-1 top-1 z-10 rounded-full px-1.5 py-0.5"
+            style={{ backgroundColor: accent }}
+          >
+            <Text
+              className="text-[11px] font-bold tabular-nums"
+              style={{ color: accentFg }}
+            >
+              {quantityLabel}x
+            </Text>
+          </View>
+        ) : null}
+        {onPress ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${title}, ${price}`}
+            onPress={handlePress}
+            onLongPress={onLongPress ? handleLongPress : undefined}
+            delayLongPress={450}
+            className="active:opacity-90"
+          >
+            {card}
+          </Pressable>
+        ) : (
+          card
+        )}
+      </View>
     </GridCell>
   );
 }
