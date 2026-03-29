@@ -23,6 +23,8 @@ import { useOfflineExecutor } from "@/lib/data/offline/offline-executor-provider
 import type { BusinessRow, CategoryRow, ProductRow } from "@/lib/data/catalog/types";
 
 import type { CartLine } from "@/lib/counter-cart/counter-cart";
+import { patchSaleIdIfPending } from "@/lib/data/local-counter-sales/store";
+import { fetchDeviceAppearsOnline } from "@/lib/network/fetch-device-online";
 
 import { useApiSdk } from "../api-sdk";
 
@@ -674,7 +676,12 @@ export function useCompleteCounterSaleMutation(businessId: string | undefined) {
         0,
       );
 
-      if (executor?.isOfflineEnabled) {
+      // Use NetInfo.fetch() here: executor.isOnline() can stay false when isInternetReachable is
+      // stuck false/null timing, which queued sales that never replayed while the user was online.
+      const appearsOnline =
+        !executor?.isOfflineEnabled || (await fetchDeviceAppearsOnline());
+
+      if (executor?.isOfflineEnabled && !appearsOnline) {
         const idempotencyKey = randomIdempotencyKey();
         const pendingSaleId = `pending:${idempotencyKey}`;
         return runCatalogOutboxMutation({
@@ -693,34 +700,53 @@ export function useCompleteCounterSaleMutation(businessId: string | undefined) {
         });
       }
 
+      /**
+       * When the device can reach the API: same pattern as catalog adjust — apply stock locally,
+       * return immediately, then draft / lines / complete in the background and patch Today’s id.
+       */
+      const idempotencyKey = randomIdempotencyKey();
+      const pendingSaleId = `pending:${idempotencyKey}`;
+      const completedAtIso = new Date().toISOString();
       applyStock();
-      try {
-        const replayParams = {
-          idempotencyKey: randomIdempotencyKey(),
-          transaction: { metadata: { businessId, body: bodyPayload } },
-        } satisfies CatalogOfflineMutationParams;
-        const result = await catalogCompleteCounterSaleMutationFn(
-          replayParams as unknown as Parameters<typeof catalogCompleteCounterSaleMutationFn>[0],
-        );
-        await cancelInFlightProductListQueries(queryClient, businessId);
-        for (const row of result.products) {
-          reconcileServerProductIntoQueryCache(queryClient, businessId, row);
+
+      void (async () => {
+        try {
+          const replayParams = {
+            idempotencyKey,
+            transaction: { metadata: { businessId, body: bodyPayload } },
+          } satisfies CatalogOfflineMutationParams;
+          const result = await catalogCompleteCounterSaleMutationFn(
+            replayParams as unknown as Parameters<typeof catalogCompleteCounterSaleMutationFn>[0],
+          );
+          await cancelInFlightProductListQueries(queryClient, businessId);
+          for (const row of result.products) {
+            reconcileServerProductIntoQueryCache(queryClient, businessId, row);
+          }
+          try {
+            await patchSaleIdIfPending({
+              businessId,
+              pendingSaleId,
+              finalSaleId: result.sale.id,
+            });
+          } catch {
+            /* Today id patch is best-effort */
+          }
+        } catch (e) {
+          if (__DEV__) {
+            console.warn(
+              "[desktech] catalogCompleteCounterSale failed (createDraft / setLines / completeSale)",
+              e,
+            );
+          }
+          inv();
         }
-        const { sale } = result;
-        const completedAtIso = sale.completedAt
-          ? sale.completedAt instanceof Date
-            ? sale.completedAt.toISOString()
-            : new Date(sale.completedAt as string).toISOString()
-          : new Date().toISOString();
-        return {
-          saleId: sale.id,
-          totalCents: sale.totalCents,
-          completedAtIso,
-        };
-      } catch (e) {
-        inv();
-        throw e;
-      }
+      })();
+
+      return {
+        saleId: pendingSaleId,
+        totalCents: totalFromLines,
+        completedAtIso,
+      };
     },
   });
 }

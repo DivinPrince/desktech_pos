@@ -16,6 +16,7 @@ import { authClient } from "@/lib/auth-client";
 import type { SessionPayload } from "@/lib/auth-session";
 import { useCounterCart } from "@/lib/counter-cart/counter-cart";
 import { formatMinorUnitsToCurrency } from "@/lib/format-money";
+import { appendLocalCounterSale } from "@/lib/data/local-counter-sales/store";
 import {
   useBusinessesQuery,
   useCompleteCounterSaleMutation,
@@ -85,7 +86,7 @@ export default function PaymentConfirmScreen() {
         paymentMethod: option.apiValue,
       });
 
-      setLastCompleted({
+      const receipt = {
         saleId: completed.saleId,
         totalCents: completed.totalCents,
         currency,
@@ -96,7 +97,14 @@ export default function PaymentConfirmScreen() {
         paymentMethodLabel: option.label,
         customer: { ...customer },
         paymentNote,
-      });
+      };
+
+      try {
+        await appendLocalCounterSale({ businessId, receipt });
+      } catch {
+        /* Today list is best-effort; checkout already succeeded */
+      }
+      setLastCompleted(receipt);
 
       clear();
       router.replace("/counter/payment-success");

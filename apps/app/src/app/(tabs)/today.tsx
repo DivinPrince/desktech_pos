@@ -1,101 +1,400 @@
+import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
+import { useQueryClient } from "@tanstack/react-query";
+import { StatusBar } from "expo-status-bar";
 import { useThemeColor } from "heroui-native/hooks";
-import React, { useMemo } from "react";
-import { Text, View } from "react-native";
+import React, { useCallback, useMemo, useState } from "react";
+import {
+  Alert,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type ListRenderItem,
+} from "react-native";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
-import { TabScreenScaffold } from "@/components/tab-screen-scaffold";
 import { authClient } from "@/lib/auth-client";
 import type { SessionPayload } from "@/lib/auth-session";
-import {
-  useBusinessesQuery,
-  useCategoriesQuery,
-  useProductsQuery,
-} from "@/lib/queries/business-catalog";
+import { paymentDisplayForKey } from "@/lib/counter-checkout/payment-options";
+import { useLocalSalesToday } from "@/lib/data/local-counter-sales/hooks";
+import type { LocalCounterSaleRow } from "@/lib/data/local-counter-sales/types";
+import { useOfflineExecutor } from "@/lib/data/offline/offline-executor-provider";
+import { syncPendingSalesToday } from "@/lib/data/local-counter-sales/sync-pending-sales-today";
+import { formatMinorUnitsToCurrency } from "@/lib/format-money";
+import { fetchDeviceAppearsOnline } from "@/lib/network/fetch-device-online";
+import { useBusinessesQuery } from "@/lib/queries/business-catalog";
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  list: { flex: 1 },
+  listContent: { paddingHorizontal: 16, paddingTop: 12 },
+});
+
+function firstNameFromDisplay(displayName: string): string {
+  const part = displayName.split(/\s+/)[0];
+  return part && part.length > 0 ? part : displayName;
+}
+
+function customerHasDetails(r: LocalCounterSaleRow["receipt"]): boolean {
+  const c = r.customer;
+  return (
+    c.name.trim().length > 0 ||
+    c.phone.trim().length > 0 ||
+    c.email.trim().length > 0 ||
+    c.address.trim().length > 0
+  );
+}
+
+/** Local row id from offline checkout before outbox replay (`pending:<idempotencyKey>`). */
+function isPendingSyncSaleId(saleId: string): boolean {
+  return saleId.startsWith("pending:");
+}
+
+function EmptyHint({
+  icon,
+  title,
+  accent,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  accent: string;
+}) {
+  return (
+    <View className="mt-6 items-center px-1">
+      <View className="w-full min-h-[120] items-center justify-center rounded-2xl border border-border/75 bg-surface px-5 py-8">
+        <View className="mb-3 h-[52px] w-[52px] items-center justify-center rounded-full bg-accent/18">
+          <Ionicons name={icon} size={28} color={accent} />
+        </View>
+        <Text className="text-center text-[16px] font-semibold text-foreground">{title}</Text>
+      </View>
+    </View>
+  );
+}
+
+const SALE_CARD_CLASS =
+  "mb-2 overflow-hidden rounded-2xl border border-border/75 bg-surface";
 
 export default function TodayTab() {
-  const foreground = useThemeColor("foreground");
+  const insets = useSafeAreaInsets();
   const muted = useThemeColor("muted");
+  const accent = useThemeColor("accent");
+  const accentFg = useThemeColor("accent-foreground");
+
   const { data: session } = authClient.useSession();
   const user = (session as SessionPayload | null | undefined)?.user;
   const displayName =
     typeof user?.name === "string" && user.name.trim().length > 0
       ? user.name.trim()
       : user?.email ?? "there";
+  const shortName = firstNameFromDisplay(displayName);
 
   const signedIn = Boolean(user);
 
   const businessesQuery = useBusinessesQuery(signedIn);
-  const firstBusinessId = useMemo(
-    () => businessesQuery.data?.[0]?.id,
-    [businessesQuery.data],
+  const firstBusiness = businessesQuery.data?.[0];
+  const firstBusinessId = firstBusiness?.id;
+  const businessCurrency = firstBusiness?.currency ?? "USD";
+
+  const { rows, refresh } = useLocalSalesToday(
+    signedIn ? firstBusinessId : undefined,
+  );
+  const queryClient = useQueryClient();
+  const offlineExecutor = useOfflineExecutor();
+  const [manualSyncWorking, setManualSyncWorking] = useState(false);
+
+  const hasPendingSync = useMemo(
+    () => rows.some((r) => isPendingSyncSaleId(r.id)),
+    [rows],
   );
 
-  const categoriesQuery = useCategoriesQuery(firstBusinessId, signedIn);
-  const productsQuery = useProductsQuery(firstBusinessId, signedIn, {
-    activeOnly: true,
-  });
+  const onManualRetryServerSync = useCallback(async () => {
+    if (!firstBusinessId) return;
+    setManualSyncWorking(true);
+    try {
+      const result = await syncPendingSalesToday({
+        executor: offlineExecutor,
+        businessId: firstBusinessId,
+        queryClient,
+      });
+      refresh();
+      Alert.alert(result.title, result.message);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      Alert.alert("Retry failed", msg);
+    } finally {
+      setManualSyncWorking(false);
+    }
+  }, [offlineExecutor, refresh, firstBusinessId, queryClient]);
 
-  const businesses = businessesQuery.data ?? [];
-  const categories = categoriesQuery.data ?? [];
-  const products = productsQuery.data ?? [];
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+      let cancelled = false;
+      void (async () => {
+        const online = await fetchDeviceAppearsOnline();
+        if (cancelled || !online || !offlineExecutor) return;
+        try {
+          offlineExecutor.getOnlineDetector().notifyOnline();
+        } catch {
+          /* detector best-effort — flushes outbox when NetInfo was stale */
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [refresh, offlineExecutor]),
+  );
 
-  /** Block only on true cold load (no rows yet). Cached SQLite/API data shows immediately. */
-  const catalogBlockingLoad =
-    signedIn &&
-    !businessesQuery.isError &&
-    ((businesses.length === 0 && businessesQuery.isPending) ||
-      (Boolean(firstBusinessId) && categories.length === 0 && categoriesQuery.isPending) ||
-      (Boolean(firstBusinessId) && products.length === 0 && productsQuery.isPending));
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
 
-  const catalogRefreshing =
-    businessesQuery.isFetching || categoriesQuery.isFetching || productsQuery.isFetching;
+  const toggleExpanded = useCallback((id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
-  const catalogError =
-    businessesQuery.error ?? categoriesQuery.error ?? productsQuery.error;
+  const totals = useMemo(() => {
+    let sum = 0;
+    for (const r of rows) {
+      sum += r.receipt.totalCents;
+    }
+    return sum;
+  }, [rows]);
 
-  const belowTitle = (
-    <View style={{ marginTop: 12, gap: 16 }}>
-      <Text style={{ color: foreground, fontSize: 18, fontWeight: "600" }}>
-        Hi, {displayName}
-      </Text>
+  const dateLine = useMemo(
+    () =>
+      new Date().toLocaleDateString(undefined, {
+        weekday: "long",
+        month: "short",
+        day: "numeric",
+      }),
+    [],
+  );
 
-      {!signedIn ? (
-        <Text style={{ color: muted, fontSize: 14 }}>Sign in to load catalog data.</Text>
-      ) : businessesQuery.isError ? (
-        <Text style={{ color: muted, fontSize: 14 }}>
-          Could not load businesses. Pull to refresh when the API is reachable.
-        </Text>
-      ) : (
-        <View style={{ gap: 10 }}>
-          <Text style={{ color: foreground, fontSize: 16, fontWeight: "600" }}>Catalog</Text>
-          {catalogBlockingLoad ? (
-            <Text style={{ color: muted, fontSize: 14 }}>Loading catalog…</Text>
-          ) : catalogError ? (
-            <Text style={{ color: muted, fontSize: 14 }}>Failed to load catalog.</Text>
-          ) : (
-            <View style={{ gap: 6 }}>
-              <Text style={{ color: foreground, fontSize: 15, lineHeight: 22 }}>
-                {firstBusinessId
-                  ? `Categories: ${categories.length} · Products: ${products.length}`
-                  : "No business yet — finish onboarding or create a business on the server."}
+  const renderItem: ListRenderItem<LocalCounterSaleRow> = useCallback(
+    ({ item }) => {
+      const r = item.receipt;
+      const expanded = expandedIds.has(item.id);
+      const timeLabel = new Date(r.completedAtIso).toLocaleTimeString(undefined, {
+        hour: "numeric",
+        minute: "2-digit",
+      });
+      const paymentUi = paymentDisplayForKey(r.paymentMethodKey);
+
+      return (
+        <View className={SALE_CARD_CLASS}>
+          <Pressable
+            onPress={() => toggleExpanded(item.id)}
+            className="flex-row items-center gap-3.5 px-3 py-3.5 active:opacity-90"
+          >
+            <View className="h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-background/70">
+              <Ionicons name={paymentUi.icon} size={22} color={paymentUi.iconHex} />
+            </View>
+            <View className="min-w-0 flex-1 pr-1">
+              <Text className="text-[15px] font-semibold tabular-nums text-foreground">
+                {timeLabel}
               </Text>
-              {catalogRefreshing && !catalogBlockingLoad ? (
-                <Text style={{ color: muted, fontSize: 13 }}>Updating…</Text>
+              <Text className="mt-0.5 text-[13px] text-muted" numberOfLines={1}>
+                {r.paymentMethodLabel}
+              </Text>
+              {isPendingSyncSaleId(item.id) ? (
+                <Text className="mt-1 text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                  Sync pending — use “Retry server sync” above for details
+                </Text>
               ) : null}
             </View>
-          )}
+            <View className="flex-row items-center gap-1.5">
+              <Text className="text-[16px] font-semibold tabular-nums text-foreground">
+                {formatMinorUnitsToCurrency(r.totalCents, r.currency || businessCurrency)}
+              </Text>
+              <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={18} color={muted} />
+            </View>
+          </Pressable>
+          {expanded ? (
+            <View className="border-t border-border/75 px-3 pb-3.5 pt-3">
+              {r.lines.length === 0 ? (
+                <Text className="text-[13px] text-muted">No items</Text>
+              ) : (
+                <View className="gap-2.5">
+                  {r.lines.map((line) => (
+                    <View key={line.productId} className="flex-row items-start justify-between gap-3">
+                      <Text
+                        className="min-w-0 flex-1 text-[14px] leading-5 text-foreground"
+                        numberOfLines={3}
+                      >
+                        {line.name}
+                        <Text className="text-muted">
+                          {" "}
+                          ×{line.quantity}
+                        </Text>
+                      </Text>
+                      <Text className="pt-0.5 text-[14px] font-semibold tabular-nums text-foreground">
+                        {formatMinorUnitsToCurrency(
+                          line.priceCents * line.quantity,
+                          r.currency || businessCurrency,
+                        )}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+              {r.paymentNote.trim().length > 0 ? (
+                <Text className="mt-3 text-[13px] text-muted" numberOfLines={4}>
+                  {r.paymentNote}
+                </Text>
+              ) : null}
+              {customerHasDetails(r) ? (
+                <View className="mt-3 gap-1 border-t border-border/50 pt-3">
+                  <View className="flex-row items-center gap-1.5">
+                    <Ionicons name="person-outline" size={15} color={muted} />
+                    <Text className="text-[12px] font-semibold uppercase tracking-wide text-muted">
+                      Customer
+                    </Text>
+                  </View>
+                  {r.customer.name.trim().length > 0 ? (
+                    <Text className="text-[14px] font-medium text-foreground">{r.customer.name}</Text>
+                  ) : null}
+                  {r.customer.phone.trim().length > 0 ? (
+                    <Text className="text-[13px] text-muted">
+                      {r.customer.dialCode}
+                      {r.customer.phone}
+                    </Text>
+                  ) : null}
+                  {r.customer.email.trim().length > 0 ? (
+                    <Text className="text-[13px] text-muted" numberOfLines={2}>
+                      {r.customer.email}
+                    </Text>
+                  ) : null}
+                  {r.customer.address.trim().length > 0 ? (
+                    <Text className="text-[13px] text-muted" numberOfLines={3}>
+                      {r.customer.address}
+                    </Text>
+                  ) : null}
+                </View>
+              ) : null}
+            </View>
+          ) : null}
         </View>
-      )}
-    </View>
+      );
+    },
+    [businessCurrency, expandedIds, muted, toggleExpanded],
   );
 
+  const headerSubtitle2 = useMemo(() => {
+    if (!signedIn) return "Sign in to see today’s activity";
+    if (businessesQuery.isError) return "Could not load workspace";
+    if (!firstBusinessId) return "Finish setup to track sales";
+    if (rows.length === 0) {
+      return `${dateLine} · ${shortName}`;
+    }
+    return `${rows.length} ${rows.length === 1 ? "sale" : "sales"} · ${formatMinorUnitsToCurrency(totals, businessCurrency)}`;
+  }, [
+    businessCurrency,
+    businessesQuery.isError,
+    dateLine,
+    firstBusinessId,
+    rows.length,
+    shortName,
+    signedIn,
+    totals,
+  ]);
+
+  const listHeader = useMemo(() => {
+    if (!signedIn) {
+      return <EmptyHint icon="log-in-outline" title="Sign in to see today’s sales" accent={accent} />;
+    }
+    if (businessesQuery.isError) {
+      return (
+        <EmptyHint icon="cloud-offline-outline" title="Couldn’t load your business" accent={accent} />
+      );
+    }
+    if (!firstBusinessId) {
+      return <EmptyHint icon="storefront-outline" title="Finish setup to track sales" accent={accent} />;
+    }
+    if (rows.length === 0) {
+      return <EmptyHint icon="cart-outline" title="No sales yet today" accent={accent} />;
+    }
+    return null;
+  }, [accent, businessesQuery.isError, firstBusinessId, rows.length, signedIn]);
+
   return (
-    <TabScreenScaffold
-      title="Today"
-      belowTitle={belowTitle}
-      subtitle="Your home for what is happening right now at the register."
-      paragraphs={[
-        "Catalog counts use TanStack DB with persisted SQLite on native (TanStack Query under the hood) so last-synced data can appear offline and refresh when you are back online.",
-      ]}
-    />
+    <View style={styles.root} className="bg-background">
+      <StatusBar style="light" />
+      <View
+        style={{
+          backgroundColor: accent,
+          paddingTop: Math.max(insets.top, 12),
+          paddingBottom: 14,
+          paddingHorizontal: 16,
+        }}
+      >
+        <Text style={{ color: accentFg, fontSize: 22, fontWeight: "700" }}>
+          Today
+        </Text>
+        <Text
+          style={{
+            color: "rgba(255,255,255,0.85)",
+            fontSize: 14,
+            marginTop: 4,
+          }}
+          numberOfLines={2}
+        >
+          {headerSubtitle2}
+        </Text>
+        {signedIn && firstBusinessId && rows.length > 0 ? (
+          <Text
+            style={{
+              color: "rgba(255,255,255,0.72)",
+              fontSize: 13,
+              marginTop: 4,
+            }}
+            numberOfLines={1}
+          >
+            {dateLine} · {shortName}
+          </Text>
+        ) : null}
+      </View>
+
+      <SafeAreaView style={styles.root} edges={["left", "right", "bottom"]}>
+        {signedIn && firstBusinessId && hasPendingSync ? (
+          <View className="mx-4 mt-3 rounded-2xl border border-amber-500/35 bg-amber-500/12 px-3.5 py-3">
+            <Text className="text-[13px] font-medium text-foreground">
+              Some sales have not reached the server yet
+            </Text>
+            <Text className="mt-1 text-[12px] leading-[18px] text-muted">
+              Retries the offline outbox, then if the queue is empty but you still see pending sales,
+              matches today’s completed sales on the server or re-uploads the receipt.
+            </Text>
+            <Pressable
+              onPress={() => void onManualRetryServerSync()}
+              disabled={manualSyncWorking}
+              className="mt-3 items-center justify-center rounded-xl bg-amber-600/90 py-2.5 active:opacity-90 disabled:opacity-50 dark:bg-amber-500/85"
+            >
+              <Text className="text-[14px] font-semibold text-white">
+                {manualSyncWorking ? "Checking…" : "Retry server sync"}
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
+        <FlatList
+          style={styles.list}
+          data={signedIn && firstBusinessId ? rows : []}
+          extraData={{ expanded: expandedIds.size, count: rows.length }}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          ListHeaderComponent={listHeader}
+          contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(24, 88) }]}
+          showsVerticalScrollIndicator={false}
+        />
+      </SafeAreaView>
+    </View>
   );
 }

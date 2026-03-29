@@ -50,3 +50,20 @@ export function paymentConfirmButtonLabel(key: PaymentMethodKey): string {
   const label = PAYMENT_OPTIONS.find((o) => o.key === key)?.label ?? key;
   return `Received by ${label}`;
 }
+
+/** Icon + colors aligned with checkout payment picker (`checkout-details.tsx`). */
+export function paymentDisplayForKey(key: PaymentMethodKey): {
+  icon: IonName;
+  iconHex: string;
+  label: string;
+} {
+  const o = PAYMENT_OPTIONS.find((x) => x.key === key);
+  if (o) {
+    return { icon: o.icon, iconHex: o.iconHex, label: o.label };
+  }
+  return {
+    icon: "card-outline",
+    iconHex: "#64748b",
+    label: String(key),
+  };
+}

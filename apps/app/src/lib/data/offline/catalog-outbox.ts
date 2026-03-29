@@ -36,7 +36,10 @@ export function runCatalogOutboxMutation<T>(args: {
 
   offlineTx.mutate(mutate);
 
-  void offlineTx.commit().catch(() => {
+  void offlineTx.commit().catch((err) => {
+    if (__DEV__) {
+      console.warn(`[desktech] Offline outbox commit failed (${mutationFnName})`, err);
+    }
     invalidate();
   });
 
@@ -46,7 +49,13 @@ export function runCatalogOutboxMutation<T>(args: {
       .then(() => {
         if (invalidateAfterSuccess) invalidate();
       })
-      .catch(() => {
+      .catch((err) => {
+        if (__DEV__) {
+          console.warn(
+            `[desktech] Offline transaction did not complete (${mutationFnName})`,
+            err,
+          );
+        }
         invalidate();
       });
   }

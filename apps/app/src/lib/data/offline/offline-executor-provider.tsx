@@ -10,6 +10,8 @@ import {
 } from "@/lib/data/catalog/cache-reconcile";
 import { getCatalogCollectionRegistry } from "@/lib/data/catalog/collections";
 
+import { patchSaleIdIfPending } from "@/lib/data/local-counter-sales/store";
+
 import { createDesktechOfflineStorageAdapter } from "./async-storage-adapter";
 import {
   catalogAdjustStockMutationFn,
@@ -90,8 +92,23 @@ export function OfflineExecutorProvider({ children, businessId }: Props) {
         },
         catalogCompleteCounterSale: async (params) => {
           const result = await catalogCompleteCounterSaleMutationFn(params);
-          const meta = (params as unknown as { transaction?: { metadata?: CatalogCompleteCounterSaleMetadata } })
-            .transaction?.metadata;
+          const typed = params as unknown as {
+            idempotencyKey: string;
+            transaction?: { metadata?: CatalogCompleteCounterSaleMetadata };
+          };
+          const meta = typed.transaction?.metadata;
+          const pendingId = `pending:${typed.idempotencyKey}`;
+          if (meta?.businessId && result.sale.id !== pendingId) {
+            try {
+              await patchSaleIdIfPending({
+                businessId: meta.businessId,
+                pendingSaleId: pendingId,
+                finalSaleId: result.sale.id,
+              });
+            } catch {
+              /* Today list patch is best-effort */
+            }
+          }
           if (meta?.businessId && result.products.length > 0) {
             await cancelInFlightProductListQueries(queryClient, meta.businessId);
             for (const row of result.products) {
