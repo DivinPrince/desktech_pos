@@ -13,6 +13,7 @@ import { getCatalogCollectionRegistry } from "@/lib/data/catalog/collections";
 import { createDesktechOfflineStorageAdapter } from "./async-storage-adapter";
 import {
   catalogAdjustStockMutationFn,
+  catalogCompleteCounterSaleMutationFn,
   catalogCreateCategoryMutationFn,
   catalogCreateProductMutationFn,
   catalogDeleteCategoryMutationFn,
@@ -20,6 +21,7 @@ import {
   catalogUpdateCategoryMutationFn,
   catalogUpdateProductMutationFn,
   type CatalogAdjustStockMetadata,
+  type CatalogCompleteCounterSaleMetadata,
   type CatalogDeleteProductMetadata,
   type CatalogUpdateProductMetadata,
 } from "./catalog-mutation-fns";
@@ -85,6 +87,18 @@ export function OfflineExecutorProvider({ children, businessId }: Props) {
             reconcileServerProductIntoQueryCache(queryClient, meta.businessId, row);
           }
           return row;
+        },
+        catalogCompleteCounterSale: async (params) => {
+          const result = await catalogCompleteCounterSaleMutationFn(params);
+          const meta = (params as unknown as { transaction?: { metadata?: CatalogCompleteCounterSaleMetadata } })
+            .transaction?.metadata;
+          if (meta?.businessId && result.products.length > 0) {
+            await cancelInFlightProductListQueries(queryClient, meta.businessId);
+            for (const row of result.products) {
+              reconcileServerProductIntoQueryCache(queryClient, meta.businessId, row);
+            }
+          }
+          return result.sale;
         },
       },
     });

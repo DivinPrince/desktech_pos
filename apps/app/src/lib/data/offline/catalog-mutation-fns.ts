@@ -1,9 +1,12 @@
 import type { OfflineConfig } from "@tanstack/offline-transactions";
 import { NonRetriableError } from "@tanstack/offline-transactions";
+import type { SaleService } from "@repo/core/pos";
+import type { z } from "zod";
+
+import type { ProductRow } from "@/lib/data/catalog/types";
+import { getApiSdk } from "@/lib/api-sdk";
 
 type CatalogOfflineMutationFn = OfflineConfig["mutationFns"][string];
-
-import { getApiSdk } from "@/lib/api-sdk";
 
 /** Payload mirrors `business-catalog` / SDK (keep in sync manually). */
 export type CatalogProductCreateBody = {
@@ -97,10 +100,23 @@ export type CatalogAdjustStockMetadata = {
   body: CatalogAdjustStockBody;
 };
 
-type CombinedParams = {
+/** Payload for draft → lines → complete sale (counter checkout). */
+export type CatalogCompleteCounterSaleBody = {
+  lines: { productId: string; quantity: number; unitPriceCents: number }[];
+  paymentMethod: string;
+};
+
+export type CatalogCompleteCounterSaleMetadata = {
+  businessId: string;
+  body: CatalogCompleteCounterSaleBody;
+};
+
+export type CatalogOfflineMutationParams = {
   idempotencyKey: string;
   transaction?: { metadata?: Record<string, unknown> };
 };
+
+type CombinedParams = CatalogOfflineMutationParams;
 
 function meta<T extends Record<string, unknown>>(p: CombinedParams, label: string): T {
   const m = p.transaction?.metadata as T | undefined;
@@ -178,4 +194,43 @@ export const catalogAdjustStockMutationFn: CatalogOfflineMutationFn = async (par
     })
     .withResponse();
   return data.data.product;
+};
+
+export type CatalogCompleteCounterSaleReplayResult = {
+  sale: z.infer<typeof SaleService.SaleInfo>;
+  products: ProductRow[];
+};
+
+export const catalogCompleteCounterSaleMutationFn: CatalogOfflineMutationFn = async (params) => {
+  const p = params as CombinedParams;
+  const { businessId, body } = meta<CatalogCompleteCounterSaleMetadata>(
+    p,
+    "catalogCompleteCounterSale",
+  );
+  const sdk = getApiSdk();
+  const scoped = sdk.businesses.business(businessId);
+  const { data: draftEnvelope } = await scoped.createDraftSale({}).withResponse();
+  const saleId = draftEnvelope.data.id;
+  await scoped
+    .setSaleLines(
+      saleId,
+      body.lines.map((l) => ({
+        productId: l.productId,
+        quantity: l.quantity,
+        unitPriceCents: l.unitPriceCents,
+      })),
+    )
+    .withResponse();
+  const { data: saleEnvelope } = await scoped
+    .completeSale(saleId, { paymentMethod: body.paymentMethod })
+    .withResponse();
+  const sale = saleEnvelope.data;
+
+  const uniqueIds = [...new Set(body.lines.map((l) => l.productId))];
+  const products: ProductRow[] = [];
+  for (const productId of uniqueIds) {
+    const { data: prodEnvelope } = await scoped.getProduct(productId).withResponse();
+    products.push(prodEnvelope.data);
+  }
+  return { sale, products } satisfies CatalogCompleteCounterSaleReplayResult;
 };

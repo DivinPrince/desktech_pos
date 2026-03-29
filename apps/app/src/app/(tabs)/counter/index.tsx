@@ -5,7 +5,6 @@ import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import React, { useCallback, useMemo } from "react";
 import {
-  Alert,
   FlatList,
   ListRenderItem,
   Pressable,
@@ -18,6 +17,7 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 
+import { useCounterCheckout } from "@/app/(tabs)/counter/counter-checkout-context";
 import { authClient } from "@/lib/auth-client";
 import type { SessionPayload } from "@/lib/auth-session";
 import type { CartLine } from "@/lib/counter-cart/counter-cart";
@@ -40,6 +40,7 @@ const FOOTER_ABOVE_TAB_GAP = 10;
 
 export default function CounterTab() {
   const router = useRouter();
+  const { resetForNewCheckout } = useCounterCheckout();
   const insets = useSafeAreaInsets();
   const accent = useThemeColor("accent");
   const accentFg = useThemeColor("accent-foreground");
@@ -62,8 +63,9 @@ export default function CounterTab() {
 
   const onCharge = useCallback(() => {
     if (totalCents <= 0) return;
-    Alert.alert("Payment", "Payment flow coming soon.");
-  }, [totalCents]);
+    resetForNewCheckout();
+    router.push("/counter/checkout-details");
+  }, [resetForNewCheckout, router, totalCents]);
 
   const renderLine: ListRenderItem<CartLine> = useCallback(
     ({ item, index }) => {
