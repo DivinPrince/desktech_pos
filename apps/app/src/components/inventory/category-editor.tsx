@@ -27,6 +27,7 @@ import {
 } from "@/components/desktech-ui";
 import { authClient } from "@/lib/auth-client";
 import type { SessionPayload } from "@/lib/auth-session";
+import { useNetworkReachable } from "@/lib/hooks/use-network-reachable";
 import {
   useBusinessesQuery,
   useCategoriesQuery,
@@ -57,6 +58,7 @@ type CategoryEditorProps = {
 export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const networkOnline = useNetworkReachable();
   const { toast } = useToast();
   const fg = useThemeColor("foreground");
   const danger = useThemeColor("danger");
@@ -236,7 +238,8 @@ export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProp
     );
   }, [categoryId, businessId, deleteMutation, router, toast]);
 
-  if (!signedIn || businessesQuery.isPending) {
+  const businesses = businessesQuery.data ?? [];
+  if (!signedIn || (businesses.length === 0 && businessesQuery.isPending)) {
     return (
       <View className="flex-1 items-center justify-center bg-background px-6">
         <Text className="text-center text-[15px] text-muted">Loading…</Text>
@@ -300,6 +303,14 @@ export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProp
         </Text>
         <View className="h-10 w-10" />
       </View>
+
+      {!networkOnline ? (
+        <View className="bg-muted px-3 py-2">
+          <Text className="text-center text-[13px] leading-[18px] text-foreground">
+            Offline — catalog changes are saved on this device and sync when you are back online.
+          </Text>
+        </View>
+      ) : null}
 
       <ScrollView
         style={styles.fill}

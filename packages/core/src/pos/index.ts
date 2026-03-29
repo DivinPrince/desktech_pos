@@ -7,6 +7,8 @@ export * from "./expense";
 export * from "./expense.sql";
 export * from "./inventory";
 export * from "./inventory.sql";
+export * from "./offline-idempotency";
+export * from "./offline-idempotency.sql";
 export * from "./product";
 export * from "./product-variant";
 export * from "./reports";

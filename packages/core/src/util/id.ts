@@ -40,7 +40,8 @@ export type EntityPrefix =
   | "dtb"
   | "sal"
   | "sli"
-  | "exp";
+  | "exp"
+  | "oid";
 
 const prefixMap: Record<string, EntityPrefix> = {
   user: "usr",
@@ -83,6 +84,7 @@ const prefixMap: Record<string, EntityPrefix> = {
   sale: "sal",
   sale_line: "sli",
   expense: "exp",
+  offline_idempotency: "oid",
 };
 
 export function createID(entity: keyof typeof prefixMap): string {

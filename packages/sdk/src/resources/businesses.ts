@@ -155,10 +155,13 @@ export class BusinessScopedResource extends APIResource {
     return this._client.get<Data<z.infer<typeof ProductService.Info>>>(this.prefix(`/products/${id}`));
   }
 
-  createProduct(body: Omit<z.infer<typeof ProductService.CreateInput>, "businessId">) {
+  createProduct(
+    body: Omit<z.infer<typeof ProductService.CreateInput>, "businessId">,
+    request?: RequestOptions,
+  ) {
     return this._client.post<typeof body, Data<z.infer<typeof ProductService.Info>>>(
       this.prefix("/products"),
-      { body },
+      { body, ...request },
     );
   }
 

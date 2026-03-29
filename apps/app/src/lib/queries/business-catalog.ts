@@ -1,11 +1,29 @@
+import type { QueryCollectionUtils } from "@tanstack/query-db-collection";
+import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
+
 import {
-  keepPreviousData,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+  cancelInFlightProductListQueries,
+  reconcileProductDeleteInQueryCache,
+  reconcileServerProductIntoQueryCache,
+} from "@/lib/data/catalog/cache-reconcile";
+import { getCatalogCollectionRegistry } from "@/lib/data/catalog/collections";
+import { runCatalogOutboxMutation } from "@/lib/data/offline/catalog-outbox";
+import {
+  useBusinessesLiveRows,
+  useCategoriesLiveRows,
+  useProductLiveRow,
+  useProductsLiveRows,
+} from "@/lib/data/catalog/hooks";
+import { useOfflineExecutor } from "@/lib/data/offline/offline-executor-provider";
+
+import type { BusinessRow, CategoryRow, ProductRow } from "@/lib/data/catalog/types";
 
 import { useApiSdk } from "../api-sdk";
+
+function catalogUtils<T extends object>(collection: unknown): QueryCollectionUtils<T, string, T, unknown> | undefined {
+  const c = collection as { utils?: QueryCollectionUtils<T, string, T, unknown> } | null | undefined;
+  return c?.utils;
+}
 
 export const businessKeys = {
   all: ["businesses"] as const,
@@ -102,32 +120,137 @@ export type StockAdjustBody = {
   note?: string;
 };
 
+function randomIdempotencyKey(): string {
+  if (typeof globalThis.crypto !== "undefined" && globalThis.crypto.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+  return `idem_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+}
+
+function optimisticProductRow(businessId: string, body: ProductCreateBody, localId: string): ProductRow {
+  const now = new Date();
+  return {
+    id: localId,
+    businessId,
+    categoryId: body.categoryId ?? null,
+    name: body.name,
+    sku: body.sku ?? null,
+    unit: body.unit ?? "ea",
+    description: body.description ?? null,
+    priceCents: body.priceCents,
+    costCents: body.costCents ?? null,
+    reorderLevel: body.reorderLevel ?? 0,
+    trackStock: body.trackStock ?? true,
+    active: body.active ?? true,
+    quantityOnHand: 0,
+    variants: [],
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function optimisticCategoryRow(businessId: string, body: CategoryCreateBody, localId: string): CategoryRow {
+  const now = new Date();
+  return {
+    id: localId,
+    businessId,
+    name: body.name,
+    sortOrder: body.sortOrder ?? 0,
+    parentId: body.parentId ?? null,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function applyProductUpdateDraft(draft: ProductRow, body: ProductUpdateBody): void {
+  if (body.categoryId !== undefined) draft.categoryId = body.categoryId;
+  if (body.name !== undefined) draft.name = body.name;
+  if (body.sku !== undefined) draft.sku = body.sku;
+  if (body.unit !== undefined) draft.unit = body.unit;
+  if (body.description !== undefined) draft.description = body.description;
+  if (body.priceCents !== undefined) draft.priceCents = body.priceCents;
+  if (body.costCents !== undefined) draft.costCents = body.costCents;
+  if (body.reorderLevel !== undefined) draft.reorderLevel = body.reorderLevel;
+  if (body.trackStock !== undefined) draft.trackStock = body.trackStock;
+  if (body.active !== undefined) draft.active = body.active;
+  draft.updatedAt = new Date();
+}
+
+function assertStockAdjustAllowed(snapshot: ProductRow, body: StockAdjustBody): void {
+  const q = body.productVariantId
+    ? snapshot.variants.find((v) => v.id === body.productVariantId)?.quantityOnHand
+    : snapshot.quantityOnHand;
+  if (q === undefined) return;
+  if (q + body.quantityDelta < 0) {
+    throw new Error("Insufficient stock for this adjustment");
+  }
+}
+
+/** Match server rules: variant adjusts update the variant and parent aggregate when variants exist. */
+function applyStockAdjustDraft(draft: ProductRow, body: StockAdjustBody): void {
+  if (body.productVariantId) {
+    const v = draft.variants.find((x) => x.id === body.productVariantId);
+    if (v) {
+      v.quantityOnHand += body.quantityDelta;
+    }
+    if (draft.variants.length > 0) {
+      draft.quantityOnHand = draft.variants.reduce((s, x) => s + x.quantityOnHand, 0);
+    }
+  } else {
+    draft.quantityOnHand += body.quantityDelta;
+  }
+  draft.updatedAt = new Date();
+}
+
+function invalidateCatalogQuery(queryClient: QueryClient, businessId: string | undefined) {
+  if (businessId) void queryClient.invalidateQueries({ queryKey: catalogKeys.all(businessId) });
+}
+
+/** Fire-and-forget API reconciliation so `mutationFn` never awaits the network. */
+function syncCatalogInBackground(
+  promise: Promise<unknown>,
+  invalidate: () => void,
+  options?: { invalidateOnSuccess?: boolean },
+) {
+  const invalidateOnSuccess = options?.invalidateOnSuccess ?? true;
+  void promise
+    .then(() => {
+      if (invalidateOnSuccess) invalidate();
+    })
+    .catch(() => invalidate());
+}
+
+/** Catalog reads: TanStack DB persisted collections + `useLiveQuery` (SQLite-backed, stale-while-revalidate). */
 export function useBusinessesQuery(enabled: boolean) {
-  const sdk = useApiSdk();
-  return useQuery({
-    queryKey: businessKeys.list(),
-    enabled,
-    queryFn: async () => {
-      const { data } = await sdk.businesses.list().withResponse();
-      return data.data;
-    },
-  });
+  const { data, isLoading, collection, isError, isReady } = useBusinessesLiveRows(enabled);
+  const rows = data ?? [];
+  const utils = catalogUtils<BusinessRow>(collection);
+  return {
+    data: rows,
+    isPending: isLoading && rows.length === 0,
+    isFetching: utils?.isFetching ?? false,
+    isLoading,
+    isSuccess: isReady,
+    isError,
+    error: utils?.lastError ?? null,
+    refetch: () => utils?.refetch?.() ?? Promise.resolve(),
+  };
 }
 
 export function useCategoriesQuery(businessId: string | undefined, enabled: boolean) {
-  const sdk = useApiSdk();
-  return useQuery({
-    queryKey: catalogKeys.categories(businessId ?? ""),
-    enabled: Boolean(businessId) && enabled,
-    queryFn: async () => {
-      const { data } = await sdk
-        .businesses
-        .business(businessId!)
-        .listCategories()
-        .withResponse();
-      return data.data;
-    },
-  });
+  const { data, isLoading, collection, isError, isReady } = useCategoriesLiveRows(businessId, enabled);
+  const rows = data ?? [];
+  const utils = catalogUtils<CategoryRow>(collection);
+  return {
+    data: rows,
+    isPending: isLoading && rows.length === 0,
+    isFetching: utils?.isFetching ?? false,
+    isLoading,
+    isSuccess: isReady,
+    isError,
+    error: utils?.lastError ?? null,
+    refetch: () => utils?.refetch?.() ?? Promise.resolve(),
+  };
 }
 
 export function useProductsQuery(
@@ -135,27 +258,25 @@ export function useProductsQuery(
   enabled: boolean,
   filters?: ProductsQueryFilters,
 ) {
-  const sdk = useApiSdk();
   const activeOnly = filters?.activeOnly ?? true;
   const search = (filters?.search ?? "").trim();
-  return useQuery({
-    queryKey: catalogKeys.products(businessId ?? "", {
-      activeOnly,
-      search,
-    }),
-    enabled: Boolean(businessId) && enabled,
-    queryFn: async () => {
-      const { data } = await sdk
-        .businesses
-        .business(businessId!)
-        .listProducts({
-          activeOnly,
-          search: search.length > 0 ? search : undefined,
-        })
-        .withResponse();
-      return data.data;
-    },
-  });
+  const { data, isLoading, collection, isError, isReady } = useProductsLiveRows(
+    businessId,
+    enabled,
+    { activeOnly, search },
+  );
+  const rows = data ?? [];
+  const utils = catalogUtils<ProductRow>(collection);
+  return {
+    data: rows,
+    isPending: isLoading && rows.length === 0,
+    isFetching: utils?.isFetching ?? false,
+    isLoading,
+    isSuccess: isReady,
+    isError,
+    error: utils?.lastError ?? null,
+    refetch: () => utils?.refetch?.() ?? Promise.resolve(),
+  };
 }
 
 export function useProductQuery(
@@ -163,20 +284,28 @@ export function useProductQuery(
   productId: string | undefined,
   enabled: boolean,
 ) {
-  const sdk = useApiSdk();
-  return useQuery({
-    queryKey: catalogKeys.product(businessId ?? "", productId ?? ""),
-    enabled: Boolean(businessId && productId && enabled),
-    placeholderData: keepPreviousData,
-    queryFn: async () => {
-      const { data } = await sdk
-        .businesses
-        .business(businessId!)
-        .getProduct(productId!)
-        .withResponse();
-      return data.data;
-    },
-  });
+  const queryClient = useQueryClient();
+  const registry = getCatalogCollectionRegistry(queryClient);
+  if (enabled && businessId && productId) {
+    registry.hydrateProductDetailFromListCaches(queryClient, businessId, productId);
+  }
+  const live = useProductLiveRow(businessId, productId, enabled);
+  const peeked =
+    enabled && businessId && productId
+      ? registry.peekProductFromCaches(queryClient, businessId, productId)
+      : undefined;
+  const data = (live.data ?? peeked) as ProductRow | undefined;
+  const utils = catalogUtils<ProductRow>(live.collection);
+  return {
+    data,
+    isPending: live.isLoading && data == null,
+    isFetching: utils?.isFetching ?? false,
+    isLoading: live.isLoading,
+    isSuccess: live.isReady,
+    isError: live.isError,
+    error: utils?.lastError ?? null,
+    refetch: () => utils?.refetch?.() ?? Promise.resolve(),
+  };
 }
 
 function useInvalidateCatalog(businessId: string | undefined) {
@@ -190,17 +319,47 @@ function useInvalidateCatalog(businessId: string | undefined) {
 
 export function useCreateProductMutation(businessId: string | undefined) {
   const sdk = useApiSdk();
-  const invalidate = useInvalidateCatalog(businessId);
+  const executor = useOfflineExecutor();
+  const queryClient = useQueryClient();
   return useMutation({
+    retry: false,
     mutationFn: async (body: ProductCreateBody) => {
-      const { data } = await sdk
-        .businesses
-        .business(businessId!)
-        .createProduct(body)
-        .withResponse();
-      return data.data;
+      if (!businessId) throw new Error("Missing business");
+      const idempotencyKey = randomIdempotencyKey();
+      const localId = `local_${idempotencyKey.replace(/[^a-zA-Z0-9]/g, "").slice(0, 24)}`;
+      const optimistic = optimisticProductRow(businessId, body, localId);
+
+      const registry = getCatalogCollectionRegistry(queryClient);
+      const inv = () => invalidateCatalogQuery(queryClient, businessId);
+      const apply = () => {
+        registry.mirrorProductInsert(queryClient, businessId, optimistic);
+      };
+
+      if (executor?.isOfflineEnabled) {
+        return runCatalogOutboxMutation({
+          executor,
+          mutationFnName: "catalogCreateProduct",
+          idempotencyKey,
+          metadata: { businessId, body },
+          mutate: apply,
+          optimisticResult: optimistic,
+          invalidate: inv,
+        });
+      }
+
+      apply();
+      syncCatalogInBackground(
+        sdk
+          .businesses
+          .business(businessId)
+          .createProduct(body, {
+            headers: { "Idempotency-Key": idempotencyKey },
+          })
+          .withResponse(),
+        inv,
+      );
+      return optimistic;
     },
-    onSuccess: invalidate,
   });
 }
 
@@ -209,44 +368,156 @@ export function useUpdateProductMutation(
   productId: string | undefined,
 ) {
   const sdk = useApiSdk();
-  const invalidate = useInvalidateCatalog(businessId);
+  const executor = useOfflineExecutor();
+  const queryClient = useQueryClient();
   return useMutation({
+    retry: false,
     mutationFn: async (body: ProductUpdateBody) => {
-      const { data } = await sdk
-        .businesses
-        .business(businessId!)
-        .updateProduct(productId!, body)
-        .withResponse();
-      return data.data;
+      if (!businessId || !productId) throw new Error("Missing business or product");
+
+      const registry = getCatalogCollectionRegistry(queryClient);
+      const single = registry.ensureProduct(queryClient, businessId, productId);
+      const inv = () => invalidateCatalogQuery(queryClient, businessId);
+      const applyLists = () => {
+        registry.mirrorProductUpdate(queryClient, businessId, productId, (d) => {
+          applyProductUpdateDraft(d, body);
+        });
+      };
+      const applyDetail = () => {
+        try {
+          single.update(productId, (d) => {
+            applyProductUpdateDraft(d, body);
+          });
+        } catch {
+          /* detail collection may have no row yet */
+        }
+      };
+
+      if (executor?.isOfflineEnabled) {
+        // Per-product collections are not registered on the offline executor (they are
+        // created lazily per id). Only mirror list slices in the outbox transaction so
+        // serialization can resolve collections; update detail locally for instant UI.
+        applyDetail();
+        return runCatalogOutboxMutation({
+          executor,
+          mutationFnName: "catalogUpdateProduct",
+          idempotencyKey: randomIdempotencyKey(),
+          metadata: { businessId, productId, body },
+          mutate: applyLists,
+          optimisticResult: undefined as unknown as ProductRow,
+          invalidate: inv,
+          invalidateAfterSuccess: false,
+        });
+      }
+
+      applyLists();
+      applyDetail();
+      syncCatalogInBackground(
+        (async () => {
+          const { data: envelope } = await sdk
+            .businesses
+            .business(businessId)
+            .updateProduct(productId, body)
+            .withResponse();
+          const serverRow = envelope.data;
+          await cancelInFlightProductListQueries(queryClient, businessId);
+          reconcileServerProductIntoQueryCache(queryClient, businessId, serverRow);
+        })(),
+        inv,
+        { invalidateOnSuccess: false },
+      );
+      return undefined as unknown as ProductRow;
     },
-    onSuccess: invalidate,
   });
 }
 
 export function useDeleteProductMutation(businessId: string | undefined) {
   const sdk = useApiSdk();
-  const invalidate = useInvalidateCatalog(businessId);
+  const executor = useOfflineExecutor();
+  const queryClient = useQueryClient();
   return useMutation({
+    retry: false,
     mutationFn: async (productId: string) => {
-      await sdk.businesses.business(businessId!).deleteProduct(productId).withResponse();
+      if (!businessId) throw new Error("Missing business");
+
+      const registry = getCatalogCollectionRegistry(queryClient);
+      const single = registry.ensureProduct(queryClient, businessId, productId);
+      const inv = () => invalidateCatalogQuery(queryClient, businessId);
+      const applyLists = () => {
+        registry.mirrorProductDelete(queryClient, businessId, productId);
+      };
+      const applyDetail = () => {
+        try {
+          single.delete(productId);
+        } catch {
+          /* detail collection may have no row */
+        }
+      };
+
+      if (executor?.isOfflineEnabled) {
+        applyDetail();
+        return runCatalogOutboxMutation({
+          executor,
+          mutationFnName: "catalogDeleteProduct",
+          idempotencyKey: randomIdempotencyKey(),
+          metadata: { businessId, productId },
+          mutate: applyLists,
+          optimisticResult: undefined,
+          invalidate: inv,
+          invalidateAfterSuccess: false,
+        });
+      }
+
+      applyLists();
+      applyDetail();
+      syncCatalogInBackground(
+        (async () => {
+          await sdk.businesses.business(businessId).deleteProduct(productId).withResponse();
+          await cancelInFlightProductListQueries(queryClient, businessId);
+          reconcileProductDeleteInQueryCache(queryClient, businessId, productId);
+        })(),
+        inv,
+        { invalidateOnSuccess: false },
+      );
     },
-    onSuccess: invalidate,
   });
 }
 
 export function useCreateCategoryMutation(businessId: string | undefined) {
   const sdk = useApiSdk();
-  const invalidate = useInvalidateCatalog(businessId);
+  const executor = useOfflineExecutor();
+  const queryClient = useQueryClient();
   return useMutation({
+    retry: false,
     mutationFn: async (body: CategoryCreateBody) => {
-      const { data } = await sdk
-        .businesses
-        .business(businessId!)
-        .createCategory(body)
-        .withResponse();
-      return data.data;
+      if (!businessId) throw new Error("Missing business");
+      const idempotencyKey = randomIdempotencyKey();
+      const localId = `local_${idempotencyKey.replace(/[^a-zA-Z0-9]/g, "").slice(0, 24)}`;
+      const optimistic = optimisticCategoryRow(businessId, body, localId);
+
+      const registry = getCatalogCollectionRegistry(queryClient);
+      const categories = registry.ensureCategories(queryClient, businessId);
+      const inv = () => invalidateCatalogQuery(queryClient, businessId);
+      const apply = () => {
+        categories.insert(optimistic);
+      };
+
+      if (executor?.isOfflineEnabled) {
+        return runCatalogOutboxMutation({
+          executor,
+          mutationFnName: "catalogCreateCategory",
+          idempotencyKey,
+          metadata: { businessId, body },
+          mutate: apply,
+          optimisticResult: optimistic,
+          invalidate: inv,
+        });
+      }
+
+      apply();
+      syncCatalogInBackground(sdk.businesses.business(businessId).createCategory(body).withResponse(), inv);
+      return optimistic;
     },
-    onSuccess: invalidate,
   });
 }
 
@@ -255,52 +526,141 @@ export function useUpdateCategoryMutation(
   categoryId: string | undefined,
 ) {
   const sdk = useApiSdk();
-  const invalidate = useInvalidateCatalog(businessId);
+  const executor = useOfflineExecutor();
+  const queryClient = useQueryClient();
   return useMutation({
+    retry: false,
     mutationFn: async (body: CategoryUpdateBody) => {
-      const { data } = await sdk
-        .businesses
-        .business(businessId!)
-        .updateCategory(categoryId!, body)
-        .withResponse();
-      return data.data;
+      if (!businessId || !categoryId) throw new Error("Missing business or category");
+
+      const registry = getCatalogCollectionRegistry(queryClient);
+      const categories = registry.ensureCategories(queryClient, businessId);
+      const inv = () => invalidateCatalogQuery(queryClient, businessId);
+      const apply = () => {
+        categories.update(categoryId, (d) => {
+          if (body.name !== undefined) d.name = body.name;
+          if (body.parentId !== undefined) d.parentId = body.parentId;
+          if (body.sortOrder !== undefined) d.sortOrder = body.sortOrder;
+          d.updatedAt = new Date();
+        });
+      };
+
+      if (executor?.isOfflineEnabled) {
+        return runCatalogOutboxMutation({
+          executor,
+          mutationFnName: "catalogUpdateCategory",
+          idempotencyKey: randomIdempotencyKey(),
+          metadata: { businessId, categoryId, body },
+          mutate: apply,
+          optimisticResult: undefined as unknown as CategoryRow,
+          invalidate: inv,
+        });
+      }
+
+      apply();
+      syncCatalogInBackground(
+        sdk.businesses.business(businessId).updateCategory(categoryId, body).withResponse(),
+        inv,
+      );
+      return undefined as unknown as CategoryRow;
     },
-    onSuccess: invalidate,
   });
 }
 
 export function useDeleteCategoryMutation(businessId: string | undefined) {
   const sdk = useApiSdk();
-  const invalidate = useInvalidateCatalog(businessId);
+  const executor = useOfflineExecutor();
+  const queryClient = useQueryClient();
   return useMutation({
+    retry: false,
     mutationFn: async (categoryId: string) => {
-      await sdk.businesses.business(businessId!).deleteCategory(categoryId).withResponse();
+      if (!businessId) throw new Error("Missing business");
+
+      const registry = getCatalogCollectionRegistry(queryClient);
+      const categories = registry.ensureCategories(queryClient, businessId);
+      const inv = () => invalidateCatalogQuery(queryClient, businessId);
+      const apply = () => {
+        categories.delete(categoryId);
+      };
+
+      if (executor?.isOfflineEnabled) {
+        return runCatalogOutboxMutation({
+          executor,
+          mutationFnName: "catalogDeleteCategory",
+          idempotencyKey: randomIdempotencyKey(),
+          metadata: { businessId, categoryId },
+          mutate: apply,
+          optimisticResult: undefined,
+          invalidate: inv,
+        });
+      }
+
+      apply();
+      syncCatalogInBackground(sdk.businesses.business(businessId).deleteCategory(categoryId).withResponse(), inv);
     },
-    onSuccess: invalidate,
   });
 }
 
 export function useAdjustStockMutation(businessId: string | undefined) {
   const sdk = useApiSdk();
+  const executor = useOfflineExecutor();
   const queryClient = useQueryClient();
-  const invalidate = useInvalidateCatalog(businessId);
+  const inv = useInvalidateCatalog(businessId);
   return useMutation({
+    retry: false,
     mutationFn: async (body: StockAdjustBody) => {
-      const { data } = await sdk
-        .businesses
-        .business(businessId!)
-        .adjustStock(body)
-        .withResponse();
-      return data.data;
-    },
-    onSuccess: (result, variables) => {
-      if (businessId) {
-        queryClient.setQueryData(
-          catalogKeys.product(businessId, variables.productId),
-          result.product,
+      if (!businessId) throw new Error("Missing business");
+
+      const registry = getCatalogCollectionRegistry(queryClient);
+      const single = registry.ensureProduct(queryClient, businessId, body.productId);
+      const snap = single.get(body.productId) as ProductRow | undefined;
+      if (snap) assertStockAdjustAllowed(snap, body);
+
+      const applyLists = () => {
+        registry.mirrorProductUpdate(queryClient, businessId, body.productId, (d) =>
+          applyStockAdjustDraft(d, body),
         );
+      };
+      const applyDetail = () => {
+        try {
+          single.update(body.productId, (d) => applyStockAdjustDraft(d, body));
+        } catch {
+          /* row missing in detail slice */
+        }
+      };
+
+      if (executor?.isOfflineEnabled) {
+        applyDetail();
+        return runCatalogOutboxMutation({
+          executor,
+          mutationFnName: "catalogAdjustStock",
+          idempotencyKey: randomIdempotencyKey(),
+          metadata: { businessId, body },
+          mutate: applyLists,
+          optimisticResult: undefined as unknown as ProductRow,
+          invalidate: inv,
+          invalidateAfterSuccess: false,
+        });
       }
-      invalidate();
+
+      applyLists();
+      applyDetail();
+      try {
+        const { data: envelope } = await sdk
+          .businesses
+          .business(businessId)
+          .adjustStock(body, {
+            headers: { "Idempotency-Key": randomIdempotencyKey() },
+          })
+          .withResponse();
+        const serverRow = envelope.data.product;
+        await cancelInFlightProductListQueries(queryClient, businessId);
+        reconcileServerProductIntoQueryCache(queryClient, businessId, serverRow);
+        return { movement: envelope.data.movement, product: serverRow };
+      } catch (e) {
+        inv();
+        throw e;
+      }
     },
   });
 }

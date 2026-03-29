@@ -6,6 +6,8 @@ import { Text, View } from "react-native";
 
 import { authClient } from "@/lib/auth-client";
 import { sessionNeedsOnboarding, type SessionPayload } from "@/lib/auth-session";
+import { OfflineExecutorProvider } from "@/lib/data/offline/offline-executor-provider";
+import { useBusinessesQuery } from "@/lib/queries/business-catalog";
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -38,6 +40,10 @@ export default function TabsLayout() {
   const mutedColor = useThemeColor("muted");
   const backgroundColor = useThemeColor("background");
   const { data: session, isPending } = authClient.useSession();
+  const user = (session as SessionPayload | null | undefined)?.user;
+  const canLoadBusinesses = !isPending && Boolean(user) && !sessionNeedsOnboarding(session);
+  const businessesQuery = useBusinessesQuery(canLoadBusinesses);
+  const offlineBusinessId = businessesQuery.data?.[0]?.id;
 
   const reportsOptions = useMemo(
     () => tabScreenOptions("Reports", "bar-chart", "bar-chart-outline"),
@@ -94,18 +100,19 @@ export default function TabsLayout() {
     return <Redirect href="/onboarding" />;
   }
 
-  const user = (session as SessionPayload | null | undefined)?.user;
   if (!user) {
     return <Redirect href="/login" />;
   }
 
   return (
-    <Tabs initialRouteName="today" screenOptions={screenOptions}>
-      <Tabs.Screen name="reports" options={reportsOptions} />
-      <Tabs.Screen name="today" options={todayOptions} />
-      <Tabs.Screen name="counter" options={counterOptions} />
-      <Tabs.Screen name="items" options={itemsOptions} />
-      <Tabs.Screen name="more" options={moreOptions} />
-    </Tabs>
+    <OfflineExecutorProvider businessId={offlineBusinessId}>
+      <Tabs initialRouteName="today" screenOptions={screenOptions}>
+        <Tabs.Screen name="reports" options={reportsOptions} />
+        <Tabs.Screen name="today" options={todayOptions} />
+        <Tabs.Screen name="counter" options={counterOptions} />
+        <Tabs.Screen name="items" options={itemsOptions} />
+        <Tabs.Screen name="more" options={moreOptions} />
+      </Tabs>
+    </OfflineExecutorProvider>
   );
 }

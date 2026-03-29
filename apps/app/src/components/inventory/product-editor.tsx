@@ -30,6 +30,7 @@ import {
   type SearchablePickerOption,
 } from "@/components/desktech-ui";
 import { StockManagementSheet } from "@/components/inventory/stock-management-sheet";
+import type { ProductRow } from "@/lib/data/catalog/types";
 import { authClient } from "@/lib/auth-client";
 import type { SessionPayload } from "@/lib/auth-session";
 import {
@@ -37,6 +38,7 @@ import {
   minorUnitsToMajorDecimalString,
   parseMajorUnitsToMinorUnits,
 } from "@/lib/format-money";
+import { useNetworkReachable } from "@/lib/hooks/use-network-reachable";
 import {
   type ProductCreateBody,
   useBusinessesQuery,
@@ -49,6 +51,8 @@ import {
   useUpdateProductMutation,
   useUpdateProductVariantMutation,
 } from "@/lib/queries/business-catalog";
+
+type ProductVariantRow = ProductRow["variants"][number];
 
 const INPUT_ROW_CLASS =
   "border-0 border-transparent bg-transparent rounded-xl py-2.5 px-3 text-[15px] leading-5 shadow-none ios:shadow-none android:shadow-none focus:border-transparent text-field-foreground";
@@ -67,6 +71,12 @@ function errorMessage(err: unknown): string {
   return "Something went wrong";
 }
 
+function productRowUpdatedAtMs(row: ProductRow): number | null {
+  const raw = row.updatedAt;
+  const ms = raw instanceof Date ? raw.getTime() : new Date(raw as string).getTime();
+  return Number.isNaN(ms) ? null : ms;
+}
+
 type ProductEditorProps = {
   productId?: string;
 };
@@ -74,6 +84,7 @@ type ProductEditorProps = {
 export function ProductEditor({ productId }: ProductEditorProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const networkOnline = useNetworkReachable();
   const { toast } = useToast();
   const fieldPlaceholder = useThemeColor("field-placeholder");
   const accent = useThemeColor("accent");
@@ -97,7 +108,7 @@ export function ProductEditor({ productId }: ProductEditorProps) {
   );
 
   const productQuery = useProductQuery(businessId, productId, isEdit);
-  const product = productQuery.data;
+  const product = productQuery.data as ProductRow | undefined;
 
   const createMutation = useCreateProductMutation(businessId);
   const updateMutation = useUpdateProductMutation(businessId, productId);
@@ -133,10 +144,13 @@ export function ProductEditor({ productId }: ProductEditorProps) {
   const [priceError, setPriceError] = useState("");
   const [costError, setCostError] = useState("");
 
-  const hydratedIdRef = React.useRef<string | null>(null);
+  /** Ignore stale snapshots; include currency so price strings re-format when business currency changes. */
+  const lastHydratedUpdatedAtMsRef = React.useRef<number>(-1);
+  const lastHydrationKeyRef = React.useRef<string>("");
 
   useEffect(() => {
-    hydratedIdRef.current = null;
+    lastHydratedUpdatedAtMsRef.current = -1;
+    lastHydrationKeyRef.current = "";
     if (productId) return;
     setCategoryId(null);
     setName("");
@@ -152,8 +166,14 @@ export function ProductEditor({ productId }: ProductEditorProps) {
 
   useEffect(() => {
     if (!isEdit || !product) return;
-    if (hydratedIdRef.current === product.id) return;
-    hydratedIdRef.current = product.id;
+    const updatedMs = productRowUpdatedAtMs(product);
+    if (updatedMs == null) return;
+    if (updatedMs < lastHydratedUpdatedAtMsRef.current) return;
+
+    const hydrationKey = `${product.id}:${updatedMs}:${currency}`;
+    if (hydrationKey === lastHydrationKeyRef.current) return;
+    lastHydrationKeyRef.current = hydrationKey;
+    lastHydratedUpdatedAtMsRef.current = updatedMs;
     setCategoryId(product.categoryId);
     setName(product.name);
     setSku(product.sku ?? "");
@@ -444,7 +464,8 @@ export function ProductEditor({ productId }: ProductEditorProps) {
     [deleteVariantMutation, toast],
   );
 
-  if (!signedIn || businessesQuery.isPending) {
+  const businesses = businessesQuery.data ?? [];
+  if (!signedIn || (businesses.length === 0 && businessesQuery.isPending)) {
     return (
       <View className="flex-1 items-center justify-center bg-background px-6">
         <Text className="text-center text-[15px] text-muted">Loading…</Text>
@@ -517,6 +538,14 @@ export function ProductEditor({ productId }: ProductEditorProps) {
           </Text>
           <View className="h-10 w-10" />
         </View>
+
+        {!networkOnline ? (
+          <View className="bg-muted px-3 py-2">
+            <Text className="text-center text-[13px] leading-[18px] text-foreground">
+              Offline — catalog changes are saved on this device and sync when you are back online.
+            </Text>
+          </View>
+        ) : null}
 
         <ScrollView
           style={styles.fill}
@@ -641,7 +670,7 @@ export function ProductEditor({ productId }: ProductEditorProps) {
                   <Text className="text-[13px] leading-5 text-muted">
                     Each variant has its own price and stock.
                   </Text>
-                  {product.variants.map((v) => (
+                  {product.variants.map((v: ProductVariantRow) => (
                     <View
                       key={v.id}
                       className="rounded-xl border border-border/70 bg-surface-secondary/40 p-3"
@@ -825,12 +854,14 @@ export function ProductEditor({ productId }: ProductEditorProps) {
           title="Stock"
           subtitle={
             stockVariantId
-              ? (product.variants.find((v) => v.id === stockVariantId)?.name ?? undefined)
+              ? (product.variants.find((v: ProductVariantRow) => v.id === stockVariantId)?.name ??
+                undefined)
               : undefined
           }
           currentQuantity={
             stockVariantId
-              ? (product.variants.find((v) => v.id === stockVariantId)?.quantityOnHand ?? 0)
+              ? (product.variants.find((v: ProductVariantRow) => v.id === stockVariantId)
+                  ?.quantityOnHand ?? 0)
               : product.quantityOnHand
           }
           trackStock={product.trackStock}

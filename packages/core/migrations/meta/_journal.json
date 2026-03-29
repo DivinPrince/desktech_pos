@@ -50,6 +50,20 @@
       "when": 1774496584378,
       "tag": "0006_drop_api_idempotency_key",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1774496584379,
+      "tag": "0007_offline_idempotency",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1774531324594,
+      "tag": "0008_dizzy_ultimatum",
+      "breakpoints": true
     }
   ]
 }

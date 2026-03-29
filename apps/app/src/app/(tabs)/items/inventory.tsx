@@ -92,10 +92,8 @@ export default function InventoryScreen() {
     activeOnly: false,
     search: debouncedSearch,
   });
-  const categoriesQuery = useCategoriesQuery(
-    businessId,
-    signedIn && segment === "categories",
-  );
+  /** Keep collection subscribed while on Inventory so creates/edits reflect immediately when switching to Categories. */
+  const categoriesQuery = useCategoriesQuery(businessId, signedIn);
 
   /** Only true during explicit pull-to-refresh — avoids native refresh spinner over list on background refetch. */
   const [pullRefreshing, setPullRefreshing] = useState(false);
@@ -115,6 +113,7 @@ export default function InventoryScreen() {
   const tabBarClearance = 72;
   const listBottomPad = Math.max(insets.bottom, 12) + tabBarClearance;
 
+  const businesses = businessesQuery.data ?? [];
   const products = productsQuery.data ?? [];
   const categoriesRaw = useMemo(
     () => categoriesQuery.data ?? [],
@@ -137,6 +136,7 @@ export default function InventoryScreen() {
     Boolean(businessId) && categoriesQuery.isPending && categoriesRaw.length === 0;
 
   const showLists = signedIn && businessId && !listError;
+  const workspaceColdLoad = businesses.length === 0 && businessesQuery.isPending;
 
   return (
     <View style={styles.root} className="bg-background">
@@ -246,7 +246,7 @@ export default function InventoryScreen() {
           <Text className="px-4 text-[15px] text-muted">
             Could not load businesses. Pull to refresh.
           </Text>
-        ) : businessesQuery.isPending ? (
+        ) : workspaceColdLoad ? (
           <Text className="px-4 text-[15px] text-muted">Loading your workspace…</Text>
         ) : !businessId ? (
           <Text className="px-4 text-[15px] text-muted">

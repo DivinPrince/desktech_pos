@@ -1,3 +1,4 @@
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { pgTable, varchar, integer, boolean, text, index } from "drizzle-orm/pg-core";
 import { id, timestamps, ulid, money } from "../drizzle/types";
 import { businessTable } from "../business/business.sql";
@@ -11,7 +12,7 @@ export const categoryTable = pgTable(
       .references(() => businessTable.id, { onDelete: "cascade" }),
     name: varchar("name", { length: 255 }).notNull(),
     sortOrder: integer("sort_order").notNull().default(0),
-    parentId: ulid("parent_id").references(() => categoryTable.id, {
+    parentId: ulid("parent_id").references((): AnyPgColumn => categoryTable.id, {
       onDelete: "set null",
     }),
     ...timestamps,

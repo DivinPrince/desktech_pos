@@ -19,6 +19,7 @@ import { ProductListGrid } from "@/components/desktech-ui/product-list-grid";
 import { authClient } from "@/lib/auth-client";
 import type { SessionPayload } from "@/lib/auth-session";
 import { formatMinorUnitsToCurrency } from "@/lib/format-money";
+import { productMatchesListFilters } from "@/lib/data/catalog/collections";
 import {
   catalogKeys,
   useBusinessesQuery,
@@ -71,9 +72,9 @@ export default function ItemsTab() {
   const businessId = currentBusiness?.id;
   const currency = currentBusiness?.currency ?? "USD";
 
+  /** Single persisted slice (no server `search` param) so SQLite/cache stays one source of truth; filter below. */
   const productsQuery = useProductsQuery(businessId, signedIn, {
     activeOnly: false,
-    search: debouncedSearch,
   });
 
   const [pullRefreshing, setPullRefreshing] = useState(false);
@@ -95,9 +96,14 @@ export default function ItemsTab() {
 
   const catalogError = businessesQuery.error ?? productsQuery.error;
 
+  const businesses = businessesQuery.data ?? [];
   const products = productsQuery.data ?? [];
+  const filteredProducts = useMemo(() => {
+    return products.filter((p) => productMatchesListFilters(p, false, debouncedSearch));
+  }, [products, debouncedSearch]);
+  const workspaceColdLoad = businesses.length === 0 && businessesQuery.isPending;
   const productsInitialLoad =
-    Boolean(businessId) && productsQuery.isPending && products.length === 0;
+    Boolean(businessId) && products.length === 0 && productsQuery.isPending;
 
   const showCatalogContent = signedIn && businessId && !catalogError;
 
@@ -193,7 +199,7 @@ export default function ItemsTab() {
           >
             Could not load businesses. Pull to refresh when the API is reachable.
           </Text>
-        ) : businessesQuery.isPending ? (
+        ) : workspaceColdLoad ? (
           <Text style={{ color: muted, fontSize: 15 }}>Loading your workspace…</Text>
         ) : !businessId ? (
           <Text
@@ -216,7 +222,7 @@ export default function ItemsTab() {
         ) : showCatalogContent ? (
           <View>
             <ProductListGrid>
-              {products.map((p) => (
+              {filteredProducts.map((p) => (
                 <ProductListGrid.ProductCard
                   key={p.id}
                   title={p.active ? p.name : `${p.name} · Inactive`}
@@ -248,9 +254,18 @@ export default function ItemsTab() {
                   textAlign: "center",
                 }}
               >
-                {debouncedSearch.length > 0
-                  ? "No matches. Try another search or tap Add item to manage your catalog."
-                  : "No products yet. Tap Add item to open inventory and add your first product."}
+                No products yet. Tap Add item to open inventory and add your first product.
+              </Text>
+            ) : filteredProducts.length === 0 ? (
+              <Text
+                style={{
+                  color: muted,
+                  fontSize: 14,
+                  marginTop: 12,
+                  textAlign: "center",
+                }}
+              >
+                No matches. Try another search or tap Add item to manage your catalog.
               </Text>
             ) : null}
           </View>

@@ -5,6 +5,7 @@ import {
   DiningService,
   ExpenseService,
   InventoryService,
+  OfflineIdempotencyService,
   ProductService,
   ProductVariantService,
   ReportService,
@@ -213,14 +214,33 @@ export const businessScopedApi = new Hono<AppEnv>()
     validate("json", ProductService.CreateInput.omit({ businessId: true })),
     async (c) => {
       const businessId = c.req.param("businessId")!;
-      return ok(
-        c,
-        await ProductService.create({
+      const idempotencyKey = c.req.header("Idempotency-Key")?.trim();
+      const userId = uid(c);
+      if (idempotencyKey) {
+        const cached = await OfflineIdempotencyService.lookupCachedProductCreate({
+          userId,
           businessId,
-          ...c.req.valid("json"),
-        }),
-        201,
-      );
+          idempotencyKey,
+        });
+        if (cached) return ok(c, cached, 201);
+      }
+      const row = await ProductService.create({
+        businessId,
+        ...c.req.valid("json"),
+      });
+      if (idempotencyKey) {
+        try {
+          await OfflineIdempotencyService.saveProductCreateResult({
+            userId,
+            businessId,
+            idempotencyKey,
+            product: row,
+          });
+        } catch {
+          // Unique race: original creator already stored the replay payload.
+        }
+      }
+      return ok(c, row, 201);
     },
   )
   .patch(

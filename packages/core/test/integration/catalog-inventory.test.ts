@@ -98,6 +98,28 @@ describe("Catalog, products & inventory", () => {
     );
     const { data: prod } = await readJson<{ data: { id: string; name: string } }>(create, 201);
 
+    const idemKey = `idem-catalog-${runId}`;
+    const idemBody = JSON.stringify({
+      name: "Idempotent SKU",
+      priceCents: 4242,
+    });
+    const idemHdr = jsonHeaders(fx.managerHeaders);
+    idemHdr.set("Idempotency-Key", idemKey);
+    const idemFirst = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/products`,
+      { method: "POST", headers: idemHdr, body: idemBody },
+    );
+    const { data: idemProd } = await readJson<{ data: { id: string; name: string } }>(
+      idemFirst,
+      201,
+    );
+    const idemSecond = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/products`,
+      { method: "POST", headers: idemHdr, body: idemBody },
+    );
+    const { data: idemReplay } = await readJson<{ data: { id: string } }>(idemSecond, 201);
+    expect(idemReplay.id).toBe(idemProd.id);
+
     const listQ = await app.request(
       `http://localhost/api/businesses/${fx.businessId}/products?search=Wid&activeOnly=true`,
       { method: "GET", headers: fx.cashierHeaders },
