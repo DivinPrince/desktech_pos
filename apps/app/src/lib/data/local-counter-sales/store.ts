@@ -93,11 +93,32 @@ export async function appendLocalCounterSale(args: {
   await writeWebRows(next);
 }
 
-export async function listLocalSalesForLocalCalendarDay(
+function mapSqliteSaleRows(
+  result: {
+    id: string;
+    business_id: string;
+    completed_at_iso: string;
+    completed_at_ms: number;
+    payload_json: string;
+  }[],
+): LocalCounterSaleRow[] {
+  return result.map((r) => ({
+    id: r.id,
+    businessId: r.business_id,
+    completedAtIso: r.completed_at_iso,
+    completedAtMs: r.completed_at_ms,
+    receipt: JSON.parse(r.payload_json) as CompletedSaleReceipt,
+  }));
+}
+
+/**
+ * Half-open interval [startMs, endMs) on `completed_at_ms`.
+ */
+export async function listLocalSalesInTimeRange(
   businessId: string,
-  day: Date,
+  startMs: number,
+  endMs: number,
 ): Promise<LocalCounterSaleRow[]> {
-  const { startMs, endMs } = localDayBoundsMs(day);
   const db = getDesktechSqlite();
   if (db) {
     await ensureSqliteTable();
@@ -115,13 +136,7 @@ export async function listLocalSalesForLocalCalendarDay(
        ORDER BY completed_at_ms DESC`,
       [businessId, startMs, endMs],
     );
-    return result.map((r) => ({
-      id: r.id,
-      businessId: r.business_id,
-      completedAtIso: r.completed_at_iso,
-      completedAtMs: r.completed_at_ms,
-      receipt: JSON.parse(r.payload_json) as CompletedSaleReceipt,
-    }));
+    return mapSqliteSaleRows(result);
   }
 
   const all = await readWebRows();
@@ -133,6 +148,14 @@ export async function listLocalSalesForLocalCalendarDay(
         r.completedAtMs < endMs,
     )
     .sort((a, b) => b.completedAtMs - a.completedAtMs);
+}
+
+export async function listLocalSalesForLocalCalendarDay(
+  businessId: string,
+  day: Date,
+): Promise<LocalCounterSaleRow[]> {
+  const { startMs, endMs } = localDayBoundsMs(day);
+  return listLocalSalesInTimeRange(businessId, startMs, endMs);
 }
 
 export async function patchSaleIdIfPending(args: {

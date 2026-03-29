@@ -62,15 +62,6 @@ export default function TabsLayout() {
     () => tabScreenOptions("Items", "cube", "cube-outline"),
     [],
   );
-  const moreOptions = useMemo(
-    () =>
-      tabScreenOptions(
-        "More",
-        "ellipsis-horizontal-circle",
-        "ellipsis-horizontal-circle-outline",
-      ),
-    [],
-  );
 
   const screenOptions = useMemo(
     () => ({
@@ -113,7 +104,6 @@ export default function TabsLayout() {
           <Tabs.Screen name="today" options={todayOptions} />
           <Tabs.Screen name="counter" options={counterOptions} />
           <Tabs.Screen name="items" options={itemsOptions} />
-          <Tabs.Screen name="more" options={moreOptions} />
         </Tabs>
       </CounterCartProvider>
     </OfflineExecutorProvider>

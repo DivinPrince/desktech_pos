@@ -7,3 +7,6 @@ export type LocalCounterSaleRow = {
   completedAtMs: number;
   receipt: CompletedSaleReceipt;
 };
+
+/** Half-open interval [startMs, endMs) for local sales queries. */
+export type LocalSalesRangeBounds = { startMs: number; endMs: number };
