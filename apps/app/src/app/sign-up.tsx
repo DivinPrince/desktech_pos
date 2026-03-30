@@ -137,7 +137,7 @@ export default function SignUpScreen() {
   return (
     <GuestRouteGuard>
       <View className="flex-1 bg-background">
-        <StatusBar style="dark" />
+        <StatusBar style="inverted" />
 
         <SafeAreaView style={styles.fill} edges={["top", "left", "right"]}>
         <View

@@ -452,7 +452,7 @@ export default function ReportsTab() {
 
   return (
     <View style={styles.root} className="bg-background">
-      <StatusBar style="light" />
+      <StatusBar style="inverted" />
       <View
         style={{
           backgroundColor: accent,

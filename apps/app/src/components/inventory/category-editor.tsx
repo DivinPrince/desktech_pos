@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Input } from "heroui-native/input";
@@ -22,7 +23,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   FormSectionCard,
   SearchablePickerSheet,
-  SelectInputTrigger,
   type SearchablePickerOption,
 } from "@/components/desktech-ui";
 import { resolveActiveBusiness, useAuthSessionState } from "@/lib/auth-session";
@@ -59,7 +59,8 @@ export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProp
   const insets = useSafeAreaInsets();
   const networkOnline = useNetworkReachable();
   const { toast } = useToast();
-  const fg = useThemeColor("foreground");
+  const accent = useThemeColor("accent");
+  const accentFg = useThemeColor("accent-foreground");
   const danger = useThemeColor("danger");
 
   const isEdit = Boolean(categoryId);
@@ -85,7 +86,6 @@ export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProp
   const updateMutation = useUpdateCategoryMutation(businessId, categoryId);
   const deleteMutation = useDeleteCategoryMutation(businessId);
 
-  const [parentPickerOpen, setParentPickerOpen] = useState(false);
   const [parentId, setParentId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [sortStr, setSortStr] = useState("0");
@@ -135,11 +135,6 @@ export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProp
         searchText: c.name.toLowerCase(),
       }));
   }, [categories, categoryId]);
-
-  const parentLabel =
-    parentId == null
-      ? "None"
-      : (categories.find((c) => c.id === parentId)?.name ?? "Unknown parent");
 
   const saving =
     createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
@@ -285,18 +280,25 @@ export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProp
       className="bg-background"
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
+      <StatusBar style="light" />
       <View
-        className="flex-row items-center border-b border-border px-2 py-2"
-        style={{ paddingTop: Math.max(insets.top, 8) }}
+        className="flex-row items-center px-2 py-2"
+        style={{
+          backgroundColor: accent,
+          paddingTop: Math.max(insets.top, 8),
+        }}
       >
         <Pressable
           onPress={() => router.back()}
           hitSlop={12}
-          className="h-10 w-10 items-center justify-center rounded-full active:bg-accent/10"
+          className="h-10 w-10 items-center justify-center rounded-full active:bg-white/15"
         >
-          <Ionicons name="chevron-back" size={26} color={fg} />
+          <Ionicons name="chevron-back" size={26} color={accentFg} />
         </Pressable>
-        <Text className="min-w-0 flex-1 text-center text-[17px] font-semibold text-foreground">
+        <Text
+          className="min-w-0 flex-1 text-center text-[17px] font-semibold"
+          style={{ color: accentFg }}
+        >
           {isEdit ? "Edit category" : "New category"}
         </Text>
         <View className="h-10 w-10" />
@@ -322,11 +324,26 @@ export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProp
         }}
       >
         <FormSectionCard title="Details">
-          <SelectInputTrigger
-            label="Parent category"
-            displayValue={parentLabel}
+          <SearchablePickerSheet
+            fieldLabel="Parent category"
             placeholder="Select parent (optional)"
-            onPress={() => setParentPickerOpen(true)}
+            title="Parent category"
+            searchPlaceholder="Search or type a new parent name…"
+            leadingOptions={parentLeadingOptions}
+            options={parentPickerOptions}
+            selectedValue={parentId ?? ""}
+            onSelect={(v) => setParentId(v === "" ? null : v)}
+            onCreateFromQuery={(suggested) => {
+              router.push({
+                pathname: "/items/category/new",
+                params: { suggestName: suggested },
+              });
+            }}
+            createFromQueryLabel={(q) => `Create category “${q}”`}
+            onEmptyOptions={() => {
+              router.push({ pathname: "/items/category/new" });
+            }}
+            emptyOptionsLabel="Create category"
           />
 
           <View className="gap-1">
@@ -390,27 +407,6 @@ export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProp
         </Button>
       </View>
 
-      <SearchablePickerSheet
-        visible={parentPickerOpen}
-        title="Parent category"
-        searchPlaceholder="Search or type a new parent name…"
-        leadingOptions={parentLeadingOptions}
-        options={parentPickerOptions}
-        selectedValue={parentId ?? ""}
-        onSelect={(v) => setParentId(v === "" ? null : v)}
-        onClose={() => setParentPickerOpen(false)}
-        onCreateFromQuery={(suggested) => {
-          router.push({
-            pathname: "/items/category/new",
-            params: { suggestName: suggested },
-          });
-        }}
-        createFromQueryLabel={(q) => `Create category “${q}”`}
-        onEmptyOptions={() => {
-          router.push({ pathname: "/items/category/new" });
-        }}
-        emptyOptionsLabel="Create category"
-      />
     </KeyboardAvoidingView>
   );
 }

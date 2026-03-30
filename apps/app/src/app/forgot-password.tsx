@@ -8,7 +8,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 export default function ForgotPasswordScreen() {
   return (
     <View className="flex-1 bg-background">
-      <StatusBar style="auto" />
+      <StatusBar style="inverted" />
       <SafeAreaView className="flex-1 items-center justify-center px-6">
         <Text className="text-center text-lg text-foreground">
           Password reset coming soon.

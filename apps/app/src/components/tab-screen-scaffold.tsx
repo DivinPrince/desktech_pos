@@ -41,7 +41,7 @@ export function TabScreenScaffold({
 
   return (
     <View style={styles.root} className="bg-background">
-      <StatusBar style="dark" />
+      <StatusBar style="inverted" />
       <SafeAreaView style={styles.root} edges={["top", "left", "right"]}>
         <ScrollView
           style={styles.scroll}

@@ -287,7 +287,7 @@ export default function TodayTab() {
 
   return (
     <View style={styles.root} className="bg-background">
-      <StatusBar style="light" />
+      <StatusBar style="inverted" />
       <View
         style={{
           backgroundColor: accent,

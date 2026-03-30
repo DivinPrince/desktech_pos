@@ -13,7 +13,7 @@ import { useAuthSessionState } from "@/lib/auth-session";
 function AuthBootScreen() {
   return (
     <View className="flex-1 items-center justify-center bg-background px-6">
-      <StatusBar style="dark" />
+      <StatusBar style="inverted" />
       <Text className="text-center text-[15px] text-muted">Loading…</Text>
     </View>
   );

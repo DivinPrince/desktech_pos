@@ -26,7 +26,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   FormSectionCard,
   SearchablePickerSheet,
-  SelectInputTrigger,
   type SearchablePickerOption,
 } from "@/components/desktech-ui";
 import { StockManagementSheet } from "@/components/inventory/stock-management-sheet";
@@ -116,7 +115,6 @@ export function ProductEditor({ productId }: ProductEditorProps) {
   const deleteVariantMutation = useDeleteProductVariantMutation(businessId, productId);
   const updateVariantMutation = useUpdateProductVariantMutation(businessId, productId);
 
-  const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [sku, setSku] = useState("");
@@ -206,11 +204,6 @@ export function ProductEditor({ productId }: ProductEditorProps) {
       searchText: c.name.toLowerCase(),
     }));
   }, [categories]);
-
-  const categoryLabel =
-    categoryId == null
-      ? "Uncategorized"
-      : (categories.find((c) => c.id === categoryId)?.name ?? "Unknown category");
 
   const saving =
     createMutation.isPending ||
@@ -559,11 +552,26 @@ export function ProductEditor({ productId }: ProductEditorProps) {
         >
         <View className="gap-4">
           <FormSectionCard title="Basics">
-            <SelectInputTrigger
-              label="Category"
-              displayValue={categoryLabel}
+            <SearchablePickerSheet
+              fieldLabel="Category"
               placeholder="Select category"
-              onPress={() => setCategoryPickerOpen(true)}
+              title="Category"
+              searchPlaceholder="Search categories or type a new name…"
+              leadingOptions={categoryLeadingOptions}
+              options={categoryPickerOptions}
+              selectedValue={categoryId ?? ""}
+              onSelect={(v) => setCategoryId(v === "" ? null : v)}
+              onCreateFromQuery={(suggestedName) => {
+                router.push({
+                  pathname: "/items/category/new",
+                  params: { suggestName: suggestedName },
+                });
+              }}
+              createFromQueryLabel={(q) => `Create category “${q}”`}
+              onEmptyOptions={() => {
+                router.push({ pathname: "/items/category/new" });
+              }}
+              emptyOptionsLabel="Create category"
             />
 
             <View className="gap-1">
@@ -942,27 +950,6 @@ export function ProductEditor({ productId }: ProductEditorProps) {
         </Pressable>
       </Modal>
 
-      <SearchablePickerSheet
-        visible={categoryPickerOpen}
-        title="Category"
-        searchPlaceholder="Search categories or type a new name…"
-        leadingOptions={categoryLeadingOptions}
-        options={categoryPickerOptions}
-        selectedValue={categoryId ?? ""}
-        onSelect={(v) => setCategoryId(v === "" ? null : v)}
-        onClose={() => setCategoryPickerOpen(false)}
-        onCreateFromQuery={(suggestedName) => {
-          router.push({
-            pathname: "/items/category/new",
-            params: { suggestName: suggestedName },
-          });
-        }}
-        createFromQueryLabel={(q) => `Create category “${q}”`}
-        onEmptyOptions={() => {
-          router.push({ pathname: "/items/category/new" });
-        }}
-        emptyOptionsLabel="Create category"
-      />
     </KeyboardAvoidingView>
   );
 }

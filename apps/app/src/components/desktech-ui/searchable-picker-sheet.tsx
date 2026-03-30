@@ -1,29 +1,9 @@
-import { Ionicons } from "@expo/vector-icons";
 import { Button } from "heroui-native/button";
-import { useThemeColor } from "heroui-native/hooks";
 import { SearchField } from "heroui-native/search-field";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  FlatList,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-const styles = StyleSheet.create({
-  backdrop: { flex: 1 },
-  sheet: {
-    maxHeight: "88%",
-  },
-  list: {
-    flexGrow: 0,
-    flexShrink: 1,
-    minHeight: 120,
-  },
-});
+import { Select, useSelect } from "heroui-native/select";
+import { Separator } from "heroui-native/separator";
+import React, { useMemo, useState } from "react";
+import { ScrollView, Text, View } from "react-native";
 
 export type SearchablePickerOption = {
   value: string;
@@ -33,32 +13,25 @@ export type SearchablePickerOption = {
   searchText?: string;
 };
 
+type SelectValue = { value: string; label: string };
+
 export type SearchablePickerSheetProps = {
-  visible: boolean;
-  onClose: () => void;
+  /** Label shown above the trigger (form variant) or inside the trigger (onboarding variant). */
+  fieldLabel: string;
+  placeholder: string;
+  /** Heading inside the popover panel. */
   title: string;
   searchPlaceholder?: string;
-  /** Primary list (e.g. categories, tags, staff). */
   options: SearchablePickerOption[];
   selectedValue: string;
   onSelect: (value: string) => void;
-  /**
-   * Rows shown first (e.g. “None / Uncategorized”). Filtered by search like `options`.
-   */
   leadingOptions?: SearchablePickerOption[];
-  /**
-   * When the user typed something and nothing matches, show a primary action
-   * (e.g. open a create screen with the query as the default name).
-   */
   onCreateFromQuery?: (trimmedQuery: string) => void;
-  /** Default: Create “{query}” */
   createFromQueryLabel?: (query: string) => string;
-  /**
-   * When `options` is empty, search is empty, and there are no leading matches —
-   * optional CTA (e.g. “Create first category”).
-   */
   onEmptyOptions?: () => void;
   emptyOptionsLabel?: string;
+  /** `form`: labeled row like other editors. `onboarding`: compact labeled row for the setup surface. */
+  variant?: "form" | "onboarding";
 };
 
 function optionHaystack(o: SearchablePickerOption): string {
@@ -71,13 +44,63 @@ function matchesQuery(o: SearchablePickerOption, q: string): boolean {
   return optionHaystack(o).includes(q);
 }
 
+function CreateFromQuerySection({
+  query,
+  label,
+  onCreateFromQuery,
+}: {
+  query: string;
+  label: string;
+  onCreateFromQuery: (trimmed: string) => void;
+}) {
+  const { onOpenChange } = useSelect();
+  const trimmed = query.trim();
+  return (
+    <View className="border-t border-border/80 px-3 py-4">
+      <Text className="text-center text-[15px] text-muted">No matches for “{trimmed}”</Text>
+      <Button
+        className="mt-3"
+        onPress={() => {
+          onOpenChange(false);
+          onCreateFromQuery(trimmed);
+        }}
+      >
+        <Button.Label className="font-semibold text-accent-foreground">{label}</Button.Label>
+      </Button>
+    </View>
+  );
+}
+
+function EmptyOptionsSection({
+  label,
+  onEmptyOptions,
+}: {
+  label: string;
+  onEmptyOptions: () => void;
+}) {
+  const { onOpenChange } = useSelect();
+  return (
+    <View className="border-t border-border/80 px-3 py-6">
+      <Text className="text-center text-[15px] text-muted">Nothing to choose yet.</Text>
+      <Button
+        className="mt-3"
+        onPress={() => {
+          onOpenChange(false);
+          onEmptyOptions();
+        }}
+      >
+        <Button.Label className="font-semibold text-accent-foreground">{label}</Button.Label>
+      </Button>
+    </View>
+  );
+}
+
 /**
- * Reusable bottom-sheet style picker: search field + list + optional “create from query”.
- * Not the full-screen login-style modal.
+ * Searchable single-select using Hero UI `Select` with **popover** presentation (not bottom sheet).
  */
 export function SearchablePickerSheet({
-  visible,
-  onClose,
+  fieldLabel,
+  placeholder,
   title,
   searchPlaceholder = "Search…",
   options,
@@ -88,131 +111,92 @@ export function SearchablePickerSheet({
   createFromQueryLabel = (query) => `Create “${query}”`,
   onEmptyOptions,
   emptyOptionsLabel = "Create new",
+  variant = "form",
 }: SearchablePickerSheetProps) {
-  const insets = useSafeAreaInsets();
-  const accent = useThemeColor("accent");
-  const muted = useThemeColor("muted");
-  const surface = useThemeColor("surface");
-
   const [query, setQuery] = useState("");
-
-  useEffect(() => {
-    if (!visible) setQuery("");
-  }, [visible]);
-
   const q = query.trim().toLowerCase();
 
   const filteredLeading = useMemo(
     () => leadingOptions.filter((o) => matchesQuery(o, q)),
     [leadingOptions, q],
   );
-
   const filteredOptions = useMemo(
     () => options.filter((o) => matchesQuery(o, q)),
     [options, q],
   );
-
   const rows = useMemo(
     () => [...filteredLeading, ...filteredOptions],
     [filteredLeading, filteredOptions],
   );
 
+  const selectedOption = useMemo((): SelectValue | undefined => {
+    const all = [...leadingOptions, ...options];
+    const hit = all.find((o) => o.value === selectedValue);
+    if (hit) return { value: hit.value, label: hit.label };
+    return undefined;
+  }, [leadingOptions, options, selectedValue]);
+
   const showCreateFromQuery =
     Boolean(onCreateFromQuery) && q.length > 0 && rows.length === 0;
-
   const showEmptyOptionsCta =
     Boolean(onEmptyOptions) &&
     options.length === 0 &&
     leadingOptions.length === 0 &&
     q.length === 0;
 
-  const onPick = useCallback(
-    (value: string) => {
-      onSelect(value);
-      onClose();
-    },
-    [onSelect, onClose],
-  );
-
-  const renderItem = useCallback(
-    ({ item }: { item: SearchablePickerOption }) => {
-      const selected = item.value === selectedValue;
-      return (
-        <Pressable
-          onPress={() => onPick(item.value)}
-          className="border-b border-border/80 px-4 py-3.5 active:bg-accent/10"
-        >
-          <View className="flex-row items-center gap-3">
-            <View className="min-w-0 flex-1">
-              <Text
-                className={`text-[16px] leading-snug ${selected ? "font-semibold text-accent" : "text-foreground"}`}
-                numberOfLines={2}
-              >
-                {item.label}
-              </Text>
-              {item.subtitle ? (
-                <Text className="mt-0.5 text-[13px] text-muted" numberOfLines={2}>
-                  {item.subtitle}
-                </Text>
-              ) : null}
-            </View>
-            {selected ? (
-              <Ionicons name="checkmark-circle" size={22} color={accent} />
-            ) : null}
-          </View>
-        </Pressable>
-      );
-    },
-    [onPick, selectedValue, accent],
-  );
-
-  const keyExtractor = useCallback((item: SearchablePickerOption) => item.value, []);
-
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
+    <Select
+      presentation="popover"
+      value={selectedOption}
+      onValueChange={(v) => {
+        if (v && typeof v === "object" && "value" in v && v.value !== undefined) {
+          onSelect(String(v.value));
+        }
+      }}
+      onOpenChange={(open) => {
+        if (!open) setQuery("");
+      }}
     >
-      <View
-        style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.45)" }}
-      >
-        <Pressable
-          style={styles.backdrop}
-          onPress={onClose}
-          accessibilityLabel="Dismiss"
-        />
-        <View
-          style={[
-            styles.sheet,
-            {
-              paddingBottom: Math.max(insets.bottom, 16),
-              backgroundColor: surface,
-            },
-          ]}
-          className="rounded-t-[24px] border-t border-border shadow-lg"
+      {variant === "form" ? (
+        <View className="gap-1">
+          <Text className="text-[14px] font-medium text-foreground">{fieldLabel}</Text>
+          <Select.Trigger
+            variant="unstyled"
+            className="flex-row items-center rounded-xl border-0 bg-transparent px-3 py-2.5 shadow-none active:opacity-80"
+          >
+            <Select.Value
+              placeholder={placeholder}
+              className="min-w-0 flex-1 text-[15px] leading-5 text-field-foreground"
+            />
+            <Select.TriggerIndicator />
+          </Select.Trigger>
+        </View>
+      ) : (
+        <Select.Trigger
+          variant="unstyled"
+          className="flex-row items-center justify-between py-3.5 pl-4 pr-3 active:bg-accent/10"
         >
-          <View className="items-center pt-2 pb-1">
-            <View className="h-1 w-10 rounded-full bg-border" />
+          <View className="min-w-0 flex-1 pr-2">
+            <Text className="text-[13px] text-muted">{fieldLabel}</Text>
+            <Select.Value
+              placeholder={placeholder}
+              className="mt-0.5 text-[15px] leading-5 text-foreground"
+            />
           </View>
+          <Select.TriggerIndicator />
+        </Select.Trigger>
+      )}
 
-          <View className="flex-row items-center justify-between px-4 pb-2 pt-1">
-            <Text className="text-[12px] font-semibold uppercase tracking-wide text-muted">
-              {title}
-            </Text>
-            <Pressable
-              onPress={onClose}
-              hitSlop={12}
-              accessibilityRole="button"
-              accessibilityLabel="Close"
-              className="rounded-full p-2 active:bg-accent/10"
-            >
-              <Ionicons name="close" size={22} color={muted} />
-            </Pressable>
-          </View>
-
-          <View className="px-3 pb-3">
+      <Select.Portal>
+        <Select.Overlay />
+        <Select.Content
+          presentation="popover"
+          placement="bottom"
+          align="center"
+          width="trigger"
+        >
+          <Select.ListLabel className="mb-2">{title}</Select.ListLabel>
+          <View className="px-1 pb-2">
             <SearchField
               value={query}
               onChange={setQuery}
@@ -232,58 +216,45 @@ export function SearchablePickerSheet({
           </View>
 
           {showCreateFromQuery && onCreateFromQuery ? (
-            <View className="border-t border-border/80 px-4 py-5">
-              <Text className="text-center text-[15px] text-muted">
-                No matches for “{query.trim()}”
-              </Text>
-              <Button
-                className="mt-4"
-                onPress={() => {
-                  const t = query.trim();
-                  onClose();
-                  onCreateFromQuery(t);
-                }}
-              >
-                <Button.Label className="font-semibold text-accent-foreground">
-                  {createFromQueryLabel(query.trim())}
-                </Button.Label>
-              </Button>
-            </View>
-          ) : showEmptyOptionsCta && onEmptyOptions ? (
-            <View className="border-t border-border/80 px-4 py-8">
-              <Text className="text-center text-[15px] text-muted">
-                Nothing to choose yet.
-              </Text>
-              <Button className="mt-4" onPress={() => { onClose(); onEmptyOptions(); }}>
-                <Button.Label className="font-semibold text-accent-foreground">
-                  {emptyOptionsLabel}
-                </Button.Label>
-              </Button>
-            </View>
-          ) : (
-            <FlatList
-              style={styles.list}
-              data={rows}
-              keyExtractor={keyExtractor}
-              renderItem={renderItem}
-              keyboardShouldPersistTaps="handled"
-              initialNumToRender={20}
-              windowSize={10}
-              ListEmptyComponent={
-                q.length === 0 ? (
-                  <Text className="px-4 py-8 text-center text-[15px] text-muted">
-                    No options
-                  </Text>
-                ) : (
-                  <Text className="px-4 py-8 text-center text-[15px] text-muted">
-                    No matches
-                  </Text>
-                )
-              }
+            <CreateFromQuerySection
+              query={query}
+              label={createFromQueryLabel(query.trim())}
+              onCreateFromQuery={onCreateFromQuery}
             />
+          ) : showEmptyOptionsCta && onEmptyOptions ? (
+            <EmptyOptionsSection label={emptyOptionsLabel} onEmptyOptions={onEmptyOptions} />
+          ) : (
+            <ScrollView
+              style={{ maxHeight: 320 }}
+              nestedScrollEnabled
+              keyboardShouldPersistTaps="handled"
+            >
+              {rows.length === 0 ? (
+                <Text className="px-2 py-6 text-center text-[15px] text-muted">
+                  {q.length === 0 ? "No options" : "No matches"}
+                </Text>
+              ) : (
+                rows.map((item, index) => (
+                  <React.Fragment key={item.value === "" ? "__none__" : item.value}>
+                    {index > 0 ? <Separator className="bg-border/80" /> : null}
+                    {item.subtitle ? (
+                      <Select.Item value={item.value} label={item.label}>
+                        <View className="flex-1">
+                          <Select.ItemLabel />
+                          <Select.ItemDescription>{item.subtitle}</Select.ItemDescription>
+                        </View>
+                        <Select.ItemIndicator />
+                      </Select.Item>
+                    ) : (
+                      <Select.Item value={item.value} label={item.label} />
+                    )}
+                  </React.Fragment>
+                ))
+              )}
+            </ScrollView>
           )}
-        </View>
-      </View>
-    </Modal>
+        </Select.Content>
+      </Select.Portal>
+    </Select>
   );
 }

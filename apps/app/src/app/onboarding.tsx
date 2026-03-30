@@ -13,7 +13,6 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -24,7 +23,7 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 
-import { SearchableSelectModal } from "@/components/searchable-select-modal";
+import { SearchablePickerSheet } from "@/components/desktech-ui";
 import { authClient } from "@/lib/auth-client";
 import {
   beginAuthTransition,
@@ -55,16 +54,13 @@ export default function OnboardingScreen() {
   const [businessName, setBusinessName] = useState("");
   const [timezone, setTimezone] = useState(getDefaultTimeZone);
   const [currency, setCurrency] = useState("USD");
-  const [picker, setPicker] = useState<null | "timezone" | "currency">(null);
-
   const allTimeZonePickerItems = useMemo(
     () =>
       getSortedTimeZoneIds().map((id) => {
         const off = formatTimeZoneOffsetLabel(id);
         return {
           value: id,
-          title: id,
-          subtitle: off || undefined,
+          label: off ? `${id} (${off})` : id,
           searchText: `${id} ${off}`.toLowerCase(),
         };
       }),
@@ -82,8 +78,7 @@ export default function OnboardingScreen() {
     return [
       {
         value: timezone,
-        title: timezone,
-        subtitle: off || undefined,
+        label: off ? `${timezone} (${off})` : timezone,
         searchText: `${timezone} ${off}`.toLowerCase(),
       },
       ...allTimeZonePickerItems,
@@ -96,7 +91,7 @@ export default function OnboardingScreen() {
         const label = formatCurrencyChoice(code);
         return {
           value: code,
-          title: label,
+          label,
           searchText: `${code} ${label}`.toLowerCase(),
         };
       }),
@@ -114,17 +109,12 @@ export default function OnboardingScreen() {
     return [
       {
         value: currency,
-        title: label,
+        label,
         searchText: `${currency} ${label}`.toLowerCase(),
       },
       ...allCurrencyPickerItems,
     ];
   }, [currency, allCurrencyPickerItems]);
-
-  const timezoneSummary = useMemo(() => {
-    const off = formatTimeZoneOffsetLabel(timezone);
-    return off ? `${timezone} (${off})` : timezone;
-  }, [timezone]);
 
   const versionLabel = `v${Constants.expoConfig?.version ?? "1.0.0"}`;
   const buildLabel =
@@ -191,7 +181,7 @@ export default function OnboardingScreen() {
   if (isPending || isPendingOnboardingHandoff) {
     return (
       <View className="flex-1 items-center justify-center bg-background px-6">
-        <StatusBar style="dark" />
+        <StatusBar style="inverted" />
         <Text className="text-center text-[15px] text-muted">Loading setup…</Text>
       </View>
     );
@@ -207,7 +197,7 @@ export default function OnboardingScreen() {
 
   return (
     <View className="flex-1 bg-background">
-      <StatusBar style="dark" />
+      <StatusBar style="inverted" />
 
       <SafeAreaView style={styles.fill} edges={["top", "left", "right"]}>
         <View
@@ -267,49 +257,31 @@ export default function OnboardingScreen() {
                   className="bg-border"
                   thickness={StyleSheet.hairlineWidth}
                 />
-                <Pressable
-                  onPress={() => setPicker("timezone")}
-                  className="flex-row items-center justify-between py-3.5 pl-4 pr-3 active:bg-accent/10"
-                >
-                  <View className="min-w-0 flex-1 pr-2">
-                    <Text className="text-[13px] text-muted">Time zone</Text>
-                    <Text
-                      className="mt-0.5 text-[15px] leading-5 text-foreground"
-                      numberOfLines={2}
-                    >
-                      {timezoneSummary}
-                    </Text>
-                  </View>
-                  <Ionicons
-                    name="chevron-forward"
-                    size={20}
-                    color={accentColor}
-                  />
-                </Pressable>
+                <SearchablePickerSheet
+                  variant="onboarding"
+                  fieldLabel="Time zone"
+                  placeholder="Choose time zone"
+                  title="Time zone"
+                  searchPlaceholder="Search time zones"
+                  options={timeZonePickerItems}
+                  selectedValue={timezone}
+                  onSelect={setTimezone}
+                />
                 <Separator
                   orientation="horizontal"
                   className="bg-border"
                   thickness={StyleSheet.hairlineWidth}
                 />
-                <Pressable
-                  onPress={() => setPicker("currency")}
-                  className="flex-row items-center justify-between py-3.5 pl-4 pr-3 active:bg-accent/10"
-                >
-                  <View className="min-w-0 flex-1 pr-2">
-                    <Text className="text-[13px] text-muted">Currency</Text>
-                    <Text
-                      className="mt-0.5 text-[15px] leading-5 text-foreground"
-                      numberOfLines={2}
-                    >
-                      {formatCurrencyChoice(currency)}
-                    </Text>
-                  </View>
-                  <Ionicons
-                    name="chevron-forward"
-                    size={20}
-                    color={accentColor}
-                  />
-                </Pressable>
+                <SearchablePickerSheet
+                  variant="onboarding"
+                  fieldLabel="Currency"
+                  placeholder="Choose currency"
+                  title="Currency"
+                  searchPlaceholder="Search currencies"
+                  options={currencyPickerItems}
+                  selectedValue={currency}
+                  onSelect={setCurrency}
+                />
               </Surface>
 
               <View className="mt-5 w-full">
@@ -334,24 +306,6 @@ export default function OnboardingScreen() {
         </KeyboardAvoidingView>
       </SafeAreaView>
 
-      <SearchableSelectModal
-        visible={picker === "timezone"}
-        title="Time zone"
-        searchPlaceholder="Search time zones"
-        items={timeZonePickerItems}
-        selectedValue={timezone}
-        onSelect={setTimezone}
-        onClose={() => setPicker(null)}
-      />
-      <SearchableSelectModal
-        visible={picker === "currency"}
-        title="Currency"
-        searchPlaceholder="Search currencies"
-        items={currencyPickerItems}
-        selectedValue={currency}
-        onSelect={setCurrency}
-        onClose={() => setPicker(null)}
-      />
     </View>
   );
 }
