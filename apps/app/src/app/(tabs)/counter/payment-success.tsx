@@ -1,15 +1,17 @@
 import { StackActions, useNavigation } from "@react-navigation/native";
 import { useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import React, { useCallback, useEffect } from "react";
-import { ScrollView, Share, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, useColorScheme, View } from "react-native";
 import Reanimated, { FadeIn, FadeInDown, ZoomIn } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AnimatedSuccessCheck } from "@/components/counter/animated-success-check";
+import { RichReceipt } from "@/components/receipt/rich-receipt";
+import { ReceiptActionButtons } from "@/components/receipt/receipt-action-buttons";
 import { useCounterCheckout } from "@/app/(tabs)/counter/counter-checkout-context";
-import { buildReceiptText } from "@/lib/counter-checkout/receipt-text";
 import { formatMinorUnitsToCurrency } from "@/lib/format-money";
 
 const styles = StyleSheet.create({
@@ -19,7 +21,9 @@ const styles = StyleSheet.create({
 export default function PaymentSuccessScreen() {
   const router = useRouter();
   const navigation = useNavigation();
+  const colorScheme = useColorScheme();
   const accent = useThemeColor("accent");
+  const statusBarStyle = colorScheme === "dark" ? "light" : "dark";
   const { lastCompleted, clearLastCompleted } = useCounterCheckout();
 
   useEffect(() => {
@@ -27,18 +31,6 @@ export default function PaymentSuccessScreen() {
       router.replace("/counter");
     }
   }, [lastCompleted, router]);
-
-  const onShareReceipt = useCallback(async () => {
-    if (!lastCompleted) return;
-    try {
-      await Share.share({
-        message: buildReceiptText(lastCompleted),
-        title: "Receipt",
-      });
-    } catch {
-      /* user dismissed share sheet */
-    }
-  }, [lastCompleted]);
 
   const onBackToItems = useCallback(() => {
     clearLastCompleted();
@@ -54,10 +46,17 @@ export default function PaymentSuccessScreen() {
 
   return (
     <View style={styles.fill} className="bg-background">
+      <StatusBar style={statusBarStyle} />
       <SafeAreaView style={styles.fill} edges={["top", "left", "right"]}>
         <ScrollView
           style={styles.fill}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 32, paddingBottom: 40 }}
+          contentContainerStyle={{
+            flexGrow: 1,
+            flexDirection: "column",
+            paddingHorizontal: 16,
+            paddingTop: 32,
+            paddingBottom: 40,
+          }}
           keyboardShouldPersistTaps="handled"
         >
           <View className="items-center">
@@ -79,29 +78,13 @@ export default function PaymentSuccessScreen() {
             </Reanimated.View>
           </View>
 
-          <View className="mt-6 rounded-2xl border border-border/70 bg-surface-secondary px-3 py-3">
-            <Text className="mb-2 text-[13px] font-semibold uppercase tracking-wide text-muted">
-              Receipt preview
-            </Text>
-            <Text
-              className="text-[13px] leading-5 text-foreground"
-              selectable
-            >
-              {buildReceiptText(lastCompleted)}
-            </Text>
+          <View style={{ flex: 1, minHeight: 1, marginTop: 24 }}>
+            <RichReceipt receipt={lastCompleted} expandVertically />
           </View>
 
           <View className="mt-8 gap-3">
-            <Button className="rounded-2xl" onPress={() => void onShareReceipt()}>
-              <Button.Label className="font-semibold">
-                View / share receipt
-              </Button.Label>
-            </Button>
-            <Button
-              variant="secondary"
-              className="rounded-2xl"
-              onPress={onBackToItems}
-            >
+            <ReceiptActionButtons receipt={lastCompleted} />
+            <Button variant="secondary" className="rounded-2xl" onPress={onBackToItems}>
               <Button.Label className="font-semibold">Back to items</Button.Label>
             </Button>
           </View>

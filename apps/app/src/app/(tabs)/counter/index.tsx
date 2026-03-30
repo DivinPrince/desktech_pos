@@ -18,6 +18,8 @@ import {
 } from "react-native-safe-area-context";
 
 import { useCounterCheckout } from "@/app/(tabs)/counter/counter-checkout-context";
+import { BrandedLoading } from "@/components/desktech-ui";
+import { NavigationMenuTrigger } from "@/components/navigation/navigation-shell";
 import { resolveActiveBusiness, useAuthSessionState } from "@/lib/auth-session";
 import type { CartLine } from "@/lib/counter-cart/counter-cart";
 import { useCounterCart } from "@/lib/counter-cart/counter-cart";
@@ -169,22 +171,23 @@ export default function CounterTab() {
           paddingHorizontal: 16,
         }}
       >
-        <Text
-          style={{ color: accentFg, fontSize: 22, fontWeight: "700" }}
-        >
-          Counter
-        </Text>
-        <Text
-          style={{
-            color: "rgba(255,255,255,0.85)",
-            fontSize: 14,
-            marginTop: 4,
-          }}
-        >
-          {totalUnits === 0
-            ? "New sale"
-            : `${totalUnits} ${totalUnits === 1 ? "unit" : "units"} · ${lines.length} ${lines.length === 1 ? "line" : "lines"}`}
-        </Text>
+        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}>
+          <NavigationMenuTrigger iconColor={accentFg} />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={{ color: accentFg, fontSize: 22, fontWeight: "700" }}>Counter</Text>
+            <Text
+              style={{
+                color: "rgba(255,255,255,0.85)",
+                fontSize: 14,
+                marginTop: 4,
+              }}
+            >
+              {totalUnits === 0
+                ? "New sale"
+                : `${totalUnits} ${totalUnits === 1 ? "unit" : "units"} · ${lines.length} ${lines.length === 1 ? "line" : "lines"}`}
+            </Text>
+          </View>
+        </View>
       </View>
 
       <SafeAreaView style={styles.root} edges={["left", "right", "bottom"]}>
@@ -201,11 +204,7 @@ export default function CounterTab() {
             </Text>
           </View>
         ) : workspaceColdLoad ? (
-          <View className="flex-1 justify-center px-4">
-            <Text className="text-[15px] text-muted">
-              Loading your workspace…
-            </Text>
-          </View>
+          <BrandedLoading message="Loading your workspace…" />
         ) : !businessId ? (
           <View className="flex-1 justify-center px-4">
             <Text className="text-[15px] text-muted">
