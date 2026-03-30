@@ -3,9 +3,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { CompletedSaleReceipt } from "@/lib/counter-checkout/types";
 import { getDesktechSqlite } from "@/lib/data/sqlite-db";
 
-import type { LocalCounterSaleRow } from "./types";
+import type { CounterSaleRow } from "./types";
 
-const ASYNC_STORAGE_KEY = "desktech:local-counter-sales:v1";
+const WEB_CACHE_KEY = "desktech:counter-sales:v1";
 
 let sqliteTableReady = false;
 
@@ -22,23 +22,20 @@ async function ensureSqliteTable(): Promise<void> {
   const db = getDesktechSqlite();
   if (!db) return;
   await db.execAsync(`
-    CREATE TABLE IF NOT EXISTS local_counter_sale (
+    CREATE TABLE IF NOT EXISTS counter_sale (
       id TEXT PRIMARY KEY NOT NULL,
       business_id TEXT NOT NULL,
       completed_at_iso TEXT NOT NULL,
       completed_at_ms INTEGER NOT NULL,
       payload_json TEXT NOT NULL
     );
-    CREATE INDEX IF NOT EXISTS idx_local_counter_sale_business_time
-      ON local_counter_sale (business_id, completed_at_ms);
+    CREATE INDEX IF NOT EXISTS idx_counter_sale_business_time
+      ON counter_sale (business_id, completed_at_ms);
   `);
   sqliteTableReady = true;
 }
 
-function rowFromReceipt(
-  businessId: string,
-  receipt: CompletedSaleReceipt,
-): LocalCounterSaleRow {
+function rowFromReceipt(businessId: string, receipt: CompletedSaleReceipt): CounterSaleRow {
   const completedAtMs = new Date(receipt.completedAtIso).getTime();
   return {
     id: receipt.saleId,
@@ -49,22 +46,22 @@ function rowFromReceipt(
   };
 }
 
-async function readWebRows(): Promise<LocalCounterSaleRow[]> {
-  const raw = await AsyncStorage.getItem(ASYNC_STORAGE_KEY);
+async function readWebRows(): Promise<CounterSaleRow[]> {
+  const raw = await AsyncStorage.getItem(WEB_CACHE_KEY);
   if (!raw) return [];
   try {
-    const parsed = JSON.parse(raw) as LocalCounterSaleRow[];
+    const parsed = JSON.parse(raw) as CounterSaleRow[];
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }
 }
 
-async function writeWebRows(rows: LocalCounterSaleRow[]): Promise<void> {
-  await AsyncStorage.setItem(ASYNC_STORAGE_KEY, JSON.stringify(rows));
+async function writeWebRows(rows: CounterSaleRow[]): Promise<void> {
+  await AsyncStorage.setItem(WEB_CACHE_KEY, JSON.stringify(rows));
 }
 
-export async function appendLocalCounterSale(args: {
+export async function appendCounterSale(args: {
   businessId: string;
   receipt: CompletedSaleReceipt;
 }): Promise<void> {
@@ -73,7 +70,7 @@ export async function appendLocalCounterSale(args: {
   if (db) {
     await ensureSqliteTable();
     await db.runAsync(
-      `INSERT OR REPLACE INTO local_counter_sale
+      `INSERT OR REPLACE INTO counter_sale
         (id, business_id, completed_at_iso, completed_at_ms, payload_json)
         VALUES (?, ?, ?, ?, ?)`,
       [
@@ -101,7 +98,7 @@ function mapSqliteSaleRows(
     completed_at_ms: number;
     payload_json: string;
   }[],
-): LocalCounterSaleRow[] {
+): CounterSaleRow[] {
   return result.map((r) => ({
     id: r.id,
     businessId: r.business_id,
@@ -111,14 +108,12 @@ function mapSqliteSaleRows(
   }));
 }
 
-/**
- * Half-open interval [startMs, endMs) on `completed_at_ms`.
- */
-export async function listLocalSalesInTimeRange(
+/** Half-open [startMs, endMs) on `completed_at_ms`. */
+export async function listCounterSalesInTimeRange(
   businessId: string,
   startMs: number,
   endMs: number,
-): Promise<LocalCounterSaleRow[]> {
+): Promise<CounterSaleRow[]> {
   const db = getDesktechSqlite();
   if (db) {
     await ensureSqliteTable();
@@ -130,7 +125,7 @@ export async function listLocalSalesInTimeRange(
       payload_json: string;
     }>(
       `SELECT id, business_id, completed_at_iso, completed_at_ms, payload_json
-       FROM local_counter_sale
+       FROM counter_sale
        WHERE business_id = ?
          AND completed_at_ms >= ? AND completed_at_ms < ?
        ORDER BY completed_at_ms DESC`,
@@ -150,18 +145,18 @@ export async function listLocalSalesInTimeRange(
     .sort((a, b) => b.completedAtMs - a.completedAtMs);
 }
 
-export async function listLocalSalesForLocalCalendarDay(
+export async function listCounterSalesForLocalCalendarDay(
   businessId: string,
   day: Date,
-): Promise<LocalCounterSaleRow[]> {
+): Promise<CounterSaleRow[]> {
   const { startMs, endMs } = localDayBoundsMs(day);
-  return listLocalSalesInTimeRange(businessId, startMs, endMs);
+  return listCounterSalesInTimeRange(businessId, startMs, endMs);
 }
 
-export async function getLocalCounterSaleById(
+export async function getCounterSaleById(
   businessId: string,
   saleId: string,
-): Promise<LocalCounterSaleRow | null> {
+): Promise<CounterSaleRow | null> {
   const db = getDesktechSqlite();
   if (db) {
     await ensureSqliteTable();
@@ -173,7 +168,7 @@ export async function getLocalCounterSaleById(
       payload_json: string;
     }>(
       `SELECT id, business_id, completed_at_iso, completed_at_ms, payload_json
-       FROM local_counter_sale
+       FROM counter_sale
        WHERE id = ? AND business_id = ?
        LIMIT 1`,
       [saleId, businessId],
@@ -200,7 +195,7 @@ export async function patchSaleIdIfPending(args: {
       completed_at_ms: number;
       payload_json: string;
     }>(
-      `SELECT completed_at_iso, completed_at_ms, payload_json FROM local_counter_sale WHERE id = ? AND business_id = ?`,
+      `SELECT completed_at_iso, completed_at_ms, payload_json FROM counter_sale WHERE id = ? AND business_id = ?`,
       [args.pendingSaleId, args.businessId],
     );
     const first = rows[0];
@@ -210,12 +205,12 @@ export async function patchSaleIdIfPending(args: {
       ...receipt,
       saleId: args.finalSaleId,
     };
-    await db.runAsync(`DELETE FROM local_counter_sale WHERE id = ? AND business_id = ?`, [
+    await db.runAsync(`DELETE FROM counter_sale WHERE id = ? AND business_id = ?`, [
       args.pendingSaleId,
       args.businessId,
     ]);
     await db.runAsync(
-      `INSERT OR REPLACE INTO local_counter_sale
+      `INSERT OR REPLACE INTO counter_sale
         (id, business_id, completed_at_iso, completed_at_ms, payload_json)
         VALUES (?, ?, ?, ?, ?)`,
       [
@@ -239,7 +234,7 @@ export async function patchSaleIdIfPending(args: {
     ...prev.receipt,
     saleId: args.finalSaleId,
   };
-  const nextRow: LocalCounterSaleRow = {
+  const nextRow: CounterSaleRow = {
     ...prev,
     id: args.finalSaleId,
     receipt: nextReceipt,
