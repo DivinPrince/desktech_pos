@@ -16,6 +16,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { BrandedLoading } from "@/components/desktech-ui";
+import { NavigationMenuTrigger } from "@/components/navigation/navigation-shell";
 import { ProductListGrid } from "@/components/desktech-ui/product-list-grid";
 import { useCounterCart } from "@/lib/counter-cart/counter-cart";
 import { resolveActiveBusiness, useAuthSessionState } from "@/lib/auth-session";
@@ -122,6 +124,7 @@ export default function ItemsTab() {
         }}
       >
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+          <NavigationMenuTrigger iconColor={accentFg} />
           <View
             style={[
               styles.searchShell,
@@ -203,7 +206,10 @@ export default function ItemsTab() {
             Could not load businesses. Pull to refresh when the API is reachable.
           </Text>
         ) : workspaceColdLoad ? (
-          <Text style={{ color: muted, fontSize: 15 }}>Loading your workspace…</Text>
+          <BrandedLoading
+            variant="embedded"
+            message="Loading your workspace…"
+          />
         ) : !businessId ? (
           <Text
             style={{
@@ -266,16 +272,11 @@ export default function ItemsTab() {
               />
             </ProductListGrid>
             {productsInitialLoad ? (
-              <Text
-                style={{
-                  color: muted,
-                  fontSize: 14,
-                  marginTop: 12,
-                  textAlign: "center",
-                }}
-              >
-                Loading products…
-              </Text>
+              <BrandedLoading
+                variant="inline"
+                className="mt-3 self-center"
+                message="Loading products…"
+              />
             ) : products.length === 0 ? (
               <Text
                 style={{

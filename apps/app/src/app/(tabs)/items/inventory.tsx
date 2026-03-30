@@ -19,6 +19,7 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 
+import { BrandedLoading } from "@/components/desktech-ui";
 import { SegmentedTwoTabs } from "@/components/desktech-ui/segmented-two-tabs";
 import { resolveActiveBusiness, useAuthSessionState } from "@/lib/auth-session";
 import { formatMinorUnitsToCurrency } from "@/lib/format-money";
@@ -245,7 +246,11 @@ export default function InventoryScreen() {
             Could not load businesses. Pull to refresh.
           </Text>
         ) : workspaceColdLoad ? (
-          <Text className="px-4 text-[15px] text-muted">Loading your workspace…</Text>
+          <BrandedLoading
+            variant="embedded"
+            className="px-4"
+            message="Loading your workspace…"
+          />
         ) : !businessId ? (
           <Text className="px-4 text-[15px] text-muted">
             No business selected. Finish onboarding first.
@@ -319,13 +324,18 @@ export default function InventoryScreen() {
                 </Pressable>
               )}
               ListEmptyComponent={
-                <Text className="py-10 text-center text-[15px] text-muted">
-                  {productsInitialLoad
-                    ? "Loading products…"
-                    : debouncedSearch.length > 0
+                productsInitialLoad ? (
+                  <BrandedLoading
+                    variant="embedded"
+                    message="Loading products…"
+                  />
+                ) : (
+                  <Text className="py-10 text-center text-[15px] text-muted">
+                    {debouncedSearch.length > 0
                       ? "No matching products."
                       : "No products yet. Tap + to add one."}
-                </Text>
+                  </Text>
+                )
               }
             />
           ) : (
@@ -372,13 +382,18 @@ export default function InventoryScreen() {
                 </Pressable>
               )}
               ListEmptyComponent={
-                <Text className="py-10 text-center text-[15px] text-muted">
-                  {categoriesInitialLoad
-                    ? "Loading categories…"
-                    : categorySearch.length > 0
+                categoriesInitialLoad ? (
+                  <BrandedLoading
+                    variant="embedded"
+                    message="Loading categories…"
+                  />
+                ) : (
+                  <Text className="py-10 text-center text-[15px] text-muted">
+                    {categorySearch.length > 0
                       ? "No matching categories."
                       : "No categories yet. Tap + to add one."}
-                </Text>
+                  </Text>
+                )
               }
             />
           )

@@ -21,10 +21,12 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
+  BrandedLoading,
   FormSectionCard,
   SearchablePickerSheet,
   type SearchablePickerOption,
 } from "@/components/desktech-ui";
+import { subscribeCategoryLocalIdRemap } from "@/lib/data/catalog/category-reconcile";
 import { resolveActiveBusiness, useAuthSessionState } from "@/lib/auth-session";
 import { useNetworkReachable } from "@/lib/hooks/use-network-reachable";
 import {
@@ -93,6 +95,14 @@ export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProp
   const [sortError, setSortError] = useState("");
 
   const hydratedIdRef = useRef<string | null>(null);
+  const parentRemapDisposersRef = useRef<Array<() => void>>([]);
+
+  useEffect(() => {
+    return () => {
+      for (const d of parentRemapDisposersRef.current) d();
+      parentRemapDisposersRef.current = [];
+    };
+  }, []);
 
   useEffect(() => {
     hydratedIdRef.current = null;
@@ -135,6 +145,34 @@ export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProp
         searchText: c.name.toLowerCase(),
       }));
   }, [categories, categoryId]);
+
+  const createParentFromPicker = useCallback(
+    (suggestedName: string) => {
+      const n = suggestedName.trim();
+      if (!n) {
+        toast.show({ variant: "danger", label: "Enter a parent category name" });
+        return;
+      }
+      if (!businessId) return;
+      createMutation.mutate(
+        { name: n, sortOrder: 0 },
+        {
+          onSuccess: (row) => {
+            setParentId(row.id);
+            parentRemapDisposersRef.current.push(
+              subscribeCategoryLocalIdRemap(row.id, (serverId) => {
+                setParentId((c) => (c === row.id ? serverId : c));
+              }),
+            );
+          },
+          onError: (e) => {
+            toast.show({ variant: "danger", label: errorMessage(e) });
+          },
+        },
+      );
+    },
+    [businessId, createMutation, toast],
+  );
 
   const saving =
     createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
@@ -233,11 +271,7 @@ export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProp
 
   const businesses = businessesQuery.data ?? [];
   if (!signedIn || (businesses.length === 0 && businessesQuery.isPending)) {
-    return (
-      <View className="flex-1 items-center justify-center bg-background px-6">
-        <Text className="text-center text-[15px] text-muted">Loading…</Text>
-      </View>
-    );
+    return <BrandedLoading />;
   }
 
   if (!businessId) {
@@ -254,11 +288,7 @@ export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProp
   }
 
   if (isEdit && categoriesQuery.isPending && !editingCategory) {
-    return (
-      <View className="flex-1 items-center justify-center bg-background px-6">
-        <Text className="text-center text-[15px] text-muted">Loading category…</Text>
-      </View>
-    );
+    return <BrandedLoading message="Loading category…" />;
   }
 
   if (isEdit && categoriesQuery.isSuccess && categoryId && !editingCategory) {
@@ -334,14 +364,11 @@ export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProp
             selectedValue={parentId ?? ""}
             onSelect={(v) => setParentId(v === "" ? null : v)}
             onCreateFromQuery={(suggested) => {
-              router.push({
-                pathname: "/items/category/new",
-                params: { suggestName: suggested },
-              });
+              createParentFromPicker(suggested);
             }}
             createFromQueryLabel={(q) => `Create category “${q}”`}
             onEmptyOptions={() => {
-              router.push({ pathname: "/items/category/new" });
+              createParentFromPicker("New category");
             }}
             emptyOptionsLabel="Create category"
           />

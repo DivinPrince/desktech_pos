@@ -8,7 +8,7 @@ import { Switch } from "heroui-native/switch";
 import { TextField } from "heroui-native/text-field";
 import { useToast } from "heroui-native/toast";
 import { APIError } from "@repo/sdk";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -24,11 +24,13 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
+  BrandedLoading,
   FormSectionCard,
   SearchablePickerSheet,
   type SearchablePickerOption,
 } from "@/components/desktech-ui";
 import { StockManagementSheet } from "@/components/inventory/stock-management-sheet";
+import { subscribeCategoryLocalIdRemap } from "@/lib/data/catalog/category-reconcile";
 import type { ProductRow } from "@/lib/data/catalog/types";
 import { resolveActiveBusiness, useAuthSessionState } from "@/lib/auth-session";
 import {
@@ -41,6 +43,7 @@ import {
   type ProductCreateBody,
   useBusinessesQuery,
   useCategoriesQuery,
+  useCreateCategoryMutation,
   useCreateProductMutation,
   useCreateProductVariantMutation,
   useDeleteProductMutation,
@@ -62,6 +65,124 @@ const DESCRIPTION_INPUT_CLASS =
 const styles = StyleSheet.create({
   fill: { flex: 1 },
 });
+
+/** Common sell / stock units; values are stored on the product row (max 32 chars). */
+const UNIT_PRESET_OPTIONS: SearchablePickerOption[] = [
+  {
+    value: "ea",
+    label: "Each · ea",
+    searchText: "ea each piece item unit retail",
+  },
+  {
+    value: "pc",
+    label: "Piece · pc",
+    searchText: "pc pcs piece pieces",
+  },
+  {
+    value: "dz",
+    label: "Dozen · dz",
+    searchText: "dz dozen 12",
+  },
+  {
+    value: "pair",
+    label: "Pair",
+    searchText: "pair pairs pr",
+  },
+  {
+    value: "set",
+    label: "Set",
+    searchText: "set kit bundle group",
+  },
+  {
+    value: "kg",
+    label: "Kilogram · kg",
+    searchText: "kg kilo kilogram weight",
+  },
+  {
+    value: "g",
+    label: "Gram · g",
+    searchText: "g gram grams weight",
+  },
+  {
+    value: "lb",
+    label: "Pound · lb",
+    searchText: "lb lbs pound pounds weight",
+  },
+  {
+    value: "oz",
+    label: "Ounce · oz",
+    searchText: "oz ounce ounces weight",
+  },
+  {
+    value: "L",
+    label: "Liter · L",
+    searchText: "l liter litre volume",
+  },
+  {
+    value: "mL",
+    label: "Milliliter · mL",
+    searchText: "ml milliliter millilitre ml cc volume",
+  },
+  {
+    value: "gal",
+    label: "Gallon · gal",
+    searchText: "gal gallon gallon volume",
+  },
+  {
+    value: "box",
+    label: "Box",
+    searchText: "box carton",
+  },
+  {
+    value: "case",
+    label: "Case",
+    searchText: "case crate",
+  },
+  {
+    value: "pack",
+    label: "Pack",
+    searchText: "pack package pkt",
+  },
+  {
+    value: "bottle",
+    label: "Bottle",
+    searchText: "bottle btl",
+  },
+  {
+    value: "can",
+    label: "Can",
+    searchText: "can tin",
+  },
+  {
+    value: "bag",
+    label: "Bag",
+    searchText: "bag sack",
+  },
+  {
+    value: "roll",
+    label: "Roll",
+    searchText: "roll rolls",
+  },
+  {
+    value: "sheet",
+    label: "Sheet",
+    searchText: "sheet sheets",
+  },
+];
+
+function isPresetUnitValue(unit: string): boolean {
+  const t = unit.trim().toLowerCase();
+  return UNIT_PRESET_OPTIONS.some((o) => o.value.toLowerCase() === t);
+}
+
+/** Aligns free-text units with preset spellings (e.g. `l` → `L`); trims and enforces API max length. */
+function canonicalUnitValue(raw: string): string {
+  const t = raw.trim();
+  if (!t) return "ea";
+  const hit = UNIT_PRESET_OPTIONS.find((o) => o.value.toLowerCase() === t.toLowerCase());
+  if (hit) return hit.value;
+  return t.slice(0, 32);
+}
 
 function errorMessage(err: unknown): string {
   if (err instanceof APIError) return err.message;
@@ -109,6 +230,7 @@ export function ProductEditor({ productId }: ProductEditorProps) {
   const product = productQuery.data as ProductRow | undefined;
 
   const createMutation = useCreateProductMutation(businessId);
+  const createCategoryMutation = useCreateCategoryMutation(businessId);
   const updateMutation = useUpdateProductMutation(businessId, productId);
   const deleteMutation = useDeleteProductMutation(businessId);
   const createVariantMutation = useCreateProductVariantMutation(businessId, productId);
@@ -116,14 +238,22 @@ export function ProductEditor({ productId }: ProductEditorProps) {
   const updateVariantMutation = useUpdateProductVariantMutation(businessId, productId);
 
   const [categoryId, setCategoryId] = useState<string | null>(null);
+  const categoryRemapDisposersRef = useRef<Array<() => void>>([]);
+
+  useEffect(() => {
+    return () => {
+      for (const d of categoryRemapDisposersRef.current) d();
+      categoryRemapDisposersRef.current = [];
+    };
+  }, []);
   const [name, setName] = useState("");
   const [sku, setSku] = useState("");
   const [unit, setUnit] = useState("ea");
   const [description, setDescription] = useState("");
   const [priceStr, setPriceStr] = useState("");
   const [costStr, setCostStr] = useState("");
-  const [reorderStr, setReorderStr] = useState("0");
-  const [trackStock, setTrackStock] = useState(true);
+  const [stockAlertStr, setStockAlertStr] = useState("0");
+  const [trackStock, setTrackStock] = useState(false);
   const [active, setActive] = useState(true);
 
   const [stockSheetOpen, setStockSheetOpen] = useState(false);
@@ -156,8 +286,8 @@ export function ProductEditor({ productId }: ProductEditorProps) {
     setDescription("");
     setPriceStr("");
     setCostStr("");
-    setReorderStr("0");
-    setTrackStock(true);
+    setStockAlertStr("0");
+    setTrackStock(false);
     setActive(true);
   }, [productId]);
 
@@ -174,7 +304,7 @@ export function ProductEditor({ productId }: ProductEditorProps) {
     setCategoryId(product.categoryId);
     setName(product.name);
     setSku(product.sku ?? "");
-    setUnit(product.unit || "ea");
+    setUnit(canonicalUnitValue(product.unit || "ea"));
     setDescription(product.description ?? "");
     setPriceStr(minorUnitsToMajorDecimalString(product.priceCents, currency));
     setCostStr(
@@ -182,7 +312,7 @@ export function ProductEditor({ productId }: ProductEditorProps) {
         ? minorUnitsToMajorDecimalString(product.costCents, currency)
         : "",
     );
-    setReorderStr(String(product.reorderLevel));
+    setStockAlertStr(String(product.stockAlert));
     setTrackStock(product.trackStock);
     setActive(product.active);
   }, [isEdit, product, currency]);
@@ -205,13 +335,55 @@ export function ProductEditor({ productId }: ProductEditorProps) {
     }));
   }, [categories]);
 
+  const createCategoryFromPicker = useCallback(
+    (suggestedName: string) => {
+      const n = suggestedName.trim();
+      if (!n) {
+        toast.show({ variant: "danger", label: "Enter a category name" });
+        return;
+      }
+      if (!businessId) return;
+      createCategoryMutation.mutate(
+        { name: n },
+        {
+          onSuccess: (row) => {
+            setCategoryId(row.id);
+            categoryRemapDisposersRef.current.push(
+              subscribeCategoryLocalIdRemap(row.id, (serverId) => {
+                setCategoryId((c) => (c === row.id ? serverId : c));
+              }),
+            );
+          },
+          onError: (e) => {
+            toast.show({ variant: "danger", label: errorMessage(e) });
+          },
+        },
+      );
+    },
+    [businessId, createCategoryMutation, toast],
+  );
+
+  const unitPickerOptions = useMemo((): SearchablePickerOption[] => {
+    const trimmed = unit.trim();
+    if (!trimmed || isPresetUnitValue(trimmed)) return UNIT_PRESET_OPTIONS;
+    return [
+      {
+        value: trimmed,
+        label: `${trimmed} · Custom`,
+        searchText: trimmed,
+      },
+      ...UNIT_PRESET_OPTIONS,
+    ];
+  }, [unit]);
+
   const saving =
     createMutation.isPending ||
     updateMutation.isPending ||
     deleteMutation.isPending ||
     createVariantMutation.isPending ||
     deleteVariantMutation.isPending ||
-    updateVariantMutation.isPending;
+    updateVariantMutation.isPending ||
+    createCategoryMutation.isPending;
 
   const onSave = useCallback(() => {
     setNameError("");
@@ -239,8 +411,9 @@ export function ProductEditor({ productId }: ProductEditorProps) {
       }
       costCents = parsed;
     }
-    const reorderParsed = Number.parseInt(reorderStr, 10);
-    const reorderLevel = Number.isFinite(reorderParsed) && reorderParsed >= 0 ? reorderParsed : 0;
+    const stockAlertParsed = Number.parseInt(stockAlertStr, 10);
+    const stockAlert =
+      Number.isFinite(stockAlertParsed) && stockAlertParsed >= 0 ? stockAlertParsed : 0;
 
     if (!businessId) return;
 
@@ -250,11 +423,11 @@ export function ProductEditor({ productId }: ProductEditorProps) {
           name: n,
           categoryId,
           sku: sku.trim() === "" ? null : sku.trim(),
-          unit: unit.trim() || "ea",
+          unit: canonicalUnitValue(unit),
           description: description.trim() === "" ? null : description.trim(),
           priceCents,
           ...(costTrim === "" ? { costCents: null } : { costCents: costCents as number }),
-          reorderLevel,
+          stockAlert,
           trackStock,
           active,
         },
@@ -272,8 +445,8 @@ export function ProductEditor({ productId }: ProductEditorProps) {
       const createPayload: ProductCreateBody = {
         name: n,
         priceCents,
-        unit: unit.trim() || "ea",
-        reorderLevel,
+        unit: canonicalUnitValue(unit),
+        stockAlert,
         trackStock,
         active,
       };
@@ -298,7 +471,7 @@ export function ProductEditor({ productId }: ProductEditorProps) {
     name,
     priceStr,
     costStr,
-    reorderStr,
+    stockAlertStr,
     categoryId,
     sku,
     unit,
@@ -458,11 +631,7 @@ export function ProductEditor({ productId }: ProductEditorProps) {
 
   const businesses = businessesQuery.data ?? [];
   if (!signedIn || (businesses.length === 0 && businessesQuery.isPending)) {
-    return (
-      <View className="flex-1 items-center justify-center bg-background px-6">
-        <Text className="text-center text-[15px] text-muted">Loading…</Text>
-      </View>
-    );
+    return <BrandedLoading />;
   }
 
   if (!businessId) {
@@ -480,14 +649,10 @@ export function ProductEditor({ productId }: ProductEditorProps) {
 
   /** Only initial load — not `isFetching` (refetch) so background updates never flash this screen. */
   if (isEdit && productQuery.isPending && !product) {
-    return (
-      <View className="flex-1 items-center justify-center bg-background px-6">
-        <Text className="text-center text-[15px] text-muted">Loading product…</Text>
-      </View>
-    );
+    return <BrandedLoading message="Loading product…" />;
   }
 
-  if (isEdit && productQuery.isError) {
+  if (isEdit && productQuery.isError && !product) {
     return (
       <View className="flex-1 items-center justify-center bg-background px-6">
         <Text className="text-center text-muted">Could not load this product.</Text>
@@ -562,14 +727,11 @@ export function ProductEditor({ productId }: ProductEditorProps) {
               selectedValue={categoryId ?? ""}
               onSelect={(v) => setCategoryId(v === "" ? null : v)}
               onCreateFromQuery={(suggestedName) => {
-                router.push({
-                  pathname: "/items/category/new",
-                  params: { suggestName: suggestedName },
-                });
+                createCategoryFromPicker(suggestedName);
               }}
               createFromQueryLabel={(q) => `Create category “${q}”`}
               onEmptyOptions={() => {
-                router.push({ pathname: "/items/category/new" });
+                createCategoryFromPicker("New category");
               }}
               emptyOptionsLabel="Create category"
             />
@@ -604,18 +766,17 @@ export function ProductEditor({ productId }: ProductEditorProps) {
               </TextField>
             </View>
 
-            <View className="gap-1">
-              <Text className="text-[14px] font-medium text-foreground">Unit</Text>
-              <TextField className="gap-0">
-                <Input
-                  value={unit}
-                  onChangeText={setUnit}
-                  placeholder="ea"
-                  variant="secondary"
-                  className={INPUT_ROW_CLASS}
-                />
-              </TextField>
-            </View>
+            <SearchablePickerSheet
+              fieldLabel="Unit"
+              placeholder="Select unit"
+              title="Unit"
+              searchPlaceholder="Search presets or type a custom unit…"
+              options={unitPickerOptions}
+              selectedValue={canonicalUnitValue(unit)}
+              onSelect={(v) => setUnit(canonicalUnitValue(v))}
+              onCreateFromQuery={(q) => setUnit(canonicalUnitValue(q))}
+              createFromQueryLabel={(q) => `Use “${q}”`}
+            />
 
             <View className="gap-1">
               <Text className="text-[14px] font-medium text-foreground">Description</Text>
@@ -671,9 +832,15 @@ export function ProductEditor({ productId }: ProductEditorProps) {
           </FormSectionCard>
 
           <FormSectionCard title="Inventory & status">
-            {isEdit && product ? (
-              product.variants.length > 0 ? (
-                <View className="gap-3">
+            <View className="flex-row items-center justify-between py-2">
+              <Text className="text-[15px] text-foreground">Track stock</Text>
+              <Switch isSelected={trackStock} onSelectedChange={setTrackStock} />
+            </View>
+
+            {trackStock ? (
+              isEdit && product ? (
+                product.variants.length > 0 ? (
+                  <View className="gap-3">
                   <Text className="text-[13px] leading-5 text-muted">
                     Each variant has its own price and stock.
                   </Text>
@@ -797,32 +964,32 @@ export function ProductEditor({ productId }: ProductEditorProps) {
               <Text className="text-[13px] text-muted">
                 Save the product first to set stock and variants.
               </Text>
-            )}
+            )
+            ) : null}
 
-            <View className="gap-1">
-              <Text className="text-[14px] font-medium text-foreground">
-                Reorder level
-              </Text>
-              <TextField className="gap-0">
-                <Input
-                  value={reorderStr}
-                  onChangeText={setReorderStr}
-                  placeholder="0"
-                  keyboardType="number-pad"
-                  variant="secondary"
-                  className={INPUT_ROW_CLASS}
-                />
-              </TextField>
-            </View>
-
-            <View className="flex-row items-center justify-between py-2">
-              <Text className="text-[15px] text-foreground">Track stock</Text>
-              <Switch isSelected={trackStock} onSelectedChange={setTrackStock} />
-            </View>
             <View className="flex-row items-center justify-between py-2">
               <Text className="text-[15px] text-foreground">Active</Text>
               <Switch isSelected={active} onSelectedChange={setActive} />
             </View>
+
+            {trackStock ? (
+              <View className="gap-1 pt-1">
+                <Text className="text-[14px] font-medium text-foreground">Stock alert</Text>
+                <Text className="text-[12px] text-muted">
+                  You are alerted when on-hand quantity is at or below this level.
+                </Text>
+                <TextField className="gap-0">
+                  <Input
+                    value={stockAlertStr}
+                    onChangeText={setStockAlertStr}
+                    placeholder="0"
+                    keyboardType="number-pad"
+                    variant="secondary"
+                    className={INPUT_ROW_CLASS}
+                  />
+                </TextField>
+              </View>
+            ) : null}
           </FormSectionCard>
         </View>
         </ScrollView>
