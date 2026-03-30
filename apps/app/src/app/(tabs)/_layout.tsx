@@ -2,8 +2,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { Redirect, Tabs } from "expo-router";
 import { useThemeColor } from "heroui-native/hooks";
 import React, { useEffect, useMemo } from "react";
-import { Text, View } from "react-native";
+import { StatusBar } from "expo-status-bar";
+import { View } from "react-native";
 
+import { BrandedLoading } from "@/components/desktech-ui";
+import { NavigationShellProvider } from "@/components/navigation/navigation-shell";
 import {
   resolveActiveBusiness,
   useAuthSessionState,
@@ -71,6 +74,13 @@ export default function TabsLayout() {
     () => tabScreenOptions("Items", "cube", "cube-outline"),
     [],
   );
+  const receiptsTabOptions = useMemo(
+    () => ({
+      href: null,
+      title: "Receipts",
+    }),
+    [],
+  );
 
   const screenOptions = useMemo(
     () => ({
@@ -95,8 +105,9 @@ export default function TabsLayout() {
 
   if (pendingAuthRoute === "/(tabs)/today" && !user) {
     return (
-      <View className="flex-1 items-center justify-center bg-background px-6">
-        <Text className="text-center text-[15px] text-muted">Loading…</Text>
+      <View className="flex-1 bg-background">
+        <StatusBar style="inverted" />
+        <BrandedLoading />
       </View>
     );
   }
@@ -108,12 +119,15 @@ export default function TabsLayout() {
   return (
     <OfflineExecutorProvider businessId={currentBusiness?.id}>
       <CounterCartProvider>
-        <Tabs initialRouteName="today" screenOptions={screenOptions}>
-          <Tabs.Screen name="reports" options={reportsOptions} />
-          <Tabs.Screen name="today" options={todayOptions} />
-          <Tabs.Screen name="counter" options={counterOptions} />
-          <Tabs.Screen name="items" options={itemsOptions} />
-        </Tabs>
+        <NavigationShellProvider>
+          <Tabs initialRouteName="today" screenOptions={screenOptions}>
+            <Tabs.Screen name="reports" options={reportsOptions} />
+            <Tabs.Screen name="today" options={todayOptions} />
+            <Tabs.Screen name="receipts" options={receiptsTabOptions} />
+            <Tabs.Screen name="counter" options={counterOptions} />
+            <Tabs.Screen name="items" options={itemsOptions} />
+          </Tabs>
+        </NavigationShellProvider>
       </CounterCartProvider>
     </OfflineExecutorProvider>
   );

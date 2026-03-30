@@ -1,4 +1,5 @@
 export { AppHeader } from "./app-header";
+export { BrandedLoading, type BrandedLoadingProps } from "./branded-loading";
 export { BentoTile } from "./bento-tile";
 export { CategoryRail, type CategoryRailItem } from "./category-rail";
 export { ColorSwatch } from "./color-swatch";

@@ -23,7 +23,7 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 
-import { SearchablePickerSheet } from "@/components/desktech-ui";
+import { BrandedLoading, SearchablePickerSheet } from "@/components/desktech-ui";
 import { authClient } from "@/lib/auth-client";
 import {
   beginAuthTransition,
@@ -180,9 +180,9 @@ export default function OnboardingScreen() {
 
   if (isPending || isPendingOnboardingHandoff) {
     return (
-      <View className="flex-1 items-center justify-center bg-background px-6">
+      <View className="flex-1 bg-background">
         <StatusBar style="inverted" />
-        <Text className="text-center text-[15px] text-muted">Loading setup…</Text>
+        <BrandedLoading message="Loading setup…" />
       </View>
     );
   }

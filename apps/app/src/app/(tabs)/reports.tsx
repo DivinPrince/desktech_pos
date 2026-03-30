@@ -20,6 +20,7 @@ import {
 } from "react-native-safe-area-context";
 
 import { LocalCounterSaleCard, isPendingSyncSaleId } from "@/components/local-counter-sale-card";
+import { NavigationMenuTrigger } from "@/components/navigation/navigation-shell";
 import { resolveActiveBusiness, useAuthSessionState } from "@/lib/auth-session";
 import { buildLocalSalesReport } from "@/lib/data/local-counter-sales/build-local-report";
 import { useLocalSalesRange } from "@/lib/data/local-counter-sales/hooks";
@@ -461,34 +462,39 @@ export default function ReportsTab() {
           paddingHorizontal: 16,
         }}
       >
-        <Text style={{ color: accentFg, fontSize: 24, fontWeight: "800", letterSpacing: -0.5 }}>
-          Reports
-        </Text>
-        <Text
-          style={{
-            color: "rgba(255,255,255,0.92)",
-            fontSize: 20,
-            fontWeight: "700",
-            marginTop: 6,
-            letterSpacing: -0.3,
-          }}
-          numberOfLines={1}
-        >
-          {headerLines.primary}
-        </Text>
-        {headerLines.secondary ? (
-          <Text
-            style={{
-              color: "rgba(255,255,255,0.72)",
-              fontSize: 13,
-              marginTop: 4,
-              fontWeight: "500",
-            }}
-            numberOfLines={2}
-          >
-            {headerLines.secondary}
-          </Text>
-        ) : null}
+        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}>
+          <NavigationMenuTrigger iconColor={accentFg} />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={{ color: accentFg, fontSize: 24, fontWeight: "800", letterSpacing: -0.5 }}>
+              Reports
+            </Text>
+            <Text
+              style={{
+                color: "rgba(255,255,255,0.92)",
+                fontSize: 20,
+                fontWeight: "700",
+                marginTop: 6,
+                letterSpacing: -0.3,
+              }}
+              numberOfLines={1}
+            >
+              {headerLines.primary}
+            </Text>
+            {headerLines.secondary ? (
+              <Text
+                style={{
+                  color: "rgba(255,255,255,0.72)",
+                  fontSize: 13,
+                  marginTop: 4,
+                  fontWeight: "500",
+                }}
+                numberOfLines={2}
+              >
+                {headerLines.secondary}
+              </Text>
+            ) : null}
+          </View>
+        </View>
       </View>
 
       <SafeAreaView style={styles.root} edges={["left", "right", "bottom"]}>
