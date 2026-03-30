@@ -137,20 +137,50 @@ export default function OnboardingScreen() {
       : "";
 
   useEffect(() => {
-    if (sessionPending) return;
-
-    const user = (session as SessionPayload | null | undefined)?.user;
-    if (!user) {
-      router.replace("/login");
+    if (sessionPending) {
       return;
     }
 
-    if (!sessionNeedsOnboarding(session)) {
+    const user = (session as SessionPayload | null | undefined)?.user;
+    if (sessionNeedsOnboarding(session)) {
+      setChecking(false);
+      return;
+    }
+
+    if (user) {
       router.replace("/");
       return;
     }
 
-    setChecking(false);
+    let cancelled = false;
+    setChecking(true);
+
+    void (async () => {
+      const [sessionRes, shouldOnboardRes] = await Promise.all([
+        authClient.getSession(),
+        authClient.onboarding.shouldOnboard(),
+      ]);
+      if (cancelled) {
+        return;
+      }
+
+      if (shouldOnboardRes.data === true) {
+        setChecking(false);
+        return;
+      }
+
+      const liveUser = (sessionRes.data as SessionPayload | null | undefined)?.user;
+      if (liveUser) {
+        router.replace("/");
+        return;
+      }
+
+      router.replace("/login");
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [sessionPending, session, router]);
 
   const onContinue = useCallback(async () => {

@@ -15,6 +15,8 @@ export function sessionNeedsOnboarding(data: unknown): boolean {
 
 const ONBOARDING_SESSION_POLL_MAX_MS = 25_000;
 const ONBOARDING_SESSION_POLL_INTERVAL_MS = 450;
+const POST_AUTH_ROUTE_POLL_MAX_MS = 5_000;
+const POST_AUTH_ROUTE_POLL_INTERVAL_MS = 250;
 
 /**
  * After the server marks onboarding complete, the session cookie may still
@@ -53,6 +55,56 @@ export async function waitForOnboardingSessionClear(
       ? (last as { data: unknown }).data
       : undefined;
   return data != null && !sessionNeedsOnboarding(data);
+}
+
+function sessionDataFromResult(
+  res: { data?: unknown; error?: unknown } | null | undefined,
+): unknown {
+  if (!res || typeof res !== "object" || !("data" in res)) {
+    return undefined;
+  }
+  return res.data;
+}
+
+/**
+ * After sign-in/sign-up, the client session store can lag briefly behind the
+ * server response. Poll the authoritative endpoints until we can decide where
+ * the user belongs next.
+ */
+export async function waitForPostAuthRoute(
+  getSession: () => Promise<{ data?: unknown; error?: unknown }>,
+  shouldOnboard: () => Promise<{ data?: boolean; error?: unknown }>,
+  options?: { maxMs?: number; intervalMs?: number },
+): Promise<Href | null> {
+  const maxMs = options?.maxMs ?? POST_AUTH_ROUTE_POLL_MAX_MS;
+  const intervalMs = options?.intervalMs ?? POST_AUTH_ROUTE_POLL_INTERVAL_MS;
+  const deadline = Date.now() + maxMs;
+
+  while (Date.now() < deadline) {
+    const [sessionRes, onboardingRes] = await Promise.all([
+      getSession(),
+      shouldOnboard(),
+    ]);
+
+    if (
+      onboardingRes &&
+      typeof onboardingRes === "object" &&
+      "data" in onboardingRes &&
+      onboardingRes.data === true
+    ) {
+      return "/onboarding";
+    }
+
+    const route = postAuthRoute(sessionDataFromResult(sessionRes));
+    if (route) {
+      return route;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+
+  const finalSession = await getSession();
+  return postAuthRoute(sessionDataFromResult(finalSession));
 }
 
 /**
