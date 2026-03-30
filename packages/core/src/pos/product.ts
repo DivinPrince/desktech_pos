@@ -20,7 +20,7 @@ export namespace ProductService {
     description: z.string().nullable(),
     priceCents: z.number(),
     costCents: z.number().nullable(),
-    reorderLevel: z.number(),
+    stockAlert: z.number(),
     trackStock: z.boolean(),
     active: z.boolean(),
     quantityOnHand: z.number(),
@@ -38,7 +38,7 @@ export namespace ProductService {
     description: z.string().max(5000).optional(),
     priceCents: z.number().int().nonnegative(),
     costCents: z.number().int().nonnegative().optional(),
-    reorderLevel: z.number().int().nonnegative().optional(),
+    stockAlert: z.number().int().nonnegative().optional(),
     trackStock: z.boolean().optional(),
     active: z.boolean().optional(),
   });
@@ -53,7 +53,7 @@ export namespace ProductService {
     description: z.string().nullable().optional(),
     priceCents: z.number().int().nonnegative().optional(),
     costCents: z.number().int().nonnegative().nullable().optional(),
-    reorderLevel: z.number().int().nonnegative().optional(),
+    stockAlert: z.number().int().nonnegative().optional(),
     trackStock: z.boolean().optional(),
     active: z.boolean().optional(),
   });
@@ -73,7 +73,7 @@ export namespace ProductService {
       description: row.description,
       priceCents: row.priceCents,
       costCents: row.costCents,
-      reorderLevel: row.reorderLevel,
+      stockAlert: row.stockAlert,
       trackStock: row.trackStock,
       active: row.active,
       quantityOnHand,
@@ -193,8 +193,8 @@ export namespace ProductService {
           description: input.description ?? null,
           priceCents: input.priceCents,
           costCents: input.costCents ?? null,
-          reorderLevel: input.reorderLevel ?? 0,
-          trackStock: input.trackStock ?? true,
+          stockAlert: input.stockAlert ?? 0,
+          trackStock: input.trackStock ?? false,
           active: input.active ?? true,
         })
         .returning();
@@ -237,8 +237,8 @@ export namespace ProductService {
             ? { priceCents: input.priceCents }
             : {}),
           ...("costCents" in input ? { costCents: input.costCents ?? null } : {}),
-          ...("reorderLevel" in input && input.reorderLevel !== undefined
-            ? { reorderLevel: input.reorderLevel }
+          ...("stockAlert" in input && input.stockAlert !== undefined
+            ? { stockAlert: input.stockAlert }
             : {}),
           ...("trackStock" in input && input.trackStock !== undefined
             ? { trackStock: input.trackStock }

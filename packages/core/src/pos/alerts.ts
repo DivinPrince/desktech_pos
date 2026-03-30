@@ -15,7 +15,7 @@ export namespace AlertService {
     name: z.string(),
     sku: z.string().nullable(),
     quantityOnHand: z.number(),
-    reorderLevel: z.number(),
+    stockAlert: z.number(),
   });
 
   export const ExpiredBatchItem = z.object({
@@ -47,7 +47,7 @@ export namespace AlertService {
             eq(productTable.businessId, businessId),
             eq(productTable.active, true),
             eq(productTable.trackStock, true),
-            lte(productStockTable.quantity, productTable.reorderLevel),
+            lte(productStockTable.quantity, productTable.stockAlert),
             notExists(
               tx
                 .select({ id: productVariantTable.id })
@@ -85,7 +85,7 @@ export namespace AlertService {
             eq(productTable.trackStock, true),
             eq(productVariantTable.businessId, businessId),
             eq(productVariantTable.active, true),
-            lte(productVariantStockTable.quantity, productTable.reorderLevel),
+            lte(productVariantStockTable.quantity, productTable.stockAlert),
           ),
         )
         .orderBy(productTable.name, productVariantTable.sortOrder, productVariantTable.name);
@@ -96,7 +96,7 @@ export namespace AlertService {
           name: r.product.name,
           sku: r.product.sku,
           quantityOnHand: r.qty,
-          reorderLevel: r.product.reorderLevel,
+          stockAlert: r.product.stockAlert,
         }),
       );
 
@@ -106,7 +106,7 @@ export namespace AlertService {
           name: `${r.product.name} · ${r.variant.name}`,
           sku: r.variant.sku ?? r.product.sku,
           quantityOnHand: r.qty,
-          reorderLevel: r.product.reorderLevel,
+          stockAlert: r.product.stockAlert,
         }),
       );
 

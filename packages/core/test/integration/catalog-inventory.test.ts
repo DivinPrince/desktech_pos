@@ -173,6 +173,39 @@ describe("Catalog, products & inventory", () => {
     expect(gone.status).toBe(404);
   });
 
+  it("product create defaults trackStock false and stockAlert 0; PATCH stockAlert", async () => {
+    const helpers = await getTestHelpers();
+    const fx = await seedBusinessWithTeam(helpers, garbage, `def-${runId}`);
+
+    const create = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/products`,
+      {
+        method: "POST",
+        headers: jsonHeaders(fx.managerHeaders),
+        body: JSON.stringify({ name: "Defaults only", priceCents: 50 }),
+      },
+    );
+    const { data: p } = await readJson<{
+      data: { id: string; trackStock: boolean; stockAlert: number };
+    }>(create, 201);
+    expect(p.trackStock).toBe(false);
+    expect(p.stockAlert).toBe(0);
+
+    const patch = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/products/${p.id}`,
+      {
+        method: "PATCH",
+        headers: jsonHeaders(fx.managerHeaders),
+        body: JSON.stringify({ stockAlert: 12, trackStock: true }),
+      },
+    );
+    const { data: updated } = await readJson<{
+      data: { stockAlert: number; trackStock: boolean };
+    }>(patch, 200);
+    expect(updated.stockAlert).toBe(12);
+    expect(updated.trackStock).toBe(true);
+  });
+
   it("DELETE product forbidden when referenced on a sale", async () => {
     const helpers = await getTestHelpers();
     const fx = await seedBusinessWithTeam(helpers, garbage, `pdel-${runId}`);
