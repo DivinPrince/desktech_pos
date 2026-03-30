@@ -338,7 +338,11 @@ export function handleError(error: unknown, c: Context<AppEnv>) {
     );
   }
 
-  console.error("Unhandled API error:", error);
+  const errDetails =
+    error instanceof Error
+      ? { name: error.name, message: error.message, stack: error.stack }
+      : { value: error };
+  console.error("Unhandled API error:", errDetails, error);
 
   return c.json(
     {

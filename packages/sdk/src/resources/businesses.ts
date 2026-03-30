@@ -398,6 +398,14 @@ export class BusinessesResource extends APIResource {
     );
   }
 
+  /** Sets the user's active workspace and persists it for future sessions. */
+  selectActive(businessId: string) {
+    return this._client.post<Record<string, never>, Data<z.infer<typeof BusinessService.Info>>>(
+      `/api/businesses/${businessId}/select`,
+      { body: {} },
+    );
+  }
+
   business(businessId: string) {
     return new BusinessScopedResource(this._client, businessId);
   }
