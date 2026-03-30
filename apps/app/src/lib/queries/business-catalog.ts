@@ -6,6 +6,7 @@ import {
   reconcileProductDeleteInQueryCache,
   reconcileServerProductIntoQueryCache,
 } from "@/lib/data/catalog/cache-reconcile";
+import { reconcileCreatedCategory } from "@/lib/data/catalog/category-reconcile";
 import { getCatalogCollectionRegistry } from "@/lib/data/catalog/collections";
 import {
   catalogCompleteCounterSaleMutationFn,
@@ -65,7 +66,7 @@ export type ProductCreateBody = {
   description?: string;
   priceCents: number;
   costCents?: number;
-  reorderLevel?: number;
+  stockAlert?: number;
   trackStock?: boolean;
   active?: boolean;
 };
@@ -78,7 +79,7 @@ export type ProductUpdateBody = {
   description?: string | null;
   priceCents?: number;
   costCents?: number | null;
-  reorderLevel?: number;
+  stockAlert?: number;
   trackStock?: boolean;
   active?: boolean;
 };
@@ -147,8 +148,8 @@ function optimisticProductRow(businessId: string, body: ProductCreateBody, local
     description: body.description ?? null,
     priceCents: body.priceCents,
     costCents: body.costCents ?? null,
-    reorderLevel: body.reorderLevel ?? 0,
-    trackStock: body.trackStock ?? true,
+    stockAlert: body.stockAlert ?? 0,
+    trackStock: body.trackStock ?? false,
     active: body.active ?? true,
     quantityOnHand: 0,
     variants: [],
@@ -178,7 +179,7 @@ function applyProductUpdateDraft(draft: ProductRow, body: ProductUpdateBody): vo
   if (body.description !== undefined) draft.description = body.description;
   if (body.priceCents !== undefined) draft.priceCents = body.priceCents;
   if (body.costCents !== undefined) draft.costCents = body.costCents;
-  if (body.reorderLevel !== undefined) draft.reorderLevel = body.reorderLevel;
+  if (body.stockAlert !== undefined) draft.stockAlert = body.stockAlert;
   if (body.trackStock !== undefined) draft.trackStock = body.trackStock;
   if (body.active !== undefined) draft.active = body.active;
   draft.updatedAt = new Date();
@@ -304,13 +305,15 @@ export function useProductQuery(
       : undefined;
   const data = (live.data ?? peeked) as ProductRow | undefined;
   const utils = catalogUtils<ProductRow>(live.collection);
+  /** Detail query can 500 while list cache still has a row — treat as error only if we cannot show anything. */
+  const isError = live.isError && data == null;
   return {
     data,
     isPending: live.isLoading && data == null,
     isFetching: utils?.isFetching ?? false,
     isLoading: live.isLoading,
     isSuccess: live.isReady,
-    isError: live.isError,
+    isError,
     error: utils?.lastError ?? null,
     refetch: () => utils?.refetch?.() ?? Promise.resolve(),
   };
@@ -515,15 +518,32 @@ export function useCreateCategoryMutation(businessId: string | undefined) {
           executor,
           mutationFnName: "catalogCreateCategory",
           idempotencyKey,
-          metadata: { businessId, body },
+          metadata: { businessId, body, optimisticLocalId: localId },
           mutate: apply,
           optimisticResult: optimistic,
           invalidate: inv,
+          invalidateAfterSuccess: false,
         });
       }
 
       apply();
-      syncCatalogInBackground(sdk.businesses.business(businessId).createCategory(body).withResponse(), inv);
+      void (async () => {
+        try {
+          const { data: envelope } = await sdk
+            .businesses
+            .business(businessId)
+            .createCategory(body)
+            .withResponse();
+          await reconcileCreatedCategory(queryClient, businessId, localId, envelope.data);
+        } catch {
+          try {
+            categories.delete(localId);
+          } catch {
+            /* already removed */
+          }
+          inv();
+        }
+      })();
       return optimistic;
     },
   });

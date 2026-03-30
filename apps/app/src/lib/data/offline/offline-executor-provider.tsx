@@ -8,6 +8,7 @@ import {
   reconcileProductDeleteInQueryCache,
   reconcileServerProductIntoQueryCache,
 } from "@/lib/data/catalog/cache-reconcile";
+import { reconcileCreatedCategory } from "@/lib/data/catalog/category-reconcile";
 import { getCatalogCollectionRegistry } from "@/lib/data/catalog/collections";
 
 import { patchSaleIdIfPending } from "@/lib/data/local-counter-sales/store";
@@ -24,6 +25,7 @@ import {
   catalogUpdateProductMutationFn,
   type CatalogAdjustStockMetadata,
   type CatalogCompleteCounterSaleMetadata,
+  type CatalogCreateCategoryMetadata,
   type CatalogDeleteProductMetadata,
   type CatalogUpdateProductMetadata,
 } from "./catalog-mutation-fns";
@@ -58,7 +60,25 @@ export function OfflineExecutorProvider({ children, businessId }: Props) {
       mutationFns: {
         _noop: async () => undefined,
         catalogCreateProduct: catalogCreateProductMutationFn,
-        catalogCreateCategory: catalogCreateCategoryMutationFn,
+        catalogCreateCategory: async (params) => {
+          const row = await catalogCreateCategoryMutationFn(params);
+          const meta = (params as unknown as { transaction?: { metadata?: CatalogCreateCategoryMetadata } })
+            .transaction?.metadata;
+          if (meta?.businessId && meta.optimisticLocalId) {
+            await reconcileCreatedCategory(
+              queryClient,
+              meta.businessId,
+              meta.optimisticLocalId,
+              row,
+            );
+          } else if (meta?.businessId) {
+            void queryClient.invalidateQueries({
+              queryKey: ["catalog", meta.businessId],
+              exact: false,
+            });
+          }
+          return row;
+        },
         catalogUpdateCategory: catalogUpdateCategoryMutationFn,
         catalogDeleteCategory: catalogDeleteCategoryMutationFn,
         catalogUpdateProduct: async (params) => {

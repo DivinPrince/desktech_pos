@@ -17,7 +17,7 @@ export type CatalogProductCreateBody = {
   description?: string;
   priceCents: number;
   costCents?: number;
-  reorderLevel?: number;
+  stockAlert?: number;
   trackStock?: boolean;
   active?: boolean;
 };
@@ -42,7 +42,7 @@ export type CatalogProductUpdateBody = {
   description?: string | null;
   priceCents?: number;
   costCents?: number | null;
-  reorderLevel?: number;
+  stockAlert?: number;
   trackStock?: boolean;
   active?: boolean;
 };
@@ -55,6 +55,8 @@ export type CatalogCreateProductMetadata = {
 export type CatalogCreateCategoryMetadata = {
   businessId: string;
   body: CatalogCategoryCreateBody;
+  /** Matches optimistic `local_*` row id so replay can swap in the server category. */
+  optimisticLocalId: string;
 };
 
 export type CatalogUpdateCategoryMetadata = {
