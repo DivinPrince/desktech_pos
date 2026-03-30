@@ -12,8 +12,7 @@ import {
   useCounterCheckout,
 } from "@/app/(tabs)/counter/counter-checkout-context";
 import { CheckoutSubscreenShell } from "@/app/(tabs)/counter/checkout-subscreen-shell";
-import { authClient } from "@/lib/auth-client";
-import type { SessionPayload } from "@/lib/auth-session";
+import { resolveActiveBusiness, useAuthSessionState } from "@/lib/auth-session";
 import { useCounterCart } from "@/lib/counter-cart/counter-cart";
 import { formatMinorUnitsToCurrency } from "@/lib/format-money";
 import { appendLocalCounterSale } from "@/lib/data/local-counter-sales/store";
@@ -44,13 +43,12 @@ export default function PaymentConfirmScreen() {
   } = useCounterCheckout();
   const { lines, totalCents, clear } = useCounterCart();
 
-  const { data: session } = authClient.useSession();
-  const user = (session as SessionPayload | null | undefined)?.user;
+  const { session, user } = useAuthSessionState();
   const signedIn = Boolean(user);
   const businessesQuery = useBusinessesQuery(signedIn);
   const business = useMemo(
-    () => businessesQuery.data?.[0],
-    [businessesQuery.data],
+    () => resolveActiveBusiness(session, businessesQuery.data),
+    [session, businessesQuery.data],
   );
   const businessId = business?.id;
   const currency = business?.currency ?? "USD";

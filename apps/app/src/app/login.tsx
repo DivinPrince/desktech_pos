@@ -28,7 +28,7 @@ import {
 
 import { GuestRouteGuard } from "@/components/auth/guest-route-guard";
 import { authClient } from "@/lib/auth-client";
-import { waitForPostAuthRoute } from "@/lib/auth-session";
+import { beginAuthTransition, getSessionUser } from "@/lib/auth-session";
 
 const INPUT_ROW_CLASS =
   "border-0 border-transparent bg-transparent rounded-none py-2.5 px-4 text-[15px] leading-5 shadow-none ios:shadow-none android:shadow-none focus:border-transparent text-field-foreground";
@@ -65,11 +65,24 @@ export default function LoginScreen() {
         return;
       }
 
-      const dest = await waitForPostAuthRoute(
-        () => authClient.getSession(),
-        () => authClient.onboarding.shouldOnboard(),
-      );
-      if (!dest) {
+      const [onboardingState, sessionResult] = await Promise.all([
+        authClient.onboarding.shouldOnboard(),
+        authClient.getSession(),
+      ]);
+
+      if (onboardingState.data === true) {
+        beginAuthTransition("/onboarding");
+        router.replace("/onboarding");
+        return;
+      }
+
+      if (onboardingState.data === false || getSessionUser(sessionResult.data)) {
+        beginAuthTransition("/(tabs)/today");
+        router.replace("/(tabs)/today");
+        return;
+      }
+
+      if (sessionResult.error) {
         toast.show({
           label: "Signed in, still syncing",
           description: "Please wait a moment while we load your account.",
@@ -77,7 +90,9 @@ export default function LoginScreen() {
         });
         return;
       }
-      router.replace(dest);
+
+      beginAuthTransition("/(tabs)/today");
+      router.replace("/(tabs)/today");
     } finally {
       setSubmitting(false);
     }

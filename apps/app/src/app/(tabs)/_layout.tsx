@@ -1,18 +1,20 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Redirect, Tabs } from "expo-router";
 import { useThemeColor } from "heroui-native/hooks";
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import { Text, View } from "react-native";
 
-import { authClient } from "@/lib/auth-client";
-import { sessionNeedsOnboarding, type SessionPayload } from "@/lib/auth-session";
+import {
+  resolveActiveBusiness,
+  useAuthSessionState,
+} from "@/lib/auth-session";
 import { CounterCartProvider } from "@/lib/counter-cart/counter-cart";
 import { OfflineExecutorProvider } from "@/lib/data/offline/offline-executor-provider";
 import { useBusinessesQuery } from "@/lib/queries/business-catalog";
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
-/**
+/** 
  * Tab bar icons must not be new function references every render — React Navigation
  * merges options into state and unstable references can cause a maximum update depth loop.
  * Per-screen options are memoized with [] because `color` comes from the navigator.
@@ -40,11 +42,18 @@ export default function TabsLayout() {
   const accentColor = useThemeColor("accent");
   const mutedColor = useThemeColor("muted");
   const backgroundColor = useThemeColor("background");
-  const { data: session, isPending } = authClient.useSession();
-  const user = (session as SessionPayload | null | undefined)?.user;
-  const canLoadBusinesses = !isPending && Boolean(user) && !sessionNeedsOnboarding(session);
-  const businessesQuery = useBusinessesQuery(canLoadBusinesses);
-  const offlineBusinessId = businessesQuery.data?.[0]?.id;
+  const { session, user, needsOnboarding, pendingAuthRoute, refetch } = useAuthSessionState();
+  const businessesQuery = useBusinessesQuery(Boolean(user));
+  const currentBusiness = useMemo(
+    () => resolveActiveBusiness(session, businessesQuery.data),
+    [session, businessesQuery.data],
+  );
+
+  useEffect(() => {
+    if (pendingAuthRoute === "/(tabs)/today" && !user) {
+      void refetch();
+    }
+  }, [pendingAuthRoute, refetch, user]);
 
   const reportsOptions = useMemo(
     () => tabScreenOptions("Reports", "bar-chart", "bar-chart-outline"),
@@ -80,7 +89,11 @@ export default function TabsLayout() {
     [accentColor, mutedColor, backgroundColor],
   );
 
-  if (isPending) {
+  if (needsOnboarding) {
+    return <Redirect href="/onboarding" />;
+  }
+
+  if (pendingAuthRoute === "/(tabs)/today" && !user) {
     return (
       <View className="flex-1 items-center justify-center bg-background px-6">
         <Text className="text-center text-[15px] text-muted">Loading…</Text>
@@ -88,16 +101,12 @@ export default function TabsLayout() {
     );
   }
 
-  if (sessionNeedsOnboarding(session)) {
-    return <Redirect href="/onboarding" />;
-  }
-
   if (!user) {
     return <Redirect href="/login" />;
   }
 
   return (
-    <OfflineExecutorProvider businessId={offlineBusinessId}>
+    <OfflineExecutorProvider businessId={currentBusiness?.id}>
       <CounterCartProvider>
         <Tabs initialRouteName="today" screenOptions={screenOptions}>
           <Tabs.Screen name="reports" options={reportsOptions} />

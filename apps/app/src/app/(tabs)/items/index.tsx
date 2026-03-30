@@ -18,8 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ProductListGrid } from "@/components/desktech-ui/product-list-grid";
 import { useCounterCart } from "@/lib/counter-cart/counter-cart";
-import { authClient } from "@/lib/auth-client";
-import type { SessionPayload } from "@/lib/auth-session";
+import { resolveActiveBusiness, useAuthSessionState } from "@/lib/auth-session";
 import { formatMinorUnitsToCurrency } from "@/lib/format-money";
 import { productMatchesListFilters } from "@/lib/data/catalog/collections";
 import {
@@ -43,7 +42,7 @@ const styles = StyleSheet.create({
 
 const SEARCH_DEBOUNCE_MS = 300;
 
-/** Uses first membership business until a persisted “current business” exists. */
+/** Uses the active business from session, falling back to cached businesses offline. */
 export default function ItemsTab() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -63,14 +62,13 @@ export default function ItemsTab() {
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  const { data: session } = authClient.useSession();
-  const user = (session as SessionPayload | null | undefined)?.user;
+  const { session, user } = useAuthSessionState();
   const signedIn = Boolean(user);
 
   const businessesQuery = useBusinessesQuery(signedIn);
   const currentBusiness = useMemo(
-    () => businessesQuery.data?.[0],
-    [businessesQuery.data],
+    () => resolveActiveBusiness(session, businessesQuery.data),
+    [session, businessesQuery.data],
   );
   const businessId = currentBusiness?.id;
   const currency = currentBusiness?.currency ?? "USD";
@@ -100,13 +98,15 @@ export default function ItemsTab() {
   const catalogError = businessesQuery.error ?? productsQuery.error;
 
   const businesses = businessesQuery.data ?? [];
-  const products = productsQuery.data ?? [];
+  const products = productsQuery.data;
   const filteredProducts = useMemo(() => {
-    return products.filter((p) => productMatchesListFilters(p, false, debouncedSearch));
+    return (products ?? []).filter((p) =>
+      productMatchesListFilters(p, false, debouncedSearch),
+    );
   }, [products, debouncedSearch]);
   const workspaceColdLoad = businesses.length === 0 && businessesQuery.isPending;
   const productsInitialLoad =
-    Boolean(businessId) && products.length === 0 && productsQuery.isPending;
+    Boolean(businessId) && (products?.length ?? 0) === 0 && productsQuery.isPending;
 
   const showCatalogContent = signedIn && businessId && !catalogError;
 

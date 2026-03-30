@@ -28,7 +28,7 @@ import {
 
 import { GuestRouteGuard } from "@/components/auth/guest-route-guard";
 import { authClient } from "@/lib/auth-client";
-import { waitForPostAuthRoute } from "@/lib/auth-session";
+import { beginAuthTransition } from "@/lib/auth-session";
 
 const INPUT_ROW_CLASS =
   "border-0 border-transparent bg-transparent rounded-none py-2.5 px-4 text-[15px] leading-5 shadow-none ios:shadow-none android:shadow-none focus:border-transparent text-field-foreground";
@@ -126,19 +126,9 @@ export default function SignUpScreen() {
         return;
       }
 
-      const dest = await waitForPostAuthRoute(
-        () => authClient.getSession(),
-        () => authClient.onboarding.shouldOnboard(),
-      );
-      if (!dest) {
-        toast.show({
-          label: "Account created, still syncing",
-          description: "Please wait a moment while we finish loading your account.",
-          variant: "warning",
-        });
-        return;
-      }
-      router.replace(dest);
+      await authClient.getSession().catch(() => null);
+      beginAuthTransition("/onboarding");
+      router.replace("/onboarding");
     } finally {
       setSubmitting(false);
     }

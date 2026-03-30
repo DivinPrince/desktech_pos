@@ -14,6 +14,7 @@ export const userTable = pgTable("user", {
   banExpires: timestamp("ban_expires"),
   shouldOnboard: boolean("should_onboard").notNull().default(false),
   completedSteps: text("completed_steps"),
+  lastUsedBusinessId: ulid("last_used_business_id"),
   ...timestamps,
 });
 

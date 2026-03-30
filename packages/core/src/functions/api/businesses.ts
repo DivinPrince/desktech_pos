@@ -63,6 +63,11 @@ export const businessScopedApi = new Hono<AppEnv>()
     if (!row) throw notFound("Business", id);
     return ok(c, row);
   })
+  .post("/select", async (c) => {
+    const businessId = c.req.param("businessId")!;
+    const row = await BusinessService.rememberLastUsed(uid(c), businessId);
+    return ok(c, row);
+  })
   .patch(
     "/",
     requireBusinessMinimum("manager"),

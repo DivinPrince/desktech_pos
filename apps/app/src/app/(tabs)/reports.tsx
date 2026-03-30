@@ -20,8 +20,7 @@ import {
 } from "react-native-safe-area-context";
 
 import { LocalCounterSaleCard, isPendingSyncSaleId } from "@/components/local-counter-sale-card";
-import { authClient } from "@/lib/auth-client";
-import type { SessionPayload } from "@/lib/auth-session";
+import { resolveActiveBusiness, useAuthSessionState } from "@/lib/auth-session";
 import { buildLocalSalesReport } from "@/lib/data/local-counter-sales/build-local-report";
 import { useLocalSalesRange } from "@/lib/data/local-counter-sales/hooks";
 import {
@@ -125,14 +124,16 @@ export default function ReportsTab() {
   const accent = useThemeColor("accent");
   const accentFg = useThemeColor("accent-foreground");
 
-  const { data: session } = authClient.useSession();
-  const user = (session as SessionPayload | null | undefined)?.user;
+  const { session, user } = useAuthSessionState();
   const signedIn = Boolean(user);
 
   const businessesQuery = useBusinessesQuery(signedIn);
-  const firstBusiness = businessesQuery.data?.[0];
-  const firstBusinessId = firstBusiness?.id;
-  const businessCurrency = firstBusiness?.currency ?? "USD";
+  const currentBusiness = useMemo(
+    () => resolveActiveBusiness(session, businessesQuery.data),
+    [session, businessesQuery.data],
+  );
+  const businessId = currentBusiness?.id;
+  const businessCurrency = currentBusiness?.currency ?? "USD";
 
   const [periodPreset, setPeriodPreset] = useState<ReportPeriodPreset>("last7");
   const bounds = useMemo(
@@ -141,8 +142,8 @@ export default function ReportsTab() {
   );
 
   const { rows, refresh } = useLocalSalesRange(
-    signedIn ? firstBusinessId : undefined,
-    signedIn && firstBusinessId ? bounds : null,
+    signedIn ? businessId : undefined,
+    signedIn && businessId ? bounds : null,
   );
 
   const report = useMemo(() => buildLocalSalesReport(rows), [rows]);
@@ -169,12 +170,12 @@ export default function ReportsTab() {
   );
 
   const onManualRetryServerSync = useCallback(async () => {
-    if (!firstBusinessId) return;
+    if (!businessId) return;
     setManualSyncWorking(true);
     try {
       const result = await syncPendingSalesToday({
         executor: offlineExecutor,
-        businessId: firstBusinessId,
+        businessId,
         queryClient,
       });
       refresh();
@@ -185,7 +186,7 @@ export default function ReportsTab() {
     } finally {
       setManualSyncWorking(false);
     }
-  }, [offlineExecutor, refresh, firstBusinessId, queryClient]);
+  }, [businessId, offlineExecutor, refresh, queryClient]);
 
   useFocusEffect(
     useCallback(() => {
@@ -211,7 +212,7 @@ export default function ReportsTab() {
   const headerLines = useMemo(() => {
     if (!signedIn) return { primary: "Sign in to continue", secondary: null as string | null };
     if (businessesQuery.isError) return { primary: "Something went wrong", secondary: null };
-    if (!firstBusinessId) return { primary: "Set up your shop first", secondary: null };
+    if (!businessId) return { primary: "Set up your shop first", secondary: null };
     if (rows.length === 0) return { primary: periodTitle, secondary: "No sales yet" };
     return {
       primary: formatMinorUnitsToCurrency(report.totalRevenueCents, businessCurrency),
@@ -220,7 +221,7 @@ export default function ReportsTab() {
   }, [
     businessCurrency,
     businessesQuery.isError,
-    firstBusinessId,
+    businessId,
     periodTitle,
     report.saleCount,
     report.totalRevenueCents,
@@ -237,7 +238,7 @@ export default function ReportsTab() {
         <EmptyHint icon="cloud-offline-outline" title="Couldn’t load your shop" accent={accent} />
       );
     }
-    if (!firstBusinessId) {
+    if (!businessId) {
       return <EmptyHint icon="storefront-outline" title="Finish setup to track sales" accent={accent} />;
     }
 
@@ -426,7 +427,7 @@ export default function ReportsTab() {
   }, [
     accent,
     businessesQuery.isError,
-    firstBusinessId,
+    businessId,
     muted,
     periodPreset,
     report,
@@ -491,7 +492,7 @@ export default function ReportsTab() {
       </View>
 
       <SafeAreaView style={styles.root} edges={["left", "right", "bottom"]}>
-        {signedIn && firstBusinessId && hasPendingSync ? (
+        {signedIn && businessId && hasPendingSync ? (
           <View className="mx-4 mt-3 rounded-2xl border border-amber-500/35 bg-amber-500/12 px-3.5 py-3.5">
             <View className="flex-row items-start gap-2.5">
               <Ionicons name="cloud-upload-outline" size={22} color="#d97706" />
@@ -515,7 +516,7 @@ export default function ReportsTab() {
         ) : null}
         <FlatList
           style={styles.list}
-          data={signedIn && firstBusinessId ? rows : []}
+          data={signedIn && businessId ? rows : []}
           extraData={{
             expanded: expandedIds.size,
             period: periodPreset,

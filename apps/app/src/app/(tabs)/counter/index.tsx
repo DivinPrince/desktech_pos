@@ -18,8 +18,7 @@ import {
 } from "react-native-safe-area-context";
 
 import { useCounterCheckout } from "@/app/(tabs)/counter/counter-checkout-context";
-import { authClient } from "@/lib/auth-client";
-import type { SessionPayload } from "@/lib/auth-session";
+import { resolveActiveBusiness, useAuthSessionState } from "@/lib/auth-session";
 import type { CartLine } from "@/lib/counter-cart/counter-cart";
 import { useCounterCart } from "@/lib/counter-cart/counter-cart";
 import { formatMinorUnitsToCurrency } from "@/lib/format-money";
@@ -46,14 +45,13 @@ export default function CounterTab() {
   const accentFg = useThemeColor("accent-foreground");
   const background = useThemeColor("background");
 
-  const { data: session } = authClient.useSession();
-  const user = (session as SessionPayload | null | undefined)?.user;
+  const { session, user } = useAuthSessionState();
   const signedIn = Boolean(user);
 
   const businessesQuery = useBusinessesQuery(signedIn);
   const currentBusiness = useMemo(
-    () => businessesQuery.data?.[0],
-    [businessesQuery.data],
+    () => resolveActiveBusiness(session, businessesQuery.data),
+    [session, businessesQuery.data],
   );
   const businessId = currentBusiness?.id;
   const currency = currentBusiness?.currency ?? "USD";

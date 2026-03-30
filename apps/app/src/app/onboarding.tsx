@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import Constants from "expo-constants";
-import { useRouter } from "expo-router";
+import { Redirect, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
@@ -27,9 +27,9 @@ import {
 import { SearchableSelectModal } from "@/components/searchable-select-modal";
 import { authClient } from "@/lib/auth-client";
 import {
-  sessionNeedsOnboarding,
-  type SessionPayload,
-  waitForOnboardingSessionClear,
+  beginAuthTransition,
+  getPendingAuthRoute,
+  useAuthSessionState,
 } from "@/lib/auth-session";
 import {
   formatCurrencyChoice,
@@ -47,12 +47,8 @@ export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const accentColor = useThemeColor("accent");
   const { toast } = useToast();
-  const {
-    data: session,
-    isPending: sessionPending,
-    refetch: refetchSession,
-  } = authClient.useSession();
-  const [checking, setChecking] = useState(true);
+  const { user, activeBusiness, needsOnboarding, isPending, refetch: refetchSession } =
+    useAuthSessionState();
   const [submitPhase, setSubmitPhase] = useState<"idle" | "saving" | "finishing">(
     "idle",
   );
@@ -136,53 +132,6 @@ export default function OnboardingScreen() {
       ? ` (${Constants.nativeBuildVersion})`
       : "";
 
-  useEffect(() => {
-    if (sessionPending) {
-      return;
-    }
-
-    const user = (session as SessionPayload | null | undefined)?.user;
-    if (sessionNeedsOnboarding(session)) {
-      setChecking(false);
-      return;
-    }
-
-    if (user) {
-      router.replace("/");
-      return;
-    }
-
-    let cancelled = false;
-    setChecking(true);
-
-    void (async () => {
-      const [sessionRes, shouldOnboardRes] = await Promise.all([
-        authClient.getSession(),
-        authClient.onboarding.shouldOnboard(),
-      ]);
-      if (cancelled) {
-        return;
-      }
-
-      if (shouldOnboardRes.data === true) {
-        setChecking(false);
-        return;
-      }
-
-      const liveUser = (sessionRes.data as SessionPayload | null | undefined)?.user;
-      if (liveUser) {
-        router.replace("/");
-        return;
-      }
-
-      router.replace("/login");
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [sessionPending, session, router]);
-
   const onContinue = useCallback(async () => {
     const trimmedName = businessName.trim();
     if (!trimmedName) {
@@ -214,22 +163,9 @@ export default function OnboardingScreen() {
       }
 
       setSubmitPhase("finishing");
-      const sessionReady = await waitForOnboardingSessionClear(() =>
-        authClient.getSession(),
-      );
       await refetchSession();
-
-      if (!sessionReady) {
-        toast.show({
-          label: "Could not confirm setup",
-          description:
-            "Your workspace may still have been created. Try opening the app again.",
-          variant: "warning",
-        });
-        return;
-      }
-
-      router.replace("/");
+      beginAuthTransition("/(tabs)/today");
+      router.replace("/(tabs)/today");
     } finally {
       setSubmitPhase("idle");
     }
@@ -242,13 +178,31 @@ export default function OnboardingScreen() {
     refetchSession,
   ]);
 
-  if (checking) {
+  const canContinueOnboarding = needsOnboarding || Boolean(user && !activeBusiness);
+  const isPendingOnboardingHandoff =
+    !user && getPendingAuthRoute() === "/onboarding";
+
+  useEffect(() => {
+    if (isPendingOnboardingHandoff) {
+      void refetchSession();
+    }
+  }, [isPendingOnboardingHandoff, refetchSession]);
+
+  if (isPending || isPendingOnboardingHandoff) {
     return (
       <View className="flex-1 items-center justify-center bg-background px-6">
         <StatusBar style="dark" />
         <Text className="text-center text-[15px] text-muted">Loading setup…</Text>
       </View>
     );
+  }
+
+  if (!user) {
+    return <Redirect href="/login" />;
+  }
+
+  if (!canContinueOnboarding) {
+    return <Redirect href="/(tabs)/today" />;
   }
 
   return (

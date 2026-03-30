@@ -25,8 +25,7 @@ import {
   SelectInputTrigger,
   type SearchablePickerOption,
 } from "@/components/desktech-ui";
-import { authClient } from "@/lib/auth-client";
-import type { SessionPayload } from "@/lib/auth-session";
+import { resolveActiveBusiness, useAuthSessionState } from "@/lib/auth-session";
 import { useNetworkReachable } from "@/lib/hooks/use-network-reachable";
 import {
   useBusinessesQuery,
@@ -65,12 +64,11 @@ export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProp
 
   const isEdit = Boolean(categoryId);
 
-  const { data: session } = authClient.useSession();
-  const user = (session as SessionPayload | null | undefined)?.user;
+  const { session, user } = useAuthSessionState();
   const signedIn = Boolean(user);
 
   const businessesQuery = useBusinessesQuery(signedIn);
-  const businessId = businessesQuery.data?.[0]?.id;
+  const businessId = resolveActiveBusiness(session, businessesQuery.data)?.id;
 
   const categoriesQuery = useCategoriesQuery(businessId, Boolean(businessId));
   const categories = useMemo(

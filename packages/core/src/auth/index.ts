@@ -2,7 +2,7 @@ import "../../sst-env.d.ts";
 import { betterAuth, type BetterAuthOptions, type BetterAuthPlugin } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { expo } from "@better-auth/expo";
-import { admin, openAPI, bearer, testUtils } from "better-auth/plugins";
+import { admin, bearer, customSession, openAPI, testUtils } from "better-auth/plugins";
 import { dash } from "@better-auth/infra";
 import { createOnboardingStep, onboarding } from "@better-auth-extended/onboarding";
 import { db } from "../drizzle";
@@ -26,7 +26,7 @@ import { createID } from "../util/id";
 const allowExpoDevOrigins =
   process.env.NODE_ENV === "development" || process.env.SST_DEV === "true";
 
-const authOptions = {
+const baseAuthOptions = {
   basePath: "/api/auth",
   trustedOrigins: [
     process.env.FRONTEND_URL || "",
@@ -127,6 +127,24 @@ const authOptions = {
     ...(process.env.AUTH_TEST_UTILS === "1"
       ? [testUtils() as unknown as BetterAuthPlugin]
       : [dash() as unknown as BetterAuthPlugin]),
+  ],
+} satisfies BetterAuthOptions;
+
+const authOptions = {
+  ...baseAuthOptions,
+  plugins: [
+    ...(baseAuthOptions.plugins ?? []),
+    customSession(
+      async ({ user, session }) => {
+        const activeBusiness = await BusinessService.resolveActiveForUser(user.id);
+        return {
+          user,
+          session,
+          activeBusiness,
+        };
+      },
+      baseAuthOptions,
+    ) as unknown as BetterAuthPlugin,
   ],
 } satisfies BetterAuthOptions;
 

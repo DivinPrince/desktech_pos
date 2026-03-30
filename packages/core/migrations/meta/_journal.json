@@ -64,6 +64,13 @@
       "when": 1774531324594,
       "tag": "0008_dizzy_ultimatum",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1774869807972,
+      "tag": "0009_talented_hercules",
+      "breakpoints": true
     }
   ]
 }

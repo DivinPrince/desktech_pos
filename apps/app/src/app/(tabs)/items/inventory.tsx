@@ -20,8 +20,7 @@ import {
 } from "react-native-safe-area-context";
 
 import { SegmentedTwoTabs } from "@/components/desktech-ui/segmented-two-tabs";
-import { authClient } from "@/lib/auth-client";
-import type { SessionPayload } from "@/lib/auth-session";
+import { resolveActiveBusiness, useAuthSessionState } from "@/lib/auth-session";
 import { formatMinorUnitsToCurrency } from "@/lib/format-money";
 import {
   catalogKeys,
@@ -76,14 +75,13 @@ export default function InventoryScreen() {
     setDebouncedSearch("");
   }, [segment]);
 
-  const { data: session } = authClient.useSession();
-  const user = (session as SessionPayload | null | undefined)?.user;
+  const { session, user } = useAuthSessionState();
   const signedIn = Boolean(user);
 
   const businessesQuery = useBusinessesQuery(signedIn);
   const currentBusiness = useMemo(
-    () => businessesQuery.data?.[0],
-    [businessesQuery.data],
+    () => resolveActiveBusiness(session, businessesQuery.data),
+    [session, businessesQuery.data],
   );
   const businessId = currentBusiness?.id;
   const currency = currentBusiness?.currency ?? "USD";

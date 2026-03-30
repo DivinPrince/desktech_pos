@@ -31,8 +31,7 @@ import {
 } from "@/components/desktech-ui";
 import { StockManagementSheet } from "@/components/inventory/stock-management-sheet";
 import type { ProductRow } from "@/lib/data/catalog/types";
-import { authClient } from "@/lib/auth-client";
-import type { SessionPayload } from "@/lib/auth-session";
+import { resolveActiveBusiness, useAuthSessionState } from "@/lib/auth-session";
 import {
   formatMinorUnitsToCurrency,
   minorUnitsToMajorDecimalString,
@@ -93,13 +92,13 @@ export function ProductEditor({ productId }: ProductEditorProps) {
 
   const isEdit = Boolean(productId);
 
-  const { data: session } = authClient.useSession();
-  const user = (session as SessionPayload | null | undefined)?.user;
+  const { session, user } = useAuthSessionState();
   const signedIn = Boolean(user);
 
   const businessesQuery = useBusinessesQuery(signedIn);
-  const businessId = businessesQuery.data?.[0]?.id;
-  const currency = businessesQuery.data?.[0]?.currency ?? "USD";
+  const currentBusiness = resolveActiveBusiness(session, businessesQuery.data);
+  const businessId = currentBusiness?.id;
+  const currency = currentBusiness?.currency ?? "USD";
 
   const categoriesQuery = useCategoriesQuery(businessId, Boolean(businessId));
   const categories = useMemo(

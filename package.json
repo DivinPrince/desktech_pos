@@ -3,10 +3,10 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
-    "db:generate": "sst shell -- bun run --cwd packages/core db:generate",
-    "db:migrate": "sst shell -- bun run --cwd packages/core db:migrate",
-    "db:push": "sst shell -- bun run --cwd packages/core db:push",
-    "db:studio": "sst shell -- bun run --cwd packages/core db:studio",
+    "db:generate": "bunx sst shell -- bun run --cwd packages/core db:generate",
+    "db:migrate": "bunx sst shell -- bun run --cwd packages/core db:migrate",
+    "db:push": "bunx sst shell -- bun run --cwd packages/core db:push",
+    "db:studio": "bunx sst shell -- bun run --cwd packages/core db:studio",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "lint:fix": "oxlint --fix",
@@ -16,7 +16,7 @@
     "sst:dev": "sst dev",
     "sst:deploy": "sst deploy",
     "sst:remove": "sst remove",
-    "sst:shell": "sst shell"
+    "sst:shell": "bunx sst shell"
   },
   "devDependencies": {
     "@pulumi/pulumi": "^3.153.0",

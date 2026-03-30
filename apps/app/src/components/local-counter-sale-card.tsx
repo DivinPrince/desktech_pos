@@ -5,6 +5,7 @@ import { Pressable, Text, View } from "react-native";
 import { paymentDisplayForKey } from "@/lib/counter-checkout/payment-options";
 import type { LocalCounterSaleRow } from "@/lib/data/local-counter-sales/types";
 import { formatMinorUnitsToCurrency } from "@/lib/format-money";
+import { formatSaleCompletedAt } from "@/lib/format-sale-completed-at";
 
 export const LOCAL_COUNTER_SALE_CARD_CLASS =
   "mb-2 overflow-hidden rounded-2xl border border-border/75 bg-surface";
@@ -40,31 +41,25 @@ export function LocalCounterSaleCard({
   muted,
 }: LocalCounterSaleCardProps) {
   const r = item.receipt;
-  const timeLabel = new Date(r.completedAtIso).toLocaleTimeString(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  const timeLabel = formatSaleCompletedAt(r.completedAtIso);
   const paymentUi = paymentDisplayForKey(r.paymentMethodKey);
 
   return (
     <View className={LOCAL_COUNTER_SALE_CARD_CLASS}>
       <Pressable
         onPress={onToggle}
-        className="flex-row items-center gap-3.5 px-3 py-3.5 active:opacity-90"
+        className="flex-row items-center gap-3.5 px-3.5 py-4 active:opacity-90"
       >
-        <View className="h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-background/70">
+        <View className="h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-background/70">
           <Ionicons name={paymentUi.icon} size={22} color={paymentUi.iconHex} />
         </View>
         <View className="min-w-0 flex-1 pr-1">
-          <Text className="text-[15px] font-semibold tabular-nums text-foreground">{timeLabel}</Text>
-          <Text className="mt-0.5 text-[13px] text-muted" numberOfLines={1}>
+          <Text className="text-[15px] font-semibold text-foreground" numberOfLines={1}>
             {r.paymentMethodLabel}
           </Text>
-          {isPendingSyncSaleId(item.id) ? (
-            <Text className="mt-1 text-[11px] font-medium text-amber-600 dark:text-amber-400">
-              Sync pending — use “Retry server sync” above for details
-            </Text>
-          ) : null}
+          <Text className="mt-1 text-[12px] tabular-nums text-muted" numberOfLines={1}>
+            {timeLabel}
+          </Text>
         </View>
         <View className="flex-row items-center gap-1.5">
           <Text className="text-[16px] font-semibold tabular-nums text-foreground">

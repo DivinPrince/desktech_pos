@@ -36,6 +36,7 @@
     "@vvo/tzdb": "^6.198.0",
     "better-auth": "^1.5.4",
     "currency-codes": "^2.2.0",
+    "date-fns": "^4.1.0",
     "expo": "~54.0.33",
     "expo-camera": "~17.0.10",
     "expo-constants": "~18.0.13",

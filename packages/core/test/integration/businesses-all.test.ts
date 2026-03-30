@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { auth } from "@repo/core/auth";
 import { app } from "../../src/functions/api/routes";
 import { getTestHelpers, saveUserAndTrack } from "../helpers/auth-context";
 import { seedBusinessWithTeam, type UserGarbage } from "../helpers/business-fixture";
@@ -44,6 +45,47 @@ describe("API /api/businesses (full)", () => {
     const list = await app.request("http://localhost/api/businesses", { method: "GET", headers: h });
     const body = await readJson<{ data: { id: string }[] }>(list, 200);
     expect(body.data.some((b) => b.id === biz.id)).toBe(true);
+
+    const session = (await auth.api.getSession({
+      headers: h,
+    })) as { activeBusiness?: { id: string } | null } | null;
+    expect(session?.activeBusiness?.id).toBe(biz.id);
+  });
+
+  it("POST /:businessId/select updates the active business in session", async () => {
+    const helpers = await getTestHelpers();
+    const owner = await saveUserAndTrack(
+      helpers,
+      { email: `sel-${runId}@example.com`, name: "Select Owner" },
+      garbage,
+    );
+    const h = await helpers.getAuthHeaders({ userId: owner.id });
+
+    const first = await app.request("http://localhost/api/businesses", {
+      method: "POST",
+      headers: jsonHeaders(h),
+      body: JSON.stringify({ name: "First Select", currency: "USD" }),
+    });
+    const { data: firstBiz } = await readJson<{ data: { id: string } }>(first, 201);
+
+    const second = await app.request("http://localhost/api/businesses", {
+      method: "POST",
+      headers: jsonHeaders(h),
+      body: JSON.stringify({ name: "Second Select", currency: "USD" }),
+    });
+    const { data: secondBiz } = await readJson<{ data: { id: string } }>(second, 201);
+
+    const select = await app.request(`http://localhost/api/businesses/${firstBiz.id}/select`, {
+      method: "POST",
+      headers: h,
+    });
+    await readJson(select, 200);
+
+    const session = (await auth.api.getSession({
+      headers: h,
+    })) as { activeBusiness?: { id: string } | null } | null;
+    expect(session?.activeBusiness?.id).toBe(firstBiz.id);
+    expect(session?.activeBusiness?.id).not.toBe(secondBiz.id);
   });
 
   it("GET /:businessId 200 for member, 403 for outsider", async () => {

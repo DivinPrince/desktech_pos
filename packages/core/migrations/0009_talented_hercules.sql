@@ -1,0 +1,1 @@
+ALTER TABLE "user" ADD COLUMN "last_used_business_id" varchar(30);

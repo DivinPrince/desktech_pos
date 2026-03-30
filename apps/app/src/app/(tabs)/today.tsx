@@ -1,11 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import { useQueryClient } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
 import { useThemeColor } from "heroui-native/hooks";
 import React, { useCallback, useMemo, useState } from "react";
 import {
-  Alert,
   FlatList,
   Pressable,
   StyleSheet,
@@ -18,14 +16,13 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 
-import { authClient } from "@/lib/auth-client";
-import type { SessionPayload } from "@/lib/auth-session";
+import { resolveActiveBusiness, useAuthSessionState } from "@/lib/auth-session";
 import { paymentDisplayForKey } from "@/lib/counter-checkout/payment-options";
 import { useLocalSalesToday } from "@/lib/data/local-counter-sales/hooks";
 import type { LocalCounterSaleRow } from "@/lib/data/local-counter-sales/types";
 import { useOfflineExecutor } from "@/lib/data/offline/offline-executor-provider";
-import { syncPendingSalesToday } from "@/lib/data/local-counter-sales/sync-pending-sales-today";
 import { formatMinorUnitsToCurrency } from "@/lib/format-money";
+import { formatSaleCompletedAt } from "@/lib/format-sale-completed-at";
 import { fetchDeviceAppearsOnline } from "@/lib/network/fetch-device-online";
 import { useBusinessesQuery } from "@/lib/queries/business-catalog";
 
@@ -48,11 +45,6 @@ function customerHasDetails(r: LocalCounterSaleRow["receipt"]): boolean {
     c.email.trim().length > 0 ||
     c.address.trim().length > 0
   );
-}
-
-/** Local row id from offline checkout before outbox replay (`pending:<idempotencyKey>`). */
-function isPendingSyncSaleId(saleId: string): boolean {
-  return saleId.startsWith("pending:");
 }
 
 function EmptyHint({
@@ -85,8 +77,7 @@ export default function TodayTab() {
   const accent = useThemeColor("accent");
   const accentFg = useThemeColor("accent-foreground");
 
-  const { data: session } = authClient.useSession();
-  const user = (session as SessionPayload | null | undefined)?.user;
+  const { session, user } = useAuthSessionState();
   const displayName =
     typeof user?.name === "string" && user.name.trim().length > 0
       ? user.name.trim()
@@ -96,40 +87,17 @@ export default function TodayTab() {
   const signedIn = Boolean(user);
 
   const businessesQuery = useBusinessesQuery(signedIn);
-  const firstBusiness = businessesQuery.data?.[0];
-  const firstBusinessId = firstBusiness?.id;
-  const businessCurrency = firstBusiness?.currency ?? "USD";
+  const currentBusiness = useMemo(
+    () => resolveActiveBusiness(session, businessesQuery.data),
+    [session, businessesQuery.data],
+  );
+  const businessId = currentBusiness?.id;
+  const businessCurrency = currentBusiness?.currency ?? "USD";
 
   const { rows, refresh } = useLocalSalesToday(
-    signedIn ? firstBusinessId : undefined,
+    signedIn ? businessId : undefined,
   );
-  const queryClient = useQueryClient();
   const offlineExecutor = useOfflineExecutor();
-  const [manualSyncWorking, setManualSyncWorking] = useState(false);
-
-  const hasPendingSync = useMemo(
-    () => rows.some((r) => isPendingSyncSaleId(r.id)),
-    [rows],
-  );
-
-  const onManualRetryServerSync = useCallback(async () => {
-    if (!firstBusinessId) return;
-    setManualSyncWorking(true);
-    try {
-      const result = await syncPendingSalesToday({
-        executor: offlineExecutor,
-        businessId: firstBusinessId,
-        queryClient,
-      });
-      refresh();
-      Alert.alert(result.title, result.message);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      Alert.alert("Retry failed", msg);
-    } finally {
-      setManualSyncWorking(false);
-    }
-  }, [offlineExecutor, refresh, firstBusinessId, queryClient]);
 
   useFocusEffect(
     useCallback(() => {
@@ -183,33 +151,25 @@ export default function TodayTab() {
     ({ item }) => {
       const r = item.receipt;
       const expanded = expandedIds.has(item.id);
-      const timeLabel = new Date(r.completedAtIso).toLocaleTimeString(undefined, {
-        hour: "numeric",
-        minute: "2-digit",
-      });
+      const timeLabel = formatSaleCompletedAt(r.completedAtIso);
       const paymentUi = paymentDisplayForKey(r.paymentMethodKey);
 
       return (
         <View className={SALE_CARD_CLASS}>
           <Pressable
             onPress={() => toggleExpanded(item.id)}
-            className="flex-row items-center gap-3.5 px-3 py-3.5 active:opacity-90"
+            className="flex-row items-center gap-3.5 px-3.5 py-4 active:opacity-90"
           >
-            <View className="h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-background/70">
+            <View className="h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-background/70">
               <Ionicons name={paymentUi.icon} size={22} color={paymentUi.iconHex} />
             </View>
             <View className="min-w-0 flex-1 pr-1">
-              <Text className="text-[15px] font-semibold tabular-nums text-foreground">
-                {timeLabel}
-              </Text>
-              <Text className="mt-0.5 text-[13px] text-muted" numberOfLines={1}>
+              <Text className="text-[15px] font-semibold text-foreground" numberOfLines={1}>
                 {r.paymentMethodLabel}
               </Text>
-              {isPendingSyncSaleId(item.id) ? (
-                <Text className="mt-1 text-[11px] font-medium text-amber-600 dark:text-amber-400">
-                  Sync pending — use “Retry server sync” above for details
-                </Text>
-              ) : null}
+              <Text className="mt-1 text-[12px] tabular-nums text-muted" numberOfLines={1}>
+                {timeLabel}
+              </Text>
             </View>
             <View className="flex-row items-center gap-1.5">
               <Text className="text-[16px] font-semibold tabular-nums text-foreground">
@@ -291,7 +251,7 @@ export default function TodayTab() {
   const headerSubtitle2 = useMemo(() => {
     if (!signedIn) return "Sign in to see today’s activity";
     if (businessesQuery.isError) return "Could not load workspace";
-    if (!firstBusinessId) return "Finish setup to track sales";
+    if (!businessId) return "Finish setup to track sales";
     if (rows.length === 0) {
       return `${dateLine} · ${shortName}`;
     }
@@ -300,7 +260,7 @@ export default function TodayTab() {
     businessCurrency,
     businessesQuery.isError,
     dateLine,
-    firstBusinessId,
+    businessId,
     rows.length,
     shortName,
     signedIn,
@@ -316,14 +276,14 @@ export default function TodayTab() {
         <EmptyHint icon="cloud-offline-outline" title="Couldn’t load your business" accent={accent} />
       );
     }
-    if (!firstBusinessId) {
+    if (!businessId) {
       return <EmptyHint icon="storefront-outline" title="Finish setup to track sales" accent={accent} />;
     }
     if (rows.length === 0) {
       return <EmptyHint icon="cart-outline" title="No sales yet today" accent={accent} />;
     }
     return null;
-  }, [accent, businessesQuery.isError, firstBusinessId, rows.length, signedIn]);
+  }, [accent, businessId, businessesQuery.isError, rows.length, signedIn]);
 
   return (
     <View style={styles.root} className="bg-background">
@@ -349,7 +309,7 @@ export default function TodayTab() {
         >
           {headerSubtitle2}
         </Text>
-        {signedIn && firstBusinessId && rows.length > 0 ? (
+        {signedIn && businessId && rows.length > 0 ? (
           <Text
             style={{
               color: "rgba(255,255,255,0.72)",
@@ -364,29 +324,9 @@ export default function TodayTab() {
       </View>
 
       <SafeAreaView style={styles.root} edges={["left", "right", "bottom"]}>
-        {signedIn && firstBusinessId && hasPendingSync ? (
-          <View className="mx-4 mt-3 rounded-2xl border border-amber-500/35 bg-amber-500/12 px-3.5 py-3">
-            <Text className="text-[13px] font-medium text-foreground">
-              Some sales have not reached the server yet
-            </Text>
-            <Text className="mt-1 text-[12px] leading-[18px] text-muted">
-              Retries the offline outbox, then if the queue is empty but you still see pending sales,
-              matches today’s completed sales on the server or re-uploads the receipt.
-            </Text>
-            <Pressable
-              onPress={() => void onManualRetryServerSync()}
-              disabled={manualSyncWorking}
-              className="mt-3 items-center justify-center rounded-xl bg-amber-600/90 py-2.5 active:opacity-90 disabled:opacity-50 dark:bg-amber-500/85"
-            >
-              <Text className="text-[14px] font-semibold text-white">
-                {manualSyncWorking ? "Checking…" : "Retry server sync"}
-              </Text>
-            </Pressable>
-          </View>
-        ) : null}
         <FlatList
           style={styles.list}
-          data={signedIn && firstBusinessId ? rows : []}
+          data={signedIn && businessId ? rows : []}
           extraData={{ expanded: expandedIds.size, count: rows.length }}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}

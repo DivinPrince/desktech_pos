@@ -82,6 +82,10 @@ export namespace BusinessService {
     updatedAt: z.date(),
   });
 
+  export const ActiveInfo = Info.extend({
+    role: z.enum(["owner", "manager", "cashier"]),
+  });
+
   export const MemberInfo = z.object({
     id: z.string(),
     businessId: z.string(),
@@ -102,6 +106,16 @@ export namespace BusinessService {
       currency: row.currency,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
+    };
+  }
+
+  function serializeActiveBusiness(
+    business: typeof businessTable.$inferSelect,
+    role: BusinessMemberRole,
+  ): z.infer<typeof ActiveInfo> {
+    return {
+      ...serializeBusiness(business),
+      role,
     };
   }
 
@@ -164,6 +178,85 @@ export namespace BusinessService {
     });
   }
 
+  export async function resolveActiveForUser(
+    userId: string,
+  ): Promise<z.infer<typeof ActiveInfo> | null> {
+    return withTransaction(async (tx) => {
+      const [user] = await tx
+        .select({ lastUsedBusinessId: userTable.lastUsedBusinessId })
+        .from(userTable)
+        .where(eq(userTable.id, userId))
+        .limit(1);
+
+      const rows = await tx
+        .select({
+          business: businessTable,
+          role: businessMemberTable.role,
+        })
+        .from(businessMemberTable)
+        .innerJoin(businessTable, eq(businessMemberTable.businessId, businessTable.id))
+        .where(eq(businessMemberTable.userId, userId))
+        .orderBy(desc(businessTable.updatedAt));
+
+      if (rows.length === 0) {
+        return null;
+      }
+
+      const preferred =
+        user?.lastUsedBusinessId != null
+          ? rows.find((row) => row.business.id === user.lastUsedBusinessId)
+          : undefined;
+      const resolved = preferred ?? rows[0];
+      if (!resolved) {
+        return null;
+      }
+      return serializeActiveBusiness(
+        resolved.business,
+        resolved.role as BusinessMemberRole,
+      );
+    });
+  }
+
+  export async function rememberLastUsed(
+    userId: string,
+    businessId: string,
+  ): Promise<z.infer<typeof ActiveInfo>> {
+    return createTransaction(async (tx) => {
+      const [member] = await tx
+        .select({
+          business: businessTable,
+          role: businessMemberTable.role,
+        })
+        .from(businessMemberTable)
+        .innerJoin(businessTable, eq(businessMemberTable.businessId, businessTable.id))
+        .where(
+          and(
+            eq(businessMemberTable.userId, userId),
+            eq(businessMemberTable.businessId, businessId),
+          ),
+        )
+        .limit(1);
+
+      if (!member) {
+        throw new VisibleError(
+          "forbidden",
+          ErrorCodes.Permission.FORBIDDEN,
+          "You do not have access to this business",
+        );
+      }
+
+      await tx
+        .update(userTable)
+        .set({ lastUsedBusinessId: businessId })
+        .where(eq(userTable.id, userId));
+
+      return serializeActiveBusiness(
+        member.business,
+        member.role as BusinessMemberRole,
+      );
+    });
+  }
+
   export const byId = fn(z.string(), async (id) => {
     return withTransaction(async (tx) => {
       const [row] = await tx.select().from(businessTable).where(eq(businessTable.id, id));
@@ -195,6 +288,10 @@ export namespace BusinessService {
         userId: input.ownerUserId,
         role: "owner",
       });
+      await tx
+        .update(userTable)
+        .set({ lastUsedBusinessId: businessId })
+        .where(eq(userTable.id, input.ownerUserId));
       return serializeBusiness(biz);
     });
   });
