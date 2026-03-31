@@ -18,10 +18,8 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 
-import { GuestRouteGuard } from "@/components/auth/guest-route-guard";
 import { KeyboardAvoidingScaffold } from "@/components/desktech-ui";
 import { authClient } from "@/lib/auth-client";
-import { beginAuthTransition } from "@/lib/auth-session";
 
 const INPUT_ROW_CLASS =
   "border-0 border-transparent bg-transparent rounded-none py-2.5 px-4 text-[15px] leading-5 shadow-none ios:shadow-none android:shadow-none focus:border-transparent text-field-foreground";
@@ -96,43 +94,45 @@ export default function SignUpScreen() {
           description: error.message ?? "Please try again.",
           variant: "danger",
         });
-        return;
+      } else {
+        const payload = data as Record<string, unknown> | undefined;
+        const signedIn = Boolean(
+          payload?.session != null ||
+            (typeof payload?.token === "string" && payload.token.length > 0),
+        );
+        if (data?.user && !signedIn) {
+          toast.show({
+            label: "Check your email",
+            description:
+              "We sent you a link to verify your account. You can log in once that’s done.",
+            variant: "success",
+            duration: "persistent",
+            actionLabel: "Log in",
+            onActionPress: ({ hide }) => {
+              hide();
+              router.replace("/login");
+            },
+          });
+        } else {
+          await authClient.getSession().catch(() => null);
+        }
       }
-      const payload = data as Record<string, unknown> | undefined;
-      const signedIn = Boolean(
-        payload?.session != null ||
-          (typeof payload?.token === "string" && payload.token.length > 0),
-      );
-      if (data?.user && !signedIn) {
-        toast.show({
-          label: "Check your email",
-          description:
-            "We sent you a link to verify your account. You can log in once that’s done.",
-          variant: "success",
-          duration: "persistent",
-          actionLabel: "Log in",
-          onActionPress: ({ hide }) => {
-            hide();
-            router.replace("/login");
-          },
-        });
-        return;
-      }
-
-      await authClient.getSession().catch(() => null);
-      beginAuthTransition("/onboarding");
-      router.replace("/onboarding");
-    } finally {
-      setSubmitting(false);
+    } catch (error) {
+      toast.show({
+        label: "Sign up failed",
+        description:
+          error instanceof Error ? error.message : "Please try again.",
+        variant: "danger",
+      });
     }
+    setSubmitting(false);
   }, [confirmPassword, email, name, password, router, toast]);
 
   return (
-    <GuestRouteGuard>
-      <View className="flex-1 bg-background">
-        <StatusBar style="inverted" />
+    <View className="flex-1 bg-background">
+      <StatusBar style="inverted" />
 
-        <SafeAreaView style={styles.fill} edges={["top", "left", "right"]}>
+      <SafeAreaView style={styles.fill} edges={["top", "left", "right"]}>
         <View
           pointerEvents="box-none"
           style={[
@@ -295,8 +295,10 @@ export default function SignUpScreen() {
                     accessibilityRole="link"
                     onPress={() => router.push("/login")}
                   >
-                    <LinkButton.Label className="text-[15px] text-accent">
-                      Already have an account? Log in
+                    <LinkButton.Label>
+                      <Text className="text-[15px] text-accent">
+                        Already have an account? Log in
+                      </Text>
                     </LinkButton.Label>
                   </LinkButton>
                 </View>
@@ -304,9 +306,8 @@ export default function SignUpScreen() {
             </View>
           </ScrollView>
         </KeyboardAvoidingScaffold>
-        </SafeAreaView>
-      </View>
-    </GuestRouteGuard>
+      </SafeAreaView>
+    </View>
   );
 }
 

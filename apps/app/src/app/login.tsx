@@ -18,10 +18,8 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 
-import { GuestRouteGuard } from "@/components/auth/guest-route-guard";
 import { KeyboardAvoidingScaffold } from "@/components/desktech-ui";
 import { authClient } from "@/lib/auth-client";
-import { beginAuthTransition, getSessionUser } from "@/lib/auth-session";
 
 const INPUT_ROW_CLASS =
   "border-0 border-transparent bg-transparent rounded-none py-2.5 px-4 text-[15px] leading-5 shadow-none ios:shadow-none android:shadow-none focus:border-transparent text-field-foreground";
@@ -55,48 +53,33 @@ export default function LoginScreen() {
           description: error.message ?? "Please try again.",
           variant: "danger",
         });
-        return;
+      } else {
+        const sessionResult = await authClient.getSession();
+
+        if (sessionResult.error) {
+          toast.show({
+            label: "Signed in, still syncing",
+            description: "Please wait a moment while we load your account.",
+            variant: "warning",
+          });
+        }
       }
-
-      const [onboardingState, sessionResult] = await Promise.all([
-        authClient.onboarding.shouldOnboard(),
-        authClient.getSession(),
-      ]);
-
-      if (onboardingState.data === true) {
-        beginAuthTransition("/onboarding");
-        router.replace("/onboarding");
-        return;
-      }
-
-      if (onboardingState.data === false || getSessionUser(sessionResult.data)) {
-        beginAuthTransition("/(tabs)/dashboard");
-        router.replace("/(tabs)/dashboard");
-        return;
-      }
-
-      if (sessionResult.error) {
-        toast.show({
-          label: "Signed in, still syncing",
-          description: "Please wait a moment while we load your account.",
-          variant: "warning",
-        });
-        return;
-      }
-
-      beginAuthTransition("/(tabs)/dashboard");
-      router.replace("/(tabs)/dashboard");
-    } finally {
-      setSubmitting(false);
+    } catch (error) {
+      toast.show({
+        label: "Sign in failed",
+        description:
+          error instanceof Error ? error.message : "Please try again.",
+        variant: "danger",
+      });
     }
-  }, [email, password, router, toast]);
+    setSubmitting(false);
+  }, [email, password, toast]);
 
   return (
-    <GuestRouteGuard>
-      <View className="flex-1 bg-background">
-        <StatusBar style="inverted" />
+    <View className="flex-1 bg-background">
+      <StatusBar style="inverted" />
 
-        <SafeAreaView style={styles.fill} edges={["top", "left", "right"]}>
+      <SafeAreaView style={styles.fill} edges={["top", "left", "right"]}>
         <View
           pointerEvents="box-none"
           style={[
@@ -193,8 +176,8 @@ export default function LoginScreen() {
                   onPress={() => router.push("/forgot-password")}
                   accessibilityRole="link"
                 >
-                  <LinkButton.Label className="text-[15px] text-accent">
-                    Forgotten?
+                  <LinkButton.Label>
+                    <Text className="text-[15px] text-accent">Forgotten?</Text>
                   </LinkButton.Label>
                 </LinkButton>
               </View>
@@ -216,8 +199,10 @@ export default function LoginScreen() {
                     accessibilityRole="link"
                     onPress={() => router.push("/sign-up")}
                   >
-                    <LinkButton.Label className="text-[15px] text-accent">
-                      Create account
+                    <LinkButton.Label>
+                      <Text className="text-[15px] text-accent">
+                        Create account
+                      </Text>
                     </LinkButton.Label>
                   </LinkButton>
                 </View>
@@ -225,9 +210,8 @@ export default function LoginScreen() {
             </View>
           </ScrollView>
         </KeyboardAvoidingScaffold>
-        </SafeAreaView>
-      </View>
-    </GuestRouteGuard>
+      </SafeAreaView>
+    </View>
   );
 }
 

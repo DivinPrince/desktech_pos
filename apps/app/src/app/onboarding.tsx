@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import Constants from "expo-constants";
-import { Redirect, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
@@ -9,7 +9,7 @@ import { Separator } from "heroui-native/separator";
 import { Surface } from "heroui-native/surface";
 import { TextField } from "heroui-native/text-field";
 import { useToast } from "heroui-native/toast";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import {
   SafeAreaView,
@@ -22,11 +22,7 @@ import {
   SearchablePickerSheet,
 } from "@/components/desktech-ui";
 import { authClient } from "@/lib/auth-client";
-import {
-  beginAuthTransition,
-  getPendingAuthRoute,
-  useAuthSessionState,
-} from "@/lib/auth-session";
+import { useAuthSessionState } from "@/lib/auth-session";
 import {
   formatCurrencyChoice,
   formatTimeZoneOffsetLabel,
@@ -146,16 +142,20 @@ export default function OnboardingScreen() {
           description: error.message ?? "Please try again.",
           variant: "danger",
         });
-        return;
+      } else {
+        setSubmitPhase("finishing");
+        await refetchSession();
+        router.replace("/(tabs)/dashboard");
       }
-
-      setSubmitPhase("finishing");
-      await refetchSession();
-      beginAuthTransition("/(tabs)/dashboard");
-      router.replace("/(tabs)/dashboard");
-    } finally {
-      setSubmitPhase("idle");
+    } catch (error) {
+      toast.show({
+        label: "Could not finish setup",
+        description:
+          error instanceof Error ? error.message : "Please try again.",
+        variant: "danger",
+      });
     }
+    setSubmitPhase("idle");
   }, [
     businessName,
     currency,
@@ -166,30 +166,14 @@ export default function OnboardingScreen() {
   ]);
 
   const canContinueOnboarding = needsOnboarding || Boolean(user && !activeBusiness);
-  const isPendingOnboardingHandoff =
-    !user && getPendingAuthRoute() === "/onboarding";
 
-  useEffect(() => {
-    if (isPendingOnboardingHandoff) {
-      void refetchSession();
-    }
-  }, [isPendingOnboardingHandoff, refetchSession]);
-
-  if (isPending || isPendingOnboardingHandoff) {
+  if (isPending || !user || !canContinueOnboarding) {
     return (
       <View className="flex-1 bg-background">
         <StatusBar style="inverted" />
         <BrandedLoading message="Loading setup…" />
       </View>
     );
-  }
-
-  if (!user) {
-    return <Redirect href="/login" />;
-  }
-
-  if (!canContinueOnboarding) {
-    return <Redirect href="/(tabs)/dashboard" />;
   }
 
   return (
