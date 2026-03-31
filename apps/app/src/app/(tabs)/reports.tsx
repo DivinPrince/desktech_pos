@@ -1,11 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import { useQueryClient } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
 import { useThemeColor } from "heroui-native/hooks";
 import React, { useCallback, useMemo, useState } from "react";
 import {
-  Alert,
   FlatList,
   Pressable,
   ScrollView,
@@ -16,25 +14,24 @@ import {
 } from "react-native";
 import {
   SafeAreaView,
-  useSafeAreaInsets,
 } from "react-native-safe-area-context";
 
-import { LocalCounterSaleCard, isPendingSyncSaleId } from "@/components/local-counter-sale-card";
-import { NavigationMenuTrigger } from "@/components/navigation/navigation-shell";
+import { CounterSaleCard } from "@/components/counter-sale-card";
+import { TabScreenHeader } from "@/components/desktech-ui/tab-screen-header";
 import { resolveActiveBusiness, useAuthSessionState } from "@/lib/auth-session";
-import { buildLocalSalesReport } from "@/lib/data/local-counter-sales/build-local-report";
-import { useLocalSalesRange } from "@/lib/data/local-counter-sales/hooks";
+import { buildSalesReport } from "@/lib/data/sales/build-sales-report";
 import {
   reportPeriodBounds,
   reportPeriodLabel,
   type ReportPeriodPreset,
-} from "@/lib/data/local-counter-sales/report-period-bounds";
-import type { LocalCounterSaleRow } from "@/lib/data/local-counter-sales/types";
+} from "@/lib/data/sales/report-period-bounds";
+import type { CounterSaleRow } from "@/lib/data/sales/types";
+import { hydrateSaleReceiptExtras } from "@/lib/data/sales/receipt-extras";
 import { useOfflineExecutor } from "@/lib/data/offline/offline-executor-provider";
-import { syncPendingSalesToday } from "@/lib/data/local-counter-sales/sync-pending-sales-today";
 import { formatMinorUnitsToCurrency } from "@/lib/format-money";
 import { fetchDeviceAppearsOnline } from "@/lib/network/fetch-device-online";
 import { useBusinessesQuery } from "@/lib/queries/business-catalog";
+import { useSalesRangeQuery } from "@/lib/queries/business-sales";
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
@@ -120,10 +117,8 @@ function formatDayKeyForLocale(dayKey: string): string {
 }
 
 export default function ReportsTab() {
-  const insets = useSafeAreaInsets();
   const muted = useThemeColor("muted");
   const accent = useThemeColor("accent");
-  const accentFg = useThemeColor("accent-foreground");
 
   const { session, user } = useAuthSessionState();
   const signedIn = Boolean(user);
@@ -142,12 +137,15 @@ export default function ReportsTab() {
     [periodPreset],
   );
 
-  const { rows, refresh } = useLocalSalesRange(
+  const { data: rows, refetch } = useSalesRangeQuery(
     signedIn ? businessId : undefined,
+    signedIn,
     signedIn && businessId ? bounds : null,
+    { currency: businessCurrency, businessName: currentBusiness?.name },
   );
+  const listRows = useMemo(() => rows ?? [], [rows]);
 
-  const report = useMemo(() => buildLocalSalesReport(rows), [rows]);
+  const report = useMemo(() => buildSalesReport(listRows), [listRows]);
 
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
   const [topProductsExpanded, setTopProductsExpanded] = useState(false);
@@ -161,37 +159,12 @@ export default function ReportsTab() {
     });
   }, []);
 
-  const queryClient = useQueryClient();
   const offlineExecutor = useOfflineExecutor();
-  const [manualSyncWorking, setManualSyncWorking] = useState(false);
-
-  const hasPendingSync = useMemo(
-    () => rows.some((r) => isPendingSyncSaleId(r.id)),
-    [rows],
-  );
-
-  const onManualRetryServerSync = useCallback(async () => {
-    if (!businessId) return;
-    setManualSyncWorking(true);
-    try {
-      const result = await syncPendingSalesToday({
-        executor: offlineExecutor,
-        businessId,
-        queryClient,
-      });
-      refresh();
-      Alert.alert(result.title, result.message);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      Alert.alert("Retry failed", msg);
-    } finally {
-      setManualSyncWorking(false);
-    }
-  }, [businessId, offlineExecutor, refresh, queryClient]);
 
   useFocusEffect(
     useCallback(() => {
-      refresh();
+      void hydrateSaleReceiptExtras();
+      void refetch();
       let cancelled = false;
       void (async () => {
         const online = await fetchDeviceAppearsOnline();
@@ -205,7 +178,7 @@ export default function ReportsTab() {
       return () => {
         cancelled = true;
       };
-    }, [refresh, offlineExecutor]),
+    }, [refetch, offlineExecutor]),
   );
 
   const periodTitle = reportPeriodLabel(periodPreset);
@@ -214,7 +187,7 @@ export default function ReportsTab() {
     if (!signedIn) return { primary: "Sign in to continue", secondary: null as string | null };
     if (businessesQuery.isError) return { primary: "Something went wrong", secondary: null };
     if (!businessId) return { primary: "Set up your shop first", secondary: null };
-    if (rows.length === 0) return { primary: periodTitle, secondary: "No sales yet" };
+    if (listRows.length === 0) return { primary: periodTitle, secondary: "No sales yet" };
     return {
       primary: formatMinorUnitsToCurrency(report.totalRevenueCents, businessCurrency),
       secondary: `${periodTitle} · ${report.saleCount} ${report.saleCount === 1 ? "sale" : "sales"}`,
@@ -226,7 +199,7 @@ export default function ReportsTab() {
     periodTitle,
     report.saleCount,
     report.totalRevenueCents,
-    rows.length,
+    listRows.length,
     signedIn,
   ]);
 
@@ -280,7 +253,7 @@ export default function ReportsTab() {
           })}
         </ScrollView>
 
-        {rows.length === 0 ? (
+        {listRows.length === 0 ? (
           <EmptyHint icon="bar-chart-outline" title="Nothing in this time range" accent={accent} />
         ) : (
           <>
@@ -432,15 +405,15 @@ export default function ReportsTab() {
     muted,
     periodPreset,
     report,
-    rows.length,
+    listRows.length,
     signedIn,
     topProductsExpanded,
     businessCurrency,
   ]);
 
-  const renderItem: ListRenderItem<LocalCounterSaleRow> = useCallback(
+  const renderItem: ListRenderItem<CounterSaleRow> = useCallback(
     ({ item }) => (
-      <LocalCounterSaleCard
+      <CounterSaleCard
         item={item}
         expanded={expandedIds.has(item.id)}
         onToggle={() => toggleExpanded(item.id)}
@@ -454,80 +427,22 @@ export default function ReportsTab() {
   return (
     <View style={styles.root} className="bg-background">
       <StatusBar style="inverted" />
-      <View
-        style={{
-          backgroundColor: accent,
-          paddingTop: Math.max(insets.top, 12),
-          paddingBottom: 16,
-          paddingHorizontal: 16,
-        }}
-      >
-        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}>
-          <NavigationMenuTrigger iconColor={accentFg} />
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={{ color: accentFg, fontSize: 24, fontWeight: "800", letterSpacing: -0.5 }}>
-              Reports
-            </Text>
-            <Text
-              style={{
-                color: "rgba(255,255,255,0.92)",
-                fontSize: 20,
-                fontWeight: "700",
-                marginTop: 6,
-                letterSpacing: -0.3,
-              }}
-              numberOfLines={1}
-            >
-              {headerLines.primary}
-            </Text>
-            {headerLines.secondary ? (
-              <Text
-                style={{
-                  color: "rgba(255,255,255,0.72)",
-                  fontSize: 13,
-                  marginTop: 4,
-                  fontWeight: "500",
-                }}
-                numberOfLines={2}
-              >
-                {headerLines.secondary}
-              </Text>
-            ) : null}
-          </View>
-        </View>
-      </View>
+      <TabScreenHeader
+        title="Reports"
+        subtitle={headerLines.primary}
+        tertiaryText={headerLines.secondary}
+        subtitleNumberOfLines={1}
+      />
 
       <SafeAreaView style={styles.root} edges={["left", "right", "bottom"]}>
-        {signedIn && businessId && hasPendingSync ? (
-          <View className="mx-4 mt-3 rounded-2xl border border-amber-500/35 bg-amber-500/12 px-3.5 py-3.5">
-            <View className="flex-row items-start gap-2.5">
-              <Ionicons name="cloud-upload-outline" size={22} color="#d97706" />
-              <View className="min-w-0 flex-1">
-                <Text className="text-[15px] font-bold text-foreground">Not synced yet</Text>
-                <Text className="mt-1 text-[13px] leading-[18px] text-muted">
-                  Connect to the internet, then tap below.
-                </Text>
-              </View>
-            </View>
-            <Pressable
-              onPress={() => void onManualRetryServerSync()}
-              disabled={manualSyncWorking}
-              className="mt-3 items-center justify-center rounded-xl bg-amber-600/90 py-3 active:opacity-90 disabled:opacity-50 dark:bg-amber-500/85"
-            >
-              <Text className="text-[15px] font-bold text-white">
-                {manualSyncWorking ? "Working…" : "Sync now"}
-              </Text>
-            </Pressable>
-          </View>
-        ) : null}
         <FlatList
           style={styles.list}
-          data={signedIn && businessId ? rows : []}
+          data={signedIn && businessId ? listRows : []}
           extraData={{
             expanded: expandedIds.size,
             period: periodPreset,
             topEx: topProductsExpanded,
-            rowCount: rows.length,
+            rowCount: listRows.length,
           }}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}

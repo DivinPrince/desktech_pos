@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useThemeColor } from "heroui-native/hooks";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -18,8 +19,13 @@ import { RichReceipt } from "@/components/receipt/rich-receipt";
 import { ReceiptActionButtons } from "@/components/receipt/receipt-action-buttons";
 import { resolveActiveBusiness, useAuthSessionState } from "@/lib/auth-session";
 import type { CompletedSaleReceipt } from "@/lib/counter-checkout/types";
-import { getLocalCounterSaleById } from "@/lib/data/local-counter-sales/store";
+import {
+  getSaleReceiptExtras,
+  hydrateSaleReceiptExtras,
+  mergeReceiptExtras,
+} from "@/lib/data/sales/receipt-extras";
 import { useBusinessesQuery } from "@/lib/queries/business-catalog";
+import { useSaleDetailQuery } from "@/lib/queries/business-sales";
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
@@ -48,47 +54,52 @@ export default function ReceiptSaleScreen() {
   );
   const businessId = currentBusiness?.id;
   const businessCurrency = currentBusiness?.currency ?? "USD";
+  const saleIdTrim = saleId?.trim() ?? "";
+  const enabled = Boolean(signedIn && businessId && saleIdTrim);
+
+  const detail = useSaleDetailQuery(businessId, saleIdTrim || undefined, enabled, {
+    currency: businessCurrency,
+    businessName: currentBusiness?.name,
+  });
 
   const [receipt, setReceipt] = useState<CompletedSaleReceipt | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async () => {
-    if (!businessId || !saleId?.trim()) {
-      setReceipt(null);
-      setLoadError(!saleId?.trim() ? "Missing sale" : "No workspace");
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setLoadError(null);
-    try {
-      const row = await getLocalCounterSaleById(businessId, saleId.trim());
-      if (!row) {
-        setReceipt(null);
-        setLoadError("Receipt not found");
-      } else {
-        setReceipt(row.receipt);
-        setLoadError(null);
-      }
-    } catch {
-      setReceipt(null);
-      setLoadError("Could not load receipt");
-    } finally {
-      setLoading(false);
-    }
-  }, [businessId, saleId]);
+  useFocusEffect(
+    useCallback(() => {
+      void hydrateSaleReceiptExtras();
+      void detail.refetch();
+    }, [detail.refetch]),
+  );
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void (async () => {
+      await hydrateSaleReceiptExtras();
+      const base = detail.counterRow?.receipt;
+      if (!base) {
+        setReceipt(null);
+        return;
+      }
+      const extras = await getSaleReceiptExtras(base.saleId);
+      setReceipt(mergeReceiptExtras(base, extras));
+    })();
+  }, [detail.counterRow, detail.sale]);
+
+  const loading = detail.isLoading && !detail.counterRow;
+  const loadError =
+    !loading && enabled && !detail.counterRow
+      ? "Receipt not found"
+      : !saleIdTrim
+        ? "Missing sale"
+        : !businessId
+          ? "No workspace"
+          : null;
 
   const onBack = useCallback(() => {
     if (router.canGoBack()) {
       router.back();
       return;
     }
-    router.replace("/(tabs)/today");
+    router.replace("/(tabs)/dashboard");
   }, [router]);
 
   return (
@@ -119,7 +130,7 @@ export default function ReceiptSaleScreen() {
               {loadError ?? "Receipt unavailable"}
             </Text>
             <Text className="mt-2 text-center text-[14px] text-muted">
-              This sale may be outside your device history or synced on another register.
+              Open a sale from Today or Receipts, or pull to refresh after syncing.
             </Text>
           </View>
         ) : (

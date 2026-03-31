@@ -9,10 +9,24 @@ import React, {
 
 export type CartLine = {
   productId: string;
+  /** Set when the catalog product has variants (required for checkout and stock). */
+  productVariantId?: string;
   name: string;
   priceCents: number;
   quantity: number;
 };
+
+/** Stable list key when the same product can appear as multiple variant lines. */
+export function cartLineKey(line: Pick<CartLine, "productId" | "productVariantId">): string {
+  return `${line.productId}\u0000${line.productVariantId ?? ""}`;
+}
+
+function sameLine(
+  a: Pick<CartLine, "productId" | "productVariantId">,
+  b: Pick<CartLine, "productId" | "productVariantId">,
+): boolean {
+  return a.productId === b.productId && (a.productVariantId ?? "") === (b.productVariantId ?? "");
+}
 
 type CartState = {
   lines: CartLine[];
@@ -21,16 +35,16 @@ type CartState = {
 type CartAction =
   | {
       type: "ADD_PRODUCT";
-      payload: { productId: string; name: string; priceCents: number };
+      payload: { productId: string; name: string; priceCents: number; productVariantId?: string };
     }
-  | { type: "DECREMENT_PRODUCT"; payload: { productId: string } }
+  | { type: "DECREMENT_PRODUCT"; payload: { productId: string; productVariantId?: string } }
   | { type: "CLEAR" };
 
 function cartReducer(state: CartState, action: CartAction): CartState {
   switch (action.type) {
     case "ADD_PRODUCT": {
-      const { productId, name, priceCents } = action.payload;
-      const idx = state.lines.findIndex((l) => l.productId === productId);
+      const { productId, name, priceCents, productVariantId } = action.payload;
+      const idx = state.lines.findIndex((l) => sameLine(l, { productId, productVariantId }));
       if (idx >= 0) {
         const lines = state.lines.slice();
         const line = lines[idx]!;
@@ -40,13 +54,19 @@ function cartReducer(state: CartState, action: CartAction): CartState {
       return {
         lines: [
           ...state.lines,
-          { productId, name, priceCents, quantity: 1 },
+          {
+            productId,
+            ...(productVariantId !== undefined ? { productVariantId } : {}),
+            name,
+            priceCents,
+            quantity: 1,
+          },
         ],
       };
     }
     case "DECREMENT_PRODUCT": {
-      const { productId } = action.payload;
-      const idx = state.lines.findIndex((l) => l.productId === productId);
+      const { productId, productVariantId } = action.payload;
+      const idx = state.lines.findIndex((l) => sameLine(l, { productId, productVariantId }));
       if (idx < 0) return state;
       const lines = state.lines.slice();
       const line = lines[idx]!;
@@ -72,9 +92,10 @@ type CounterCartContextValue = {
     productId: string;
     name: string;
     priceCents: number;
+    productVariantId?: string;
   }) => void;
-  /** Removes one unit for this product, or drops the line at zero. */
-  decrementProduct: (payload: { productId: string }) => void;
+  /** Removes one unit for this line identity, or drops the line at zero. */
+  decrementProduct: (payload: { productId: string; productVariantId?: string }) => void;
   clear: () => void;
   totalCents: number;
   totalUnits: number;
@@ -87,7 +108,12 @@ export function CounterCartProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(cartReducer, initialState);
 
   const addProduct = useCallback(
-    (payload: { productId: string; name: string; priceCents: number }) => {
+    (payload: {
+      productId: string;
+      name: string;
+      priceCents: number;
+      productVariantId?: string;
+    }) => {
       dispatch({ type: "ADD_PRODUCT", payload });
     },
     [],
@@ -97,7 +123,7 @@ export function CounterCartProvider({ children }: { children: ReactNode }) {
     dispatch({ type: "CLEAR" });
   }, []);
 
-  const decrementProduct = useCallback((payload: { productId: string }) => {
+  const decrementProduct = useCallback((payload: { productId: string; productVariantId?: string }) => {
     dispatch({ type: "DECREMENT_PRODUCT", payload });
   }, []);
 
@@ -117,7 +143,7 @@ export function CounterCartProvider({ children }: { children: ReactNode }) {
 
   const getQuantity = useCallback(
     (productId: string) =>
-      state.lines.find((l) => l.productId === productId)?.quantity ?? 0,
+      state.lines.reduce((sum, l) => (l.productId === productId ? sum + l.quantity : sum), 0),
     [state.lines],
   );
 

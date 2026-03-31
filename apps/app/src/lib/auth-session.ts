@@ -78,7 +78,7 @@ export function postAuthRoute(
     return "/onboarding";
   }
   if (getSessionUser(session)) {
-    return "/(tabs)/today";
+    return "/(tabs)/dashboard";
   }
   return null;
 }

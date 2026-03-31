@@ -12,21 +12,14 @@ import { Surface } from "heroui-native/surface";
 import { TextField } from "heroui-native/text-field";
 import { useToast } from "heroui-native/toast";
 import React, { useCallback, useState } from "react";
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 
 import { GuestRouteGuard } from "@/components/auth/guest-route-guard";
+import { KeyboardAvoidingScaffold } from "@/components/desktech-ui";
 import { authClient } from "@/lib/auth-client";
 import { beginAuthTransition } from "@/lib/auth-session";
 
@@ -154,10 +147,7 @@ export default function SignUpScreen() {
           <Ionicons name="sunny" size={14} color={accentColor} />
         </View>
 
-        <KeyboardAvoidingView
-          style={styles.fill}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-        >
+        <KeyboardAvoidingScaffold>
           <ScrollView
             style={styles.fill}
             contentContainerStyle={[
@@ -313,7 +303,7 @@ export default function SignUpScreen() {
               </View>
             </View>
           </ScrollView>
-        </KeyboardAvoidingView>
+        </KeyboardAvoidingScaffold>
         </SafeAreaView>
       </View>
     </GuestRouteGuard>

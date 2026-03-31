@@ -10,20 +10,17 @@ import { Surface } from "heroui-native/surface";
 import { TextField } from "heroui-native/text-field";
 import { useToast } from "heroui-native/toast";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 
-import { BrandedLoading, SearchablePickerSheet } from "@/components/desktech-ui";
+import {
+  BrandedLoading,
+  KeyboardAvoidingScaffold,
+  SearchablePickerSheet,
+} from "@/components/desktech-ui";
 import { authClient } from "@/lib/auth-client";
 import {
   beginAuthTransition,
@@ -154,8 +151,8 @@ export default function OnboardingScreen() {
 
       setSubmitPhase("finishing");
       await refetchSession();
-      beginAuthTransition("/(tabs)/today");
-      router.replace("/(tabs)/today");
+      beginAuthTransition("/(tabs)/dashboard");
+      router.replace("/(tabs)/dashboard");
     } finally {
       setSubmitPhase("idle");
     }
@@ -192,7 +189,7 @@ export default function OnboardingScreen() {
   }
 
   if (!canContinueOnboarding) {
-    return <Redirect href="/(tabs)/today" />;
+    return <Redirect href="/(tabs)/dashboard" />;
   }
 
   return (
@@ -214,10 +211,7 @@ export default function OnboardingScreen() {
           <Ionicons name="storefront" size={14} color={accentColor} />
         </View>
 
-        <KeyboardAvoidingView
-          style={styles.fill}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-        >
+        <KeyboardAvoidingScaffold>
           <ScrollView
             style={styles.fill}
             contentContainerStyle={[
@@ -303,7 +297,7 @@ export default function OnboardingScreen() {
               </View>
             </View>
           </ScrollView>
-        </KeyboardAvoidingView>
+        </KeyboardAvoidingScaffold>
       </SafeAreaView>
 
     </View>

@@ -104,7 +104,12 @@ export type CatalogAdjustStockMetadata = {
 
 /** Payload for draft → lines → complete sale (counter checkout). */
 export type CatalogCompleteCounterSaleBody = {
-  lines: { productId: string; quantity: number; unitPriceCents: number }[];
+  lines: {
+    productId: string;
+    quantity: number;
+    unitPriceCents: number;
+    productVariantId?: string;
+  }[];
   paymentMethod: string;
 };
 
@@ -218,6 +223,7 @@ export const catalogCompleteCounterSaleMutationFn: CatalogOfflineMutationFn = as
       saleId,
       body.lines.map((l) => ({
         productId: l.productId,
+        productVariantId: l.productVariantId,
         quantity: l.quantity,
         unitPriceCents: l.unitPriceCents,
       })),

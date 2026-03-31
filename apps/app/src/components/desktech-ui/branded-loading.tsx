@@ -1,8 +1,6 @@
 import { Image } from "expo-image";
-import { useThemeColor } from "heroui-native/hooks";
 import React from "react";
 import {
-  ActivityIndicator,
   Text,
   View,
   type StyleProp,
@@ -13,12 +11,12 @@ import {
 const BRAND_MARK = require("../../../assets/images/splash-icon.png");
 
 export type BrandedLoadingProps = {
-  /** Shown below the spinner (omit for logo + spinner only). */
+  /** Optional caption below the logo (fullscreen / embedded), or standalone text (inline). */
   message?: string;
   /**
-   * - `fullscreen`: centered, flex-1, for gates and full-screen boots.
+   * - `fullscreen`: centered, flex-1, for gates and full-screen boots (logo only, optional message).
    * - `embedded`: compact block for scroll regions or modals.
-   * - `inline`: single row, spinner + optional message (lists, footnotes).
+   * - `inline`: message-only line for lists (no duplicate logo).
    */
   variant?: "fullscreen" | "embedded" | "inline";
   className?: string;
@@ -31,18 +29,13 @@ export function BrandedLoading({
   className = "",
   style,
 }: BrandedLoadingProps) {
-  const accent = useThemeColor("accent");
-
   if (variant === "inline") {
+    if (!message) return null;
     return (
-      <View
-        className={`flex-row items-center justify-center gap-2 ${className}`}
-        style={style}
-      >
-        <ActivityIndicator color={accent} />
-        {message ? (
-          <Text className="text-[15px] text-muted">{message}</Text>
-        ) : null}
+      <View className={`items-center justify-center ${className}`} style={style}>
+        <Text className="text-center text-[15px] leading-5 text-muted">
+          {message}
+        </Text>
       </View>
     );
   }
@@ -60,17 +53,13 @@ export function BrandedLoading({
         style={{
           width: logoSize,
           height: logoSize,
-          marginBottom: variant === "fullscreen" ? 16 : 10,
+          marginBottom: message ? 12 : 0,
         }}
         contentFit="contain"
       />
-      <ActivityIndicator
-        color={accent}
-        size={variant === "fullscreen" ? "large" : "small"}
-      />
       {message ? (
         <Text
-          className={`mt-4 text-center text-[15px] leading-5 text-muted ${
+          className={`text-center text-[15px] leading-5 text-muted ${
             variant === "embedded" ? "max-w-[280px]" : "max-w-[320px]"
           }`}
         >

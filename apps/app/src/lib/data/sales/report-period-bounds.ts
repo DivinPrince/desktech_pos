@@ -1,4 +1,4 @@
-import type { LocalSalesRangeBounds } from "./types";
+import type { SalesRangeBounds } from "./types";
 
 export type ReportPeriodPreset = "today" | "last7" | "month" | "all";
 
@@ -15,12 +15,12 @@ function startOfNextLocalDay(day: Date): number {
 }
 
 /**
- * Half-open [startMs, endMs) covering “through end of today” (exclusive upper bound = start of tomorrow).
+ * Half-open `[startMs, endMs)` covering “through end of today” (exclusive upper = start of tomorrow).
  */
 export function reportPeriodBounds(
   preset: ReportPeriodPreset,
   now: Date = new Date(),
-): LocalSalesRangeBounds {
+): SalesRangeBounds {
   const endMs = startOfNextLocalDay(now);
 
   switch (preset) {

@@ -105,14 +105,21 @@ export namespace SaleService {
       return withTransaction(async (tx) => {
         const cond = [eq(saleTable.businessId, businessId)];
         if (status) cond.push(eq(saleTable.status, status));
-        if (from) cond.push(gte(saleTable.updatedAt, from));
-        if (to) cond.push(lte(saleTable.updatedAt, to));
+        /** Reports and POS history filter by completion time for completed sales, not last update. */
+        if (status === "completed" && (from != null || to != null)) {
+          if (from != null) cond.push(gte(saleTable.completedAt, from));
+          if (to != null) cond.push(lte(saleTable.completedAt, to));
+        } else {
+          if (from != null) cond.push(gte(saleTable.updatedAt, from));
+          if (to != null) cond.push(lte(saleTable.updatedAt, to));
+        }
 
-        const base = tx
-          .select()
-          .from(saleTable)
-          .where(and(...cond))
-          .orderBy(desc(saleTable.updatedAt));
+        const filtered = tx.select().from(saleTable).where(and(...cond));
+        /** Completed-sales lists (POS Today / Reports) should show newest checkout first. */
+        const base =
+          status === "completed"
+            ? filtered.orderBy(desc(saleTable.completedAt))
+            : filtered.orderBy(desc(saleTable.updatedAt));
         const sales = limit ? await base.limit(limit) : await base;
 
         const out: z.infer<typeof SaleInfo>[] = [];

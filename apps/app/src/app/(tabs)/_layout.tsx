@@ -53,11 +53,15 @@ export default function TabsLayout() {
   );
 
   useEffect(() => {
-    if (pendingAuthRoute === "/(tabs)/today" && !user) {
+    if (pendingAuthRoute === "/(tabs)/dashboard" && !user) {
       void refetch();
     }
   }, [pendingAuthRoute, refetch, user]);
 
+  const dashboardOptions = useMemo(
+    () => tabScreenOptions("Dashboard", "grid", "grid-outline"),
+    [],
+  );
   const reportsOptions = useMemo(
     () => tabScreenOptions("Reports", "bar-chart", "bar-chart-outline"),
     [],
@@ -103,7 +107,7 @@ export default function TabsLayout() {
     return <Redirect href="/onboarding" />;
   }
 
-  if (pendingAuthRoute === "/(tabs)/today" && !user) {
+  if (pendingAuthRoute === "/(tabs)/dashboard" && !user) {
     return (
       <View className="flex-1 bg-background">
         <StatusBar style="inverted" />
@@ -120,7 +124,8 @@ export default function TabsLayout() {
     <OfflineExecutorProvider businessId={currentBusiness?.id}>
       <CounterCartProvider>
         <NavigationShellProvider>
-          <Tabs initialRouteName="today" screenOptions={screenOptions}>
+          <Tabs initialRouteName="dashboard" screenOptions={screenOptions}>
+            <Tabs.Screen name="dashboard" options={dashboardOptions} />
             <Tabs.Screen name="reports" options={reportsOptions} />
             <Tabs.Screen name="today" options={todayOptions} />
             <Tabs.Screen name="receipts" options={receiptsTabOptions} />

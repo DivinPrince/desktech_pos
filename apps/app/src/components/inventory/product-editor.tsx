@@ -11,9 +11,7 @@ import { APIError } from "@repo/sdk";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -26,6 +24,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   BrandedLoading,
   FormSectionCard,
+  KeyboardAvoidingScaffold,
   SearchablePickerSheet,
   type SearchablePickerOption,
 } from "@/components/desktech-ui";
@@ -666,11 +665,7 @@ export function ProductEditor({ productId }: ProductEditorProps) {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.fill}
-      className="bg-background"
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
+    <KeyboardAvoidingScaffold className="bg-background">
       <StatusBar style="light" />
       <View style={styles.fill}>
         <View
@@ -1117,6 +1112,6 @@ export function ProductEditor({ productId }: ProductEditorProps) {
         </Pressable>
       </Modal>
 
-    </KeyboardAvoidingView>
+    </KeyboardAvoidingScaffold>
   );
 }

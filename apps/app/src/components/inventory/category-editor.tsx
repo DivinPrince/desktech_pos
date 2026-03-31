@@ -8,21 +8,13 @@ import { TextField } from "heroui-native/text-field";
 import { useToast } from "heroui-native/toast";
 import { APIError } from "@repo/sdk";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
   BrandedLoading,
   FormSectionCard,
+  KeyboardAvoidingScaffold,
   SearchablePickerSheet,
   type SearchablePickerOption,
 } from "@/components/desktech-ui";
@@ -305,11 +297,7 @@ export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProp
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.fill}
-      className="bg-background"
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
+    <KeyboardAvoidingScaffold className="bg-background">
       <StatusBar style="light" />
       <View
         className="flex-row items-center px-2 py-2"
@@ -434,6 +422,6 @@ export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProp
         </Button>
       </View>
 
-    </KeyboardAvoidingView>
+    </KeyboardAvoidingScaffold>
   );
 }

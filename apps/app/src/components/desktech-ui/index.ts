@@ -6,6 +6,10 @@ export { ColorSwatch } from "./color-swatch";
 export { FormSectionCard } from "./form-section-card";
 export { HeaderAvatar } from "./header-avatar";
 export { IconCircleButton } from "./icon-circle-button";
+export {
+  KeyboardAvoidingScaffold,
+  type KeyboardAvoidingScaffoldProps,
+} from "./keyboard-avoiding-scaffold";
 export { PillSearchField } from "./pill-search-field";
 export { ProductListGrid } from "./product-list-grid";
 export { ProductPreviewCard } from "./product-preview-card";

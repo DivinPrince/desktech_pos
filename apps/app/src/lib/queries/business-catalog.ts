@@ -8,10 +8,6 @@ import {
 } from "@/lib/data/catalog/cache-reconcile";
 import { reconcileCreatedCategory } from "@/lib/data/catalog/category-reconcile";
 import { getCatalogCollectionRegistry } from "@/lib/data/catalog/collections";
-import {
-  catalogCompleteCounterSaleMutationFn,
-  type CatalogOfflineMutationParams,
-} from "@/lib/data/offline/catalog-mutation-fns";
 import { runCatalogOutboxMutation } from "@/lib/data/offline/catalog-outbox";
 import {
   useBusinessesLiveRows,
@@ -22,10 +18,6 @@ import {
 import { useOfflineExecutor } from "@/lib/data/offline/offline-executor-provider";
 
 import type { BusinessRow, CategoryRow, ProductRow } from "@/lib/data/catalog/types";
-
-import type { CartLine } from "@/lib/counter-cart/counter-cart";
-import { patchSaleIdIfPending } from "@/lib/data/local-counter-sales/store";
-import { fetchDeviceAppearsOnline } from "@/lib/network/fetch-device-online";
 
 import { useApiSdk } from "../api-sdk";
 
@@ -625,148 +617,6 @@ export function useDeleteCategoryMutation(businessId: string | undefined) {
 
       apply();
       syncCatalogInBackground(sdk.businesses.business(businessId).deleteCategory(categoryId).withResponse(), inv);
-    },
-  });
-}
-
-export type CompleteCounterSaleMutationResult = {
-  saleId: string;
-  totalCents: number;
-  completedAtIso: string;
-};
-
-/**
- * Counter checkout: instant local stock decrement (tracked products), then either
- * outbox replay (offline executor leader) or immediate sale API + product reconcile.
- */
-export function useCompleteCounterSaleMutation(businessId: string | undefined) {
-  const executor = useOfflineExecutor();
-  const queryClient = useQueryClient();
-  const inv = useInvalidateCatalog(businessId);
-
-  return useMutation({
-    retry: false,
-    mutationFn: async (input: {
-      lines: CartLine[];
-      paymentMethod: string;
-    }): Promise<CompleteCounterSaleMutationResult> => {
-      if (!businessId) throw new Error("Missing business");
-
-      const registry = getCatalogCollectionRegistry(queryClient);
-      const stockBodies: StockAdjustBody[] = [];
-
-      for (const line of input.lines) {
-        const single = registry.ensureProduct(queryClient, businessId, line.productId);
-        const snap = single.get(line.productId) as ProductRow | undefined;
-        if (!snap || !snap.trackStock) continue;
-        const body: StockAdjustBody = {
-          productId: line.productId,
-          quantityDelta: -line.quantity,
-          type: "sale",
-        };
-        assertStockAdjustAllowed(snap, body);
-        stockBodies.push(body);
-      }
-
-      const applyStock = () => {
-        for (const body of stockBodies) {
-          registry.mirrorProductUpdate(queryClient, businessId, body.productId, (d) =>
-            applyStockAdjustDraft(d, body),
-          );
-          try {
-            const coll = registry.ensureProduct(queryClient, businessId, body.productId);
-            coll.update(body.productId, (d) => applyStockAdjustDraft(d, body));
-          } catch {
-            /* row missing in detail slice */
-          }
-        }
-      };
-
-      const bodyPayload = {
-        lines: input.lines.map((l) => ({
-          productId: l.productId,
-          quantity: l.quantity,
-          unitPriceCents: l.priceCents,
-        })),
-        paymentMethod: input.paymentMethod,
-      };
-
-      const totalFromLines = input.lines.reduce(
-        (s, l) => s + l.priceCents * l.quantity,
-        0,
-      );
-
-      // Use NetInfo.fetch() here: executor.isOnline() can stay false when isInternetReachable is
-      // stuck false/null timing, which queued sales that never replayed while the user was online.
-      const appearsOnline =
-        !executor?.isOfflineEnabled || (await fetchDeviceAppearsOnline());
-
-      if (executor?.isOfflineEnabled && !appearsOnline) {
-        const idempotencyKey = randomIdempotencyKey();
-        const pendingSaleId = `pending:${idempotencyKey}`;
-        return runCatalogOutboxMutation({
-          executor,
-          mutationFnName: "catalogCompleteCounterSale",
-          idempotencyKey,
-          metadata: { businessId, body: bodyPayload },
-          mutate: applyStock,
-          optimisticResult: {
-            saleId: pendingSaleId,
-            totalCents: totalFromLines,
-            completedAtIso: new Date().toISOString(),
-          },
-          invalidate: inv,
-          invalidateAfterSuccess: false,
-        });
-      }
-
-      /**
-       * When the device can reach the API: same pattern as catalog adjust — apply stock locally,
-       * return immediately, then draft / lines / complete in the background and patch Today’s id.
-       */
-      const idempotencyKey = randomIdempotencyKey();
-      const pendingSaleId = `pending:${idempotencyKey}`;
-      const completedAtIso = new Date().toISOString();
-      applyStock();
-
-      void (async () => {
-        try {
-          const replayParams = {
-            idempotencyKey,
-            transaction: { metadata: { businessId, body: bodyPayload } },
-          } satisfies CatalogOfflineMutationParams;
-          const result = await catalogCompleteCounterSaleMutationFn(
-            replayParams as unknown as Parameters<typeof catalogCompleteCounterSaleMutationFn>[0],
-          );
-          await cancelInFlightProductListQueries(queryClient, businessId);
-          for (const row of result.products) {
-            reconcileServerProductIntoQueryCache(queryClient, businessId, row);
-          }
-          try {
-            await patchSaleIdIfPending({
-              businessId,
-              pendingSaleId,
-              finalSaleId: result.sale.id,
-            });
-          } catch {
-            /* Today id patch is best-effort */
-          }
-        } catch (e) {
-          if (__DEV__) {
-            console.warn(
-              "[desktech] catalogCompleteCounterSale failed (createDraft / setLines / completeSale)",
-              e,
-            );
-          }
-          inv();
-        }
-      })();
-
-      return {
-        saleId: pendingSaleId,
-        totalCents: totalFromLines,
-        completedAtIso,
-      };
     },
   });
 }

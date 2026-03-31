@@ -6,6 +6,7 @@ import { StatusBar } from "expo-status-bar";
 import { useThemeColor } from "heroui-native/hooks";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -16,13 +17,14 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { BrandedLoading } from "@/components/desktech-ui";
+import { BrandedLoading, KeyboardAvoidingScaffold } from "@/components/desktech-ui";
 import { NavigationMenuTrigger } from "@/components/navigation/navigation-shell";
 import { ProductListGrid } from "@/components/desktech-ui/product-list-grid";
 import { useCounterCart } from "@/lib/counter-cart/counter-cart";
 import { resolveActiveBusiness, useAuthSessionState } from "@/lib/auth-session";
-import { formatMinorUnitsToCurrency } from "@/lib/format-money";
 import { productMatchesListFilters } from "@/lib/data/catalog/collections";
+import type { ProductRow } from "@/lib/data/catalog/types";
+import { formatMinorUnitsToCurrency } from "@/lib/format-money";
 import {
   catalogKeys,
   useBusinessesQuery,
@@ -31,6 +33,17 @@ import {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  variantModalRoot: {
+    flex: 1,
+    justifyContent: "center",
+    paddingHorizontal: 20,
+    backgroundColor: "rgba(0,0,0,0.45)",
+  },
+  variantModalCard: {
+    borderRadius: 16,
+    padding: 16,
+    maxHeight: "80%",
+  },
   scroll: { flex: 1 },
   searchShell: {
     flex: 1,
@@ -51,10 +64,12 @@ export default function ItemsTab() {
   const muted = useThemeColor("muted");
   const accent = useThemeColor("accent");
   const accentFg = useThemeColor("accent-foreground");
+  const cardBg = useThemeColor("background");
   const queryClient = useQueryClient();
-  const { addProduct, decrementProduct, getQuantity } = useCounterCart();
+  const { addProduct, decrementProduct, getQuantity, lines } = useCounterCart();
 
   const [searchInput, setSearchInput] = useState("");
+  const [variantPickerProduct, setVariantPickerProduct] = useState<ProductRow | null>(null);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   useEffect(() => {
     const t = setTimeout(
@@ -106,6 +121,14 @@ export default function ItemsTab() {
       productMatchesListFilters(p, false, debouncedSearch),
     );
   }, [products, debouncedSearch]);
+
+  const variantPickerOptions = useMemo(() => {
+    if (!variantPickerProduct) return [];
+    return variantPickerProduct.variants
+      .filter((v) => v.active)
+      .slice()
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+  }, [variantPickerProduct]);
   const workspaceColdLoad = businesses.length === 0 && businessesQuery.isPending;
   const productsInitialLoad =
     Boolean(businessId) && (products?.length ?? 0) === 0 && productsQuery.isPending;
@@ -115,78 +138,79 @@ export default function ItemsTab() {
   return (
     <View style={styles.root} className="bg-background">
       <StatusBar style="inverted" />
-      <View
-        style={{
-          backgroundColor: accent,
-          paddingTop: Math.max(insets.top, 12),
-          paddingBottom: 14,
-          paddingHorizontal: 16,
-        }}
-      >
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-          <NavigationMenuTrigger iconColor={accentFg} />
-          <View
-            style={[
-              styles.searchShell,
-              { backgroundColor: "rgba(255,255,255,0.22)" },
-            ]}
-          >
-            <Ionicons name="search-outline" size={20} color={accentFg} />
-            <TextInput
-              value={searchInput}
-              onChangeText={setSearchInput}
-              placeholder="Search items…"
-              placeholderTextColor="rgba(255,255,255,0.65)"
-              style={{
-                flex: 1,
-                marginLeft: 8,
-                color: accentFg,
-                fontSize: 15,
-                paddingVertical: 10,
-              }}
-              returnKeyType="search"
-              autoCorrect={false}
-              autoCapitalize="none"
-            />
+      <KeyboardAvoidingScaffold>
+        <View
+          style={{
+            backgroundColor: accent,
+            paddingTop: Math.max(insets.top, 12),
+            paddingBottom: 14,
+            paddingHorizontal: 16,
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            <NavigationMenuTrigger iconColor={accentFg} />
+            <View
+              style={[
+                styles.searchShell,
+                { backgroundColor: "rgba(255,255,255,0.22)" },
+              ]}
+            >
+              <Ionicons name="search-outline" size={20} color={accentFg} />
+              <TextInput
+                value={searchInput}
+                onChangeText={setSearchInput}
+                placeholder="Search items…"
+                placeholderTextColor="rgba(255,255,255,0.65)"
+                style={{
+                  flex: 1,
+                  marginLeft: 8,
+                  color: accentFg,
+                  fontSize: 15,
+                  paddingVertical: 10,
+                }}
+                returnKeyType="search"
+                autoCorrect={false}
+                autoCapitalize="none"
+              />
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Scan barcode (coming soon)"
+              hitSlop={8}
+              onPress={() => {}}
+              style={({ pressed }) => ({
+                height: 46,
+                width: 46,
+                borderRadius: 14,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: "rgba(255,255,255,0.22)",
+                opacity: pressed ? 0.85 : 1,
+              })}
+            >
+              <Ionicons name="barcode-outline" size={26} color={accentFg} />
+            </Pressable>
           </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Scan barcode (coming soon)"
-            hitSlop={8}
-            onPress={() => {}}
-            style={({ pressed }) => ({
-              height: 46,
-              width: 46,
-              borderRadius: 14,
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: "rgba(255,255,255,0.22)",
-              opacity: pressed ? 0.85 : 1,
-            })}
-          >
-            <Ionicons name="barcode-outline" size={26} color={accentFg} />
-          </Pressable>
         </View>
-      </View>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={{
-          paddingHorizontal: 16,
-          paddingTop: 16,
-          paddingBottom: scrollBottomPad,
-          flexGrow: 1,
-        }}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={pullRefreshing}
-            onRefresh={() => void onRefresh()}
-            tintColor={accent}
-          />
-        }
-      >
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={{
+            paddingHorizontal: 16,
+            paddingTop: 16,
+            paddingBottom: scrollBottomPad,
+            flexGrow: 1,
+          }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={pullRefreshing}
+              onRefresh={() => void onRefresh()}
+              tintColor={accent}
+            />
+          }
+        >
         {!signedIn ? (
           <Text
             style={{
@@ -245,6 +269,10 @@ export default function ItemsTab() {
                             void Haptics.impactAsync(
                               Haptics.ImpactFeedbackStyle.Light,
                             );
+                            if (p.variants.length > 0) {
+                              setVariantPickerProduct(p);
+                              return;
+                            }
                             addProduct({
                               productId: p.id,
                               name: p.name,
@@ -256,10 +284,15 @@ export default function ItemsTab() {
                     onLongPress={
                       p.active && qty > 0
                         ? () => {
+                            const forProduct = lines.filter((l) => l.productId === p.id);
+                            if (forProduct.length !== 1) return;
                             void Haptics.impactAsync(
                               Haptics.ImpactFeedbackStyle.Medium,
                             );
-                            decrementProduct({ productId: p.id });
+                            decrementProduct({
+                              productId: p.id,
+                              productVariantId: forProduct[0]!.productVariantId,
+                            });
                           }
                         : undefined
                     }
@@ -302,7 +335,72 @@ export default function ItemsTab() {
             ) : null}
           </View>
         ) : null}
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingScaffold>
+
+      <Modal
+        visible={variantPickerProduct != null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setVariantPickerProduct(null)}
+      >
+        <View style={styles.variantModalRoot}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss variant picker"
+            style={StyleSheet.absoluteFillObject}
+            onPress={() => setVariantPickerProduct(null)}
+          />
+          <View style={[styles.variantModalCard, { backgroundColor: cardBg }]}>
+            <Text className="text-[18px] font-semibold text-foreground">
+              {variantPickerProduct?.name}
+            </Text>
+            <Text className="mb-3 mt-1 text-[14px] text-muted">Choose an option</Text>
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              style={{ maxHeight: 320 }}
+              showsVerticalScrollIndicator={false}
+            >
+              {variantPickerOptions.length === 0 ? (
+                <Text className="py-2 text-[14px] text-muted">
+                  No active variants. Turn on or add options in Inventory.
+                </Text>
+              ) : (
+                variantPickerOptions.map((v) => (
+                  <Pressable
+                    key={v.id}
+                    accessibilityRole="button"
+                    onPress={() => {
+                      const parent = variantPickerProduct;
+                      if (!parent) return;
+                      addProduct({
+                        productId: parent.id,
+                        name: `${parent.name} · ${v.name}`,
+                        priceCents: v.priceCents,
+                        productVariantId: v.id,
+                      });
+                      setVariantPickerProduct(null);
+                    }}
+                    className="mb-2 rounded-xl border border-border/75 bg-surface px-4 py-3.5 active:opacity-80"
+                  >
+                    <Text className="text-[15px] font-medium text-foreground">{v.name}</Text>
+                    <Text className="mt-0.5 text-[13px] tabular-nums text-muted">
+                      {formatMinorUnitsToCurrency(v.priceCents, currency)}
+                    </Text>
+                  </Pressable>
+                ))
+              )}
+            </ScrollView>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setVariantPickerProduct(null)}
+              className="mt-3 py-2"
+            >
+              <Text className="text-center text-[15px] text-muted">Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

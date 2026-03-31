@@ -4,16 +4,9 @@ import { TextField } from "heroui-native/text-field";
 import { useToast } from "heroui-native/toast";
 import { APIError } from "@repo/sdk";
 import React, { useCallback, useEffect, useState } from "react";
-import {
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-  type KeyboardAvoidingViewProps,
-} from "react-native";
+import { Modal, Pressable, ScrollView, Text, View } from "react-native";
+
+import { KeyboardAvoidingScaffold } from "@/components/desktech-ui";
 
 import { useAdjustStockMutation, type StockAdjustBody } from "@/lib/queries/business-catalog";
 
@@ -142,12 +135,9 @@ export function StockManagementSheet({
     trackStock,
   ]);
 
-  const kbBehavior: KeyboardAvoidingViewProps["behavior"] =
-    Platform.OS === "ios" ? "padding" : undefined;
-
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={kbBehavior} className="flex-1 justify-end bg-black/45">
+      <KeyboardAvoidingScaffold className="bg-black/45" style={{ justifyContent: "flex-end" }}>
         <Pressable className="flex-1" onPress={onClose} accessibilityLabel="Dismiss" />
         <View className="max-h-[88%] rounded-t-3xl bg-background px-4 pb-6 pt-4">
           <View className="mb-3 h-1 w-10 self-center rounded-full bg-muted" />
@@ -261,7 +251,7 @@ export function StockManagementSheet({
             <Button.Label className="font-semibold">Close</Button.Label>
           </Button>
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingScaffold>
     </Modal>
   );
 }

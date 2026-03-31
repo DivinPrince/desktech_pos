@@ -33,6 +33,7 @@ import { useBusinessesQuery } from "@/lib/queries/business-catalog";
 const SHEET_MAX_WIDTH = 340;
 const NAV_LINKS: {
   href:
+    | "/(tabs)/dashboard"
     | "/(tabs)/today"
     | "/(tabs)/receipts"
     | "/(tabs)/counter"
@@ -42,6 +43,7 @@ const NAV_LINKS: {
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
 }[] = [
+  { href: "/(tabs)/dashboard", label: "Dashboard", icon: "grid-outline" },
   { href: "/(tabs)/today", label: "Today", icon: "calendar-outline" },
   { href: "/(tabs)/receipts", label: "Receipts", icon: "receipt-outline" },
   { href: "/(tabs)/counter", label: "Counter", icon: "storefront-outline" },

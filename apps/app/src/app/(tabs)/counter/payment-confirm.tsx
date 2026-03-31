@@ -15,11 +15,11 @@ import { CheckoutSubscreenShell } from "@/app/(tabs)/counter/checkout-subscreen-
 import { resolveActiveBusiness, useAuthSessionState } from "@/lib/auth-session";
 import { useCounterCart } from "@/lib/counter-cart/counter-cart";
 import { formatMinorUnitsToCurrency } from "@/lib/format-money";
-import { appendLocalCounterSale } from "@/lib/data/local-counter-sales/store";
 import {
-  useBusinessesQuery,
+  persistCounterCheckoutReceiptExtras,
   useCompleteCounterSaleMutation,
-} from "@/lib/queries/business-catalog";
+} from "@/lib/queries/business-sales";
+import { useBusinessesQuery } from "@/lib/queries/business-catalog";
 
 const NOTE_INPUT_CLASS =
   "min-h-[100px] border-0 border-transparent bg-transparent rounded-xl py-2.5 px-3 text-[15px] leading-[22px] text-field-foreground shadow-none ios:shadow-none android:shadow-none";
@@ -98,9 +98,9 @@ export default function PaymentConfirmScreen() {
       };
 
       try {
-        await appendLocalCounterSale({ businessId, receipt });
+        await persistCounterCheckoutReceiptExtras({ saleId: receipt.saleId, receipt });
       } catch {
-        /* Today list is best-effort; checkout already succeeded */
+        /* receipt extras best-effort */
       }
       setLastCompleted(receipt);
 

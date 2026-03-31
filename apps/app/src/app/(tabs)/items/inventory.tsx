@@ -19,7 +19,7 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 
-import { BrandedLoading } from "@/components/desktech-ui";
+import { BrandedLoading, KeyboardAvoidingScaffold } from "@/components/desktech-ui";
 import { SegmentedTwoTabs } from "@/components/desktech-ui/segmented-two-tabs";
 import { resolveActiveBusiness, useAuthSessionState } from "@/lib/auth-session";
 import { formatMinorUnitsToCurrency } from "@/lib/format-money";
@@ -175,7 +175,8 @@ export default function InventoryScreen() {
         </Text>
       </View>
 
-      <SafeAreaView style={styles.root} edges={["left", "right"]}>
+      <KeyboardAvoidingScaffold>
+        <SafeAreaView style={styles.root} edges={["left", "right"]}>
         <View className="px-4 pb-3 pt-4">
           <SegmentedTwoTabs
             tabs={[
@@ -398,7 +399,8 @@ export default function InventoryScreen() {
             />
           )
         ) : null}
-      </SafeAreaView>
+        </SafeAreaView>
+      </KeyboardAvoidingScaffold>
     </View>
   );
 }

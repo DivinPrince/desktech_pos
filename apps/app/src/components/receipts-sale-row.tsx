@@ -3,15 +3,14 @@ import { useRouter } from "expo-router";
 import React, { useCallback } from "react";
 import { Pressable, Text, View } from "react-native";
 
+import { COUNTER_SALE_CARD_CLASS } from "@/components/counter-sale-card";
 import { paymentDisplayForKey } from "@/lib/counter-checkout/payment-options";
-import type { LocalCounterSaleRow } from "@/lib/data/local-counter-sales/types";
+import type { CounterSaleRow } from "@/lib/data/sales/types";
 import { formatMinorUnitsToCurrency } from "@/lib/format-money";
 import { formatSaleCompletedAt } from "@/lib/format-sale-completed-at";
 
-import { LOCAL_COUNTER_SALE_CARD_CLASS } from "@/components/local-counter-sale-card";
-
 export type ReceiptsSaleRowProps = {
-  item: LocalCounterSaleRow;
+  item: CounterSaleRow;
   businessCurrency: string;
   muted: string;
 };
@@ -29,7 +28,7 @@ export function ReceiptsSaleRow({ item, businessCurrency, muted }: ReceiptsSaleR
   const paymentUi = paymentDisplayForKey(r.paymentMethodKey);
 
   return (
-    <View className={LOCAL_COUNTER_SALE_CARD_CLASS}>
+    <View className={COUNTER_SALE_CARD_CLASS}>
       <Pressable
         onPress={openReceipt}
         accessibilityRole="button"

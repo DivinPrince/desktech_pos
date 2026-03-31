@@ -14,23 +14,23 @@ import {
 } from "react-native";
 import {
   SafeAreaView,
-  useSafeAreaInsets,
 } from "react-native-safe-area-context";
 
+import { TabScreenHeader } from "@/components/desktech-ui/tab-screen-header";
 import { ReceiptsSaleRow } from "@/components/receipts-sale-row";
-import { NavigationMenuTrigger } from "@/components/navigation/navigation-shell";
 import { resolveActiveBusiness, useAuthSessionState } from "@/lib/auth-session";
-import { useLocalSalesRange } from "@/lib/data/local-counter-sales/hooks";
 import {
   reportPeriodBounds,
   reportPeriodLabel,
   type ReportPeriodPreset,
-} from "@/lib/data/local-counter-sales/report-period-bounds";
-import type { LocalCounterSaleRow } from "@/lib/data/local-counter-sales/types";
+} from "@/lib/data/sales/report-period-bounds";
+import type { CounterSaleRow } from "@/lib/data/sales/types";
+import { hydrateSaleReceiptExtras } from "@/lib/data/sales/receipt-extras";
 import { useOfflineExecutor } from "@/lib/data/offline/offline-executor-provider";
 import { formatMinorUnitsToCurrency } from "@/lib/format-money";
 import { fetchDeviceAppearsOnline } from "@/lib/network/fetch-device-online";
 import { useBusinessesQuery } from "@/lib/queries/business-catalog";
+import { useSalesRangeQuery } from "@/lib/queries/business-sales";
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
@@ -63,10 +63,8 @@ function EmptyHint({
 }
 
 export default function ReceiptsTab() {
-  const insets = useSafeAreaInsets();
   const muted = useThemeColor("muted");
   const accent = useThemeColor("accent");
-  const accentFg = useThemeColor("accent-foreground");
 
   const { session, user } = useAuthSessionState();
   const signedIn = Boolean(user);
@@ -85,16 +83,20 @@ export default function ReceiptsTab() {
     [periodPreset],
   );
 
-  const { rows, refresh } = useLocalSalesRange(
+  const { data: rows, refetch } = useSalesRangeQuery(
     signedIn ? businessId : undefined,
+    signedIn,
     signedIn && businessId ? bounds : null,
+    { currency: businessCurrency, businessName: currentBusiness?.name },
   );
+  const listRows = useMemo(() => rows ?? [], [rows]);
 
   const offlineExecutor = useOfflineExecutor();
 
   useFocusEffect(
     useCallback(() => {
-      refresh();
+      void hydrateSaleReceiptExtras();
+      void refetch();
       let cancelled = false;
       void (async () => {
         const online = await fetchDeviceAppearsOnline();
@@ -108,16 +110,16 @@ export default function ReceiptsTab() {
       return () => {
         cancelled = true;
       };
-    }, [refresh, offlineExecutor]),
+    }, [refetch, offlineExecutor]),
   );
 
   const totals = useMemo(() => {
     let sum = 0;
-    for (const r of rows) {
+    for (const r of listRows) {
       sum += r.receipt.totalCents;
     }
     return sum;
-  }, [rows]);
+  }, [listRows]);
 
   const periodTitle = reportPeriodLabel(periodPreset);
 
@@ -125,16 +127,16 @@ export default function ReceiptsTab() {
     if (!signedIn) return "Sign in to view receipts";
     if (businessesQuery.isError) return "Could not load workspace";
     if (!businessId) return "Finish setup to track sales";
-    if (rows.length === 0) {
+    if (listRows.length === 0) {
       return periodTitle;
     }
-    return `${periodTitle} · ${rows.length} ${rows.length === 1 ? "receipt" : "receipts"} · ${formatMinorUnitsToCurrency(totals, businessCurrency)}`;
+    return `${periodTitle} · ${listRows.length} ${listRows.length === 1 ? "receipt" : "receipts"} · ${formatMinorUnitsToCurrency(totals, businessCurrency)}`;
   }, [
     businessCurrency,
     businessesQuery.isError,
     businessId,
     periodTitle,
-    rows.length,
+    listRows.length,
     signedIn,
     totals,
   ]);
@@ -179,14 +181,14 @@ export default function ReceiptsTab() {
             );
           })}
         </ScrollView>
-        {rows.length === 0 ? (
+        {listRows.length === 0 ? (
           <EmptyHint icon="receipt-outline" title="No receipts in this period" accent={accent} />
         ) : null}
       </>
     );
-  }, [accent, businessId, businessesQuery.isError, periodPreset, rows.length, signedIn]);
+  }, [accent, businessId, businessesQuery.isError, periodPreset, listRows.length, signedIn]);
 
-  const renderItem: ListRenderItem<LocalCounterSaleRow> = useCallback(
+  const renderItem: ListRenderItem<CounterSaleRow> = useCallback(
     ({ item }) => (
       <ReceiptsSaleRow item={item} businessCurrency={businessCurrency} muted={muted} />
     ),
@@ -196,37 +198,13 @@ export default function ReceiptsTab() {
   return (
     <View style={styles.root} className="bg-background">
       <StatusBar style="inverted" />
-      <View
-        style={{
-          backgroundColor: accent,
-          paddingTop: Math.max(insets.top, 12),
-          paddingBottom: 14,
-          paddingHorizontal: 16,
-        }}
-      >
-        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}>
-          <NavigationMenuTrigger iconColor={accentFg} />
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={{ color: accentFg, fontSize: 22, fontWeight: "700" }}>Receipts</Text>
-            <Text
-              style={{
-                color: "rgba(255,255,255,0.85)",
-                fontSize: 14,
-                marginTop: 4,
-              }}
-              numberOfLines={2}
-            >
-              {headerSubtitle}
-            </Text>
-          </View>
-        </View>
-      </View>
+      <TabScreenHeader title="Receipts" subtitle={headerSubtitle} />
 
       <SafeAreaView style={styles.root} edges={["left", "right", "bottom"]}>
         <FlatList
           style={styles.list}
-          data={signedIn && businessId ? rows : []}
-          extraData={{ count: rows.length, period: periodPreset }}
+          data={signedIn && businessId ? listRows : []}
+          extraData={{ count: listRows.length, period: periodPreset }}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           ListHeaderComponent={listHeader}

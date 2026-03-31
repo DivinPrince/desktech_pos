@@ -1,16 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useThemeColor } from "heroui-native/hooks";
 import React, { type ReactNode } from "react";
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
+import { KeyboardAvoidingScaffold } from "@/components/desktech-ui";
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
@@ -30,10 +24,7 @@ export function CheckoutSubscreenShell({
   return (
     <View style={styles.fill} className="bg-background">
       <SafeAreaView style={styles.fill} edges={["top", "left", "right"]}>
-        <KeyboardAvoidingView
-          style={styles.fill}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-        >
+        <KeyboardAvoidingScaffold>
           <View className="flex-row items-center gap-2 border-b border-border/35 px-3 py-3.5">
             <Pressable
               accessibilityRole="button"
@@ -63,7 +54,7 @@ export function CheckoutSubscreenShell({
           >
             {children}
           </ScrollView>
-        </KeyboardAvoidingView>
+        </KeyboardAvoidingScaffold>
       </SafeAreaView>
     </View>
   );

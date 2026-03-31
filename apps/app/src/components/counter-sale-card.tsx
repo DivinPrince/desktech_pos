@@ -3,14 +3,15 @@ import React from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { paymentDisplayForKey } from "@/lib/counter-checkout/payment-options";
-import type { LocalCounterSaleRow } from "@/lib/data/local-counter-sales/types";
+import { cartLineKey } from "@/lib/counter-cart/counter-cart";
+import type { CounterSaleRow } from "@/lib/data/sales/types";
 import { formatMinorUnitsToCurrency } from "@/lib/format-money";
 import { formatSaleCompletedAt } from "@/lib/format-sale-completed-at";
 
-export const LOCAL_COUNTER_SALE_CARD_CLASS =
+export const COUNTER_SALE_CARD_CLASS =
   "mb-2 overflow-hidden rounded-2xl border border-border/75 bg-surface";
 
-function customerHasDetails(r: LocalCounterSaleRow["receipt"]): boolean {
+function customerHasDetails(r: CounterSaleRow["receipt"]): boolean {
   const c = r.customer;
   return (
     c.name.trim().length > 0 ||
@@ -20,32 +21,27 @@ function customerHasDetails(r: LocalCounterSaleRow["receipt"]): boolean {
   );
 }
 
-/** Local row id from offline checkout before outbox replay (`pending:<idempotencyKey>`). */
-export function isPendingSyncSaleId(saleId: string): boolean {
-  return saleId.startsWith("pending:");
-}
-
-export type LocalCounterSaleCardProps = {
-  item: LocalCounterSaleRow;
+export type CounterSaleCardProps = {
+  item: CounterSaleRow;
   expanded: boolean;
   onToggle: () => void;
   businessCurrency: string;
   muted: string;
 };
 
-export function LocalCounterSaleCard({
+export function CounterSaleCard({
   item,
   expanded,
   onToggle,
   businessCurrency,
   muted,
-}: LocalCounterSaleCardProps) {
+}: CounterSaleCardProps) {
   const r = item.receipt;
   const timeLabel = formatSaleCompletedAt(r.completedAtIso);
   const paymentUi = paymentDisplayForKey(r.paymentMethodKey);
 
   return (
-    <View className={LOCAL_COUNTER_SALE_CARD_CLASS}>
+    <View className={COUNTER_SALE_CARD_CLASS}>
       <Pressable
         onPress={onToggle}
         className="flex-row items-center gap-3.5 px-3.5 py-4 active:opacity-90"
@@ -74,8 +70,11 @@ export function LocalCounterSaleCard({
             <Text className="text-[13px] text-muted">No items</Text>
           ) : (
             <View className="gap-2.5">
-              {r.lines.map((line) => (
-                <View key={line.productId} className="flex-row items-start justify-between gap-3">
+              {r.lines.map((line, lineIdx) => (
+                <View
+                  key={`${cartLineKey(line)}-${lineIdx}`}
+                  className="flex-row items-start justify-between gap-3"
+                >
                   <Text
                     className="min-w-0 flex-1 text-[14px] leading-5 text-foreground"
                     numberOfLines={3}

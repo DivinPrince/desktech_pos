@@ -1,35 +1,35 @@
 import type { PaymentMethodKey } from "@/lib/counter-checkout/types";
 
-import type { LocalCounterSaleRow } from "./types";
+import type { CounterSaleRow } from "./types";
 
-export type LocalSalesReportByPayment = {
+export type SalesReportByPayment = {
   paymentMethodKey: PaymentMethodKey | string;
   paymentMethodLabel: string;
   count: number;
   totalCents: number;
 };
 
-export type LocalSalesReportByDay = {
+export type SalesReportByDay = {
   /** Local calendar date YYYY-MM-DD */
   dayKey: string;
   totalCents: number;
   saleCount: number;
 };
 
-export type LocalSalesReportTopProduct = {
+export type SalesReportTopProduct = {
   productId: string;
   name: string;
   unitsSold: number;
   lineTotalCents: number;
 };
 
-export type LocalSalesReportSnapshot = {
+export type SalesReportSnapshot = {
   saleCount: number;
   totalRevenueCents: number;
   averageTicketCents: number;
-  byPaymentMethod: LocalSalesReportByPayment[];
-  byDay: LocalSalesReportByDay[];
-  topProducts: LocalSalesReportTopProduct[];
+  byPaymentMethod: SalesReportByPayment[];
+  byDay: SalesReportByDay[];
+  topProducts: SalesReportTopProduct[];
 };
 
 function localDayKeyFromMs(ms: number): string {
@@ -40,7 +40,7 @@ function localDayKeyFromMs(ms: number): string {
   return `${y}-${m}-${day}`;
 }
 
-function emptySnapshot(): LocalSalesReportSnapshot {
+function emptySnapshot(): SalesReportSnapshot {
   return {
     saleCount: 0,
     totalRevenueCents: 0,
@@ -52,23 +52,25 @@ function emptySnapshot(): LocalSalesReportSnapshot {
 }
 
 /**
- * Aggregate device-local counter sales for the Reports dashboard (offline-safe).
+ * Aggregate counter sales for the Reports dashboard (offline-safe when rows come from collections).
  */
-export function buildLocalSalesReport(rows: LocalCounterSaleRow[]): LocalSalesReportSnapshot {
+export function buildSalesReport(rows: CounterSaleRow[]): SalesReportSnapshot {
   if (rows.length === 0) return emptySnapshot();
 
   let totalRevenueCents = 0;
   const paymentMap = new Map<
     string,
-    { paymentMethodKey: PaymentMethodKey | string; paymentMethodLabel: string; count: number; totalCents: number }
+    {
+      paymentMethodKey: PaymentMethodKey | string;
+      paymentMethodLabel: string;
+      count: number;
+      totalCents: number;
+    }
   >();
   const dayMap = new Map<string, { totalCents: number; saleCount: number }>();
-  const productMap = new Map<
-    string,
-    { name: string; unitsSold: number; lineTotalCents: number }
-  >();
+  const productMap = new Map<string, { name: string; unitsSold: number; lineTotalCents: number }>();
 
-  function visitRow(row: LocalCounterSaleRow): void {
+  function visitRow(row: CounterSaleRow): void {
     const rec = row.receipt;
     totalRevenueCents += rec.totalCents;
 
@@ -108,12 +110,9 @@ export function buildLocalSalesReport(rows: LocalCounterSaleRow[]): LocalSalesRe
   for (const row of rows) visitRow(row);
 
   const saleCount = rows.length;
-  const averageTicketCents =
-    saleCount > 0 ? Math.round(totalRevenueCents / saleCount) : 0;
+  const averageTicketCents = saleCount > 0 ? Math.round(totalRevenueCents / saleCount) : 0;
 
-  const byPaymentMethod = [...paymentMap.values()].sort(
-    (a, b) => b.totalCents - a.totalCents,
-  );
+  const byPaymentMethod = [...paymentMap.values()].sort((a, b) => b.totalCents - a.totalCents);
 
   const byDay = [...dayMap.entries()]
     .sort(([a], [b]) => a.localeCompare(b))

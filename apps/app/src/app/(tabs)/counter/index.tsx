@@ -22,7 +22,7 @@ import { BrandedLoading } from "@/components/desktech-ui";
 import { NavigationMenuTrigger } from "@/components/navigation/navigation-shell";
 import { resolveActiveBusiness, useAuthSessionState } from "@/lib/auth-session";
 import type { CartLine } from "@/lib/counter-cart/counter-cart";
-import { useCounterCart } from "@/lib/counter-cart/counter-cart";
+import { cartLineKey, useCounterCart } from "@/lib/counter-cart/counter-cart";
 import { formatMinorUnitsToCurrency } from "@/lib/format-money";
 import { useBusinessesQuery } from "@/lib/queries/business-catalog";
 
@@ -58,7 +58,7 @@ export default function CounterTab() {
   const businessId = currentBusiness?.id;
   const currency = currentBusiness?.currency ?? "USD";
 
-  const { lines, clear, totalCents, totalUnits } = useCounterCart();
+  const { lines, clear, totalCents, totalUnits, decrementProduct } = useCounterCart();
   const lineCount = lines.length;
 
   const onCharge = useCallback(() => {
@@ -84,6 +84,20 @@ export default function CounterTab() {
 
       return (
         <View className={rowClass}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Remove one unit from line"
+            hitSlop={8}
+            onPress={() =>
+              decrementProduct({
+                productId: item.productId,
+                productVariantId: item.productVariantId,
+              })
+            }
+            className="mr-2 py-1"
+          >
+            <Ionicons name="remove-circle-outline" size={26} color={accent} />
+          </Pressable>
           <View className="min-w-0 flex-1 pr-2">
             <Text
               className="text-[15px] font-semibold leading-snug text-foreground"
@@ -102,7 +116,7 @@ export default function CounterTab() {
         </View>
       );
     },
-    [currency, lineCount],
+    [accent, currency, decrementProduct, lineCount],
   );
 
   const listEmptyDesign = useMemo(
@@ -218,7 +232,7 @@ export default function CounterTab() {
               style={styles.list}
               data={lines}
               extraData={lineCount}
-              keyExtractor={(item) => item.productId}
+              keyExtractor={(item) => cartLineKey(item)}
               renderItem={renderLine}
               ListEmptyComponent={listEmptyDesign}
               ListFooterComponent={

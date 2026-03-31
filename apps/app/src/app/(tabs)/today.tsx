@@ -13,18 +13,24 @@ import {
 } from "react-native";
 import {
   SafeAreaView,
-  useSafeAreaInsets,
 } from "react-native-safe-area-context";
 
+import { TabScreenHeader } from "@/components/desktech-ui/tab-screen-header";
 import { resolveActiveBusiness, useAuthSessionState } from "@/lib/auth-session";
 import { paymentDisplayForKey } from "@/lib/counter-checkout/payment-options";
-import { useLocalSalesToday } from "@/lib/data/local-counter-sales/hooks";
-import type { LocalCounterSaleRow } from "@/lib/data/local-counter-sales/types";
+import { cartLineKey } from "@/lib/counter-cart/counter-cart";
+import type { CounterSaleRow } from "@/lib/data/sales/types";
+import {
+  getSaleReceiptExtrasSync,
+  hydrateSaleReceiptExtras,
+  mergeReceiptExtras,
+} from "@/lib/data/sales/receipt-extras";
 import { useOfflineExecutor } from "@/lib/data/offline/offline-executor-provider";
 import { formatMinorUnitsToCurrency } from "@/lib/format-money";
 import { formatSaleCompletedAt } from "@/lib/format-sale-completed-at";
 import { fetchDeviceAppearsOnline } from "@/lib/network/fetch-device-online";
 import { useBusinessesQuery } from "@/lib/queries/business-catalog";
+import { useSalesTodayQuery } from "@/lib/queries/business-sales";
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
@@ -37,7 +43,7 @@ function firstNameFromDisplay(displayName: string): string {
   return part && part.length > 0 ? part : displayName;
 }
 
-function customerHasDetails(r: LocalCounterSaleRow["receipt"]): boolean {
+function customerHasDetails(r: CounterSaleRow["receipt"]): boolean {
   const c = r.customer;
   return (
     c.name.trim().length > 0 ||
@@ -72,10 +78,8 @@ const SALE_CARD_CLASS =
   "mb-2 overflow-hidden rounded-2xl border border-border/75 bg-surface";
 
 export default function TodayTab() {
-  const insets = useSafeAreaInsets();
   const muted = useThemeColor("muted");
   const accent = useThemeColor("accent");
-  const accentFg = useThemeColor("accent-foreground");
 
   const { session, user } = useAuthSessionState();
   const displayName =
@@ -94,14 +98,17 @@ export default function TodayTab() {
   const businessId = currentBusiness?.id;
   const businessCurrency = currentBusiness?.currency ?? "USD";
 
-  const { rows, refresh } = useLocalSalesToday(
-    signedIn ? businessId : undefined,
-  );
+  const { data: rows, refetch } = useSalesTodayQuery(signedIn ? businessId : undefined, signedIn, {
+    currency: businessCurrency,
+    businessName: currentBusiness?.name,
+  });
+  const listRows = useMemo(() => rows ?? [], [rows]);
   const offlineExecutor = useOfflineExecutor();
 
   useFocusEffect(
     useCallback(() => {
-      refresh();
+      void hydrateSaleReceiptExtras();
+      void refetch();
       let cancelled = false;
       void (async () => {
         const online = await fetchDeviceAppearsOnline();
@@ -115,7 +122,7 @@ export default function TodayTab() {
       return () => {
         cancelled = true;
       };
-    }, [refresh, offlineExecutor]),
+    }, [refetch, offlineExecutor]),
   );
 
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
@@ -131,11 +138,11 @@ export default function TodayTab() {
 
   const totals = useMemo(() => {
     let sum = 0;
-    for (const r of rows) {
+    for (const r of listRows) {
       sum += r.receipt.totalCents;
     }
     return sum;
-  }, [rows]);
+  }, [listRows]);
 
   const dateLine = useMemo(
     () =>
@@ -147,9 +154,10 @@ export default function TodayTab() {
     [],
   );
 
-  const renderItem: ListRenderItem<LocalCounterSaleRow> = useCallback(
+  const renderItem: ListRenderItem<CounterSaleRow> = useCallback(
     ({ item }) => {
-      const r = item.receipt;
+      const extras = getSaleReceiptExtrasSync(item.id);
+      const r = mergeReceiptExtras(item.receipt, extras);
       const expanded = expandedIds.has(item.id);
       const timeLabel = formatSaleCompletedAt(r.completedAtIso);
       const paymentUi = paymentDisplayForKey(r.paymentMethodKey);
@@ -184,8 +192,11 @@ export default function TodayTab() {
                 <Text className="text-[13px] text-muted">No items</Text>
               ) : (
                 <View className="gap-2.5">
-                  {r.lines.map((line) => (
-                    <View key={line.productId} className="flex-row items-start justify-between gap-3">
+                  {r.lines.map((line, lineIdx) => (
+                    <View
+                      key={`${cartLineKey(line)}-${lineIdx}`}
+                      className="flex-row items-start justify-between gap-3"
+                    >
                       <Text
                         className="min-w-0 flex-1 text-[14px] leading-5 text-foreground"
                         numberOfLines={3}
@@ -252,16 +263,16 @@ export default function TodayTab() {
     if (!signedIn) return "Sign in to see today’s activity";
     if (businessesQuery.isError) return "Could not load workspace";
     if (!businessId) return "Finish setup to track sales";
-    if (rows.length === 0) {
+    if (listRows.length === 0) {
       return `${dateLine} · ${shortName}`;
     }
-    return `${rows.length} ${rows.length === 1 ? "sale" : "sales"} · ${formatMinorUnitsToCurrency(totals, businessCurrency)}`;
+    return `${listRows.length} ${listRows.length === 1 ? "sale" : "sales"} · ${formatMinorUnitsToCurrency(totals, businessCurrency)}`;
   }, [
     businessCurrency,
     businessesQuery.isError,
     dateLine,
     businessId,
-    rows.length,
+    listRows.length,
     shortName,
     signedIn,
     totals,
@@ -279,55 +290,29 @@ export default function TodayTab() {
     if (!businessId) {
       return <EmptyHint icon="storefront-outline" title="Finish setup to track sales" accent={accent} />;
     }
-    if (rows.length === 0) {
+    if (listRows.length === 0) {
       return <EmptyHint icon="cart-outline" title="No sales yet today" accent={accent} />;
     }
     return null;
-  }, [accent, businessId, businessesQuery.isError, rows.length, signedIn]);
+  }, [accent, businessId, businessesQuery.isError, listRows.length, signedIn]);
 
   return (
     <View style={styles.root} className="bg-background">
       <StatusBar style="inverted" />
-      <View
-        style={{
-          backgroundColor: accent,
-          paddingTop: Math.max(insets.top, 12),
-          paddingBottom: 14,
-          paddingHorizontal: 16,
-        }}
-      >
-        <Text style={{ color: accentFg, fontSize: 22, fontWeight: "700" }}>
-          Today
-        </Text>
-        <Text
-          style={{
-            color: "rgba(255,255,255,0.85)",
-            fontSize: 14,
-            marginTop: 4,
-          }}
-          numberOfLines={2}
-        >
-          {headerSubtitle2}
-        </Text>
-        {signedIn && businessId && rows.length > 0 ? (
-          <Text
-            style={{
-              color: "rgba(255,255,255,0.72)",
-              fontSize: 13,
-              marginTop: 4,
-            }}
-            numberOfLines={1}
-          >
-            {dateLine} · {shortName}
-          </Text>
-        ) : null}
-      </View>
+      <TabScreenHeader
+        title="Today"
+        subtitle={headerSubtitle2}
+        tertiaryText={
+          signedIn && businessId && listRows.length > 0 ? `${dateLine} · ${shortName}` : null
+        }
+        tertiaryNumberOfLines={1}
+      />
 
       <SafeAreaView style={styles.root} edges={["left", "right", "bottom"]}>
         <FlatList
           style={styles.list}
-          data={signedIn && businessId ? rows : []}
-          extraData={{ expanded: expandedIds.size, count: rows.length }}
+          data={signedIn && businessId ? listRows : []}
+          extraData={{ expanded: expandedIds.size, count: listRows.length }}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           ListHeaderComponent={listHeader}

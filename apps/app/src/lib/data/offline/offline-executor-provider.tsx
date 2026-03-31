@@ -10,8 +10,8 @@ import {
 } from "@/lib/data/catalog/cache-reconcile";
 import { reconcileCreatedCategory } from "@/lib/data/catalog/category-reconcile";
 import { getCatalogCollectionRegistry } from "@/lib/data/catalog/collections";
-
-import { patchSaleIdIfPending } from "@/lib/data/local-counter-sales/store";
+import { getSalesCollectionRegistry } from "@/lib/data/sales/collections";
+import { moveSaleReceiptExtras } from "@/lib/data/sales/receipt-extras";
 
 import { createDesktechOfflineStorageAdapter } from "./async-storage-adapter";
 import {
@@ -50,13 +50,19 @@ export function OfflineExecutorProvider({ children, businessId }: Props) {
   const [executor, setExecutor] = useState<OfflineExecutor | null>(null);
 
   useEffect(() => {
-    const registry = getCatalogCollectionRegistry(queryClient);
+    const catalogRegistry = getCatalogCollectionRegistry(queryClient);
+    const salesRegistry = getSalesCollectionRegistry(queryClient);
+    if (businessId) {
+      salesRegistry.prefetchOfflineSalesWindows(queryClient, businessId);
+    }
     const storage = createDesktechOfflineStorageAdapter();
+    const catalogCols = catalogRegistry.namedCollectionsForOfflineExecutor(queryClient, {
+      offlineProductCatalogBusinessId: businessId,
+    });
+    const salesCols = salesRegistry.namedCollectionsForOfflineExecutor(queryClient, businessId);
     const ex = startOfflineExecutor({
       storage,
-      collections: registry.namedCollectionsForOfflineExecutor(queryClient, {
-        offlineProductCatalogBusinessId: businessId,
-      }),
+      collections: { ...catalogCols, ...salesCols },
       mutationFns: {
         _noop: async () => undefined,
         catalogCreateProduct: catalogCreateProductMutationFn,
@@ -120,13 +126,15 @@ export function OfflineExecutorProvider({ children, businessId }: Props) {
           const pendingId = `pending:${typed.idempotencyKey}`;
           if (meta?.businessId && result.sale.id !== pendingId) {
             try {
-              await patchSaleIdIfPending({
-                businessId: meta.businessId,
-                pendingSaleId: pendingId,
-                finalSaleId: result.sale.id,
-              });
+              salesRegistry.reconcilePendingCounterSale(
+                queryClient,
+                meta.businessId,
+                pendingId,
+                result.sale,
+              );
+              await moveSaleReceiptExtras(pendingId, result.sale.id);
             } catch {
-              /* Today list patch is best-effort */
+              /* collection reconcile is best-effort */
             }
           }
           if (meta?.businessId && result.products.length > 0) {
