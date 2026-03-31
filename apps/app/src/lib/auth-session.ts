@@ -1,5 +1,6 @@
-import type { BusinessRow } from "@/lib/data/catalog/types";
 import type { Href } from "expo-router";
+
+import type { BusinessRow } from "@/lib/data/catalog/types";
 
 import { authClient } from "./auth-client";
 
@@ -8,6 +9,8 @@ type SessionResult = Awaited<ReturnType<typeof authClient.getSession>>;
 export type SessionPayload = NonNullable<SessionResult["data"]>;
 export type SessionUser = SessionPayload["user"];
 export type SessionActiveBusiness = NonNullable<SessionPayload["activeBusiness"]>;
+
+let pendingAuthRoute: Href | null = null;
 
 export function getSessionUser(
   data: SessionResult["data"] | null | undefined,
@@ -38,9 +41,25 @@ export function resolveActiveBusiness(
   return businesses?.[0] ?? null;
 }
 
+export function beginAuthTransition(route: Href) {
+  pendingAuthRoute = route;
+}
+
+export function clearAuthTransition() {
+  pendingAuthRoute = null;
+}
+
+export function getPendingAuthRoute(): Href | null {
+  return pendingAuthRoute;
+}
+
 export function useAuthSessionState() {
   const query = authClient.useSession();
   const session = query.data;
+  const route = postAuthRoute(session);
+  if (route) {
+    clearAuthTransition();
+  }
 
   return {
     ...query,
@@ -48,6 +67,7 @@ export function useAuthSessionState() {
     user: getSessionUser(session),
     activeBusiness: getSessionActiveBusiness(session),
     needsOnboarding: sessionNeedsOnboarding(session),
+    pendingAuthRoute,
   };
 }
 

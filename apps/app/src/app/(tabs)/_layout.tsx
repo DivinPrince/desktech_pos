@@ -1,8 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Tabs } from "expo-router";
+import { Redirect, Tabs } from "expo-router";
 import { useThemeColor } from "heroui-native/hooks";
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
+import { StatusBar } from "expo-status-bar";
+import { View } from "react-native";
 
+import { BrandedLoading } from "@/components/desktech-ui";
 import { NavigationShellProvider } from "@/components/navigation/navigation-shell";
 import {
   resolveActiveBusiness,
@@ -42,12 +45,18 @@ export default function TabsLayout() {
   const accentColor = useThemeColor("accent");
   const mutedColor = useThemeColor("muted");
   const backgroundColor = useThemeColor("background");
-  const { session, user } = useAuthSessionState();
+  const { session, user, needsOnboarding, pendingAuthRoute, refetch } = useAuthSessionState();
   const businessesQuery = useBusinessesQuery(Boolean(user));
   const currentBusiness = useMemo(
     () => resolveActiveBusiness(session, businessesQuery.data),
     [session, businessesQuery.data],
   );
+
+  useEffect(() => {
+    if (pendingAuthRoute === "/(tabs)/dashboard" && !user) {
+      void refetch();
+    }
+  }, [pendingAuthRoute, refetch, user]);
 
   const dashboardOptions = useMemo(
     () => tabScreenOptions("Dashboard", "grid", "grid-outline"),
@@ -93,6 +102,23 @@ export default function TabsLayout() {
     }),
     [accentColor, mutedColor, backgroundColor],
   );
+
+  if (needsOnboarding) {
+    return <Redirect href="/onboarding" />;
+  }
+
+  if (pendingAuthRoute === "/(tabs)/dashboard" && !user) {
+    return (
+      <View className="flex-1 bg-background">
+        <StatusBar style="inverted" />
+        <BrandedLoading />
+      </View>
+    );
+  }
+
+  if (!user) {
+    return <Redirect href="/login" />;
+  }
 
   return (
     <OfflineExecutorProvider businessId={currentBusiness?.id}>

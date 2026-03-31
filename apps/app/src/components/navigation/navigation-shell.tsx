@@ -151,8 +151,8 @@ function AppNavSideSheet({ visible, onClose }: AppNavSideSheetProps) {
     } catch {
       /* still route guest — session cookie may be cleared */
     }
-    void refetchSession();
-  }, [onClose, refetchSession]);
+    router.replace("/login");
+  }, [onClose, router]);
 
   const onNavigate = useCallback(
     (href: (typeof NAV_LINKS)[number]["href"]) => {

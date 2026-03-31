@@ -18,9 +18,10 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 
+import { GuestRouteGuard } from "@/components/auth/guest-route-guard";
 import { KeyboardAvoidingScaffold } from "@/components/desktech-ui";
 import { authClient } from "@/lib/auth-client";
-import { getSessionUser } from "@/lib/auth-session";
+import { beginAuthTransition, getSessionUser } from "@/lib/auth-session";
 
 const INPUT_ROW_CLASS =
   "border-0 border-transparent bg-transparent rounded-none py-2.5 px-4 text-[15px] leading-5 shadow-none ios:shadow-none android:shadow-none focus:border-transparent text-field-foreground";
@@ -57,25 +58,45 @@ export default function LoginScreen() {
         return;
       }
 
-      const sessionResult = await authClient.getSession();
+      const [onboardingState, sessionResult] = await Promise.all([
+        authClient.onboarding.shouldOnboard(),
+        authClient.getSession(),
+      ]);
 
-      if (sessionResult.error || !getSessionUser(sessionResult.data)) {
+      if (onboardingState.data === true) {
+        beginAuthTransition("/onboarding");
+        router.replace("/onboarding");
+        return;
+      }
+
+      if (onboardingState.data === false || getSessionUser(sessionResult.data)) {
+        beginAuthTransition("/(tabs)/dashboard");
+        router.replace("/(tabs)/dashboard");
+        return;
+      }
+
+      if (sessionResult.error) {
         toast.show({
           label: "Signed in, still syncing",
           description: "Please wait a moment while we load your account.",
           variant: "warning",
         });
+        return;
       }
+
+      beginAuthTransition("/(tabs)/dashboard");
+      router.replace("/(tabs)/dashboard");
     } finally {
       setSubmitting(false);
     }
-  }, [email, password, toast]);
+  }, [email, password, router, toast]);
 
   return (
-    <View className="flex-1 bg-background">
-      <StatusBar style="inverted" />
+    <GuestRouteGuard>
+      <View className="flex-1 bg-background">
+        <StatusBar style="inverted" />
 
-      <SafeAreaView style={styles.fill} edges={["top", "left", "right"]}>
+        <SafeAreaView style={styles.fill} edges={["top", "left", "right"]}>
         <View
           pointerEvents="box-none"
           style={[
@@ -204,8 +225,9 @@ export default function LoginScreen() {
             </View>
           </ScrollView>
         </KeyboardAvoidingScaffold>
-      </SafeAreaView>
-    </View>
+        </SafeAreaView>
+      </View>
+    </GuestRouteGuard>
   );
 }
 
