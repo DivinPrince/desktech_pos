@@ -20,7 +20,6 @@ import type { ProductRow } from "@/lib/data/catalog/types";
 import { buildSalesReport } from "@/lib/data/sales/build-sales-report";
 import {
   reportPeriodBounds,
-  reportPeriodLabel,
 } from "@/lib/data/sales/report-period-bounds";
 import { hydrateSaleReceiptExtras } from "@/lib/data/sales/receipt-extras";
 import type { CounterSaleRow } from "@/lib/data/sales/types";
@@ -38,8 +37,7 @@ import { useSalesRangeQuery, useSalesTodayQuery } from "@/lib/queries/business-s
 const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 96 },
-  kpiStrip: { flexGrow: 0 },
+  scrollContent: { paddingTop: 16, paddingBottom: 96 },
 });
 
 function firstNameFromDisplay(displayName: string): string {
@@ -81,62 +79,67 @@ function inventorySignals(products: readonly ProductRow[]): StockSignals {
   return { skuOutOfStock, skuLowStock, trackedSkuCount };
 }
 
-function ShortcutRow({
+function QuickAction({
   icon,
-  title,
-  subtitle,
+  label,
   onPress,
-  iconTint,
-  iconBgClass,
-  muted,
-  isLast,
+  iconColor,
+  surfaceColor,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  subtitle?: string;
+  label: string;
   onPress: () => void;
-  iconTint: string;
-  iconBgClass: string;
-  muted: string;
-  isLast?: boolean;
+  iconColor: string;
+  surfaceColor: string;
 }) {
   return (
     <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={title}
       onPress={onPress}
-      className={`min-h-[58px] flex-row items-center gap-3.5 px-3.5 py-2.5 active:opacity-92 ${isLast ? "" : "border-b border-border/55"}`}
+      className="w-[100px] h-[105px] rounded-[28px] items-center justify-center active:opacity-80"
+      style={{ backgroundColor: surfaceColor }}
     >
-      <View
-        className={`h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${iconBgClass}`}
-      >
-        <Ionicons name={icon} size={22} color={iconTint} />
+      <View className="h-11 w-11 rounded-full items-center justify-center mb-2 bg-background/60">
+        <Ionicons name={icon} size={22} color={iconColor} />
       </View>
-      <View className="min-w-0 flex-1">
-        <Text className="text-[16px] font-semibold text-foreground" numberOfLines={1}>
-          {title}
-        </Text>
-        {subtitle ? (
-          <Text className="mt-0.5 text-[13px] leading-4 text-muted" numberOfLines={2}>
-            {subtitle}
-          </Text>
-        ) : null}
-      </View>
-      <Ionicons name="chevron-forward" size={20} color={muted} />
+      <Text className="text-[13px] font-bold text-foreground tracking-tight">{label}</Text>
     </Pressable>
+  );
+}
+
+function OverviewCard({
+  title,
+  amount,
+  subtitle,
+  isNumber,
+  currency,
+}: {
+  title: string;
+  amount: number;
+  subtitle: string;
+  isNumber?: boolean;
+  currency?: string;
+}) {
+  return (
+    <View className="w-[48%] bg-surface rounded-[28px] p-5 mb-3 border border-border/40">
+      <Text className="text-[12px] font-bold uppercase tracking-widest text-muted mb-2">
+        {title}
+      </Text>
+      <Text className="text-[22px] font-black text-foreground tabular-nums tracking-tight">
+        {isNumber ? amount : formatMinorUnitsToCurrency(amount, currency || "USD")}
+      </Text>
+      <Text className="text-[13px] font-medium text-muted mt-1">{subtitle}</Text>
+    </View>
   );
 }
 
 function RecentSaleRow({
   sale,
   businessCurrency,
-  muted,
   onPress,
   isLast,
 }: {
   sale: CounterSaleRow;
   businessCurrency: string;
-  muted: string;
   onPress: () => void;
   isLast?: boolean;
 }) {
@@ -146,20 +149,21 @@ function RecentSaleRow({
   return (
     <Pressable
       onPress={onPress}
-      className={`flex-row items-center gap-3 py-3.5 pl-1 pr-1 active:opacity-90 ${isLast ? "" : "border-b border-border/45"}`}
+      className={`flex-row items-center py-4 px-4 active:bg-foreground/5 ${
+        isLast ? "" : "border-b border-border/40"
+      }`}
     >
-      <View className="h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-background/80">
+      <View
+        className="h-11 w-11 rounded-full items-center justify-center"
+        style={{ backgroundColor: `${pay.iconHex}20` }}
+      >
         <Ionicons name={pay.icon} size={20} color={pay.iconHex} />
       </View>
-      <View className="min-w-0 flex-1">
-        <Text className="text-[15px] font-semibold text-foreground" numberOfLines={1}>
-          {r.paymentMethodLabel}
-        </Text>
-        <Text className="mt-0.5 text-[12px] text-muted" numberOfLines={1}>
-          {timeLabel}
-        </Text>
+      <View className="flex-1 ml-3">
+        <Text className="text-[15px] font-bold text-foreground">{r.paymentMethodLabel}</Text>
+        <Text className="text-[13px] font-medium text-muted mt-0.5">{timeLabel}</Text>
       </View>
-      <Text className="text-[15px] font-bold tabular-nums text-foreground">
+      <Text className="text-[16px] font-black text-foreground tabular-nums tracking-tight">
         {formatMinorUnitsToCurrency(r.totalCents, r.currency || businessCurrency)}
       </Text>
     </Pressable>
@@ -168,10 +172,10 @@ function RecentSaleRow({
 
 export default function DashboardTab() {
   const router = useRouter();
-  const muted = useThemeColor("muted");
   const accent = useThemeColor("accent");
   const accentFg = useThemeColor("accent-foreground");
   const foreground = useThemeColor("foreground");
+  const surface = useThemeColor("surface");
 
   const { session, user } = useAuthSessionState();
   const signedIn = Boolean(user);
@@ -325,16 +329,6 @@ export default function DashboardTab() {
     return `${dateLine} · ${shortName}`;
   }, [businessId, dateLine, shortName, signedIn]);
 
-  const avgAllTimeLabel =
-    allReport.saleCount > 0
-      ? formatMinorUnitsToCurrency(allReport.averageTicketCents, businessCurrency)
-      : "—";
-
-  const avgMonthLabel =
-    monthReport.saleCount > 0
-      ? formatMinorUnitsToCurrency(monthReport.averageTicketCents, businessCurrency)
-      : "—";
-
   const stockIssueCount = stockSignals.skuOutOfStock + stockSignals.skuLowStock;
 
   return (
@@ -356,216 +350,217 @@ export default function DashboardTab() {
           keyboardShouldPersistTaps="handled"
         >
           {!signedIn ? (
-            <View className="rounded-2xl border border-border/70 bg-surface px-5 py-8">
-              <View className="mb-3 h-[52px] w-[52px] items-center justify-center rounded-full bg-accent/18">
-                <Ionicons name="log-in-outline" size={28} color={accent} />
+            <View className="mx-4 rounded-[32px] border border-border/70 bg-surface px-6 py-10 shadow-sm">
+              <View className="mb-4 h-14 w-14 items-center justify-center rounded-full bg-accent/18">
+                <Ionicons name="log-in-outline" size={30} color={accent} />
               </View>
-              <Text className="text-[17px] font-bold text-foreground">You’re signed out</Text>
-              <Text className="mt-2 text-[15px] leading-5 text-muted">
-                Sign in from the menu after you open the app to see sales, inventory signals, and shortcuts.
+              <Text className="text-[20px] font-black tracking-tight text-foreground">You’re signed out</Text>
+              <Text className="mt-2 text-[15px] leading-6 text-muted">
+                Sign in from the menu to see your daily sales, inventory signals, and quick actions.
               </Text>
             </View>
           ) : businessesQuery.isError ? (
-            <View className="rounded-2xl border border-border/70 bg-surface px-5 py-8">
-              <View className="mb-3 h-[52px] w-[52px] items-center justify-center rounded-full bg-accent/18">
-                <Ionicons name="cloud-offline-outline" size={28} color={accent} />
+            <View className="mx-4 rounded-[32px] border border-border/70 bg-surface px-6 py-10 shadow-sm">
+              <View className="mb-4 h-14 w-14 items-center justify-center rounded-full bg-accent/18">
+                <Ionicons name="cloud-offline-outline" size={30} color={accent} />
               </View>
-              <Text className="text-[17px] font-bold text-foreground">Couldn’t load workspace</Text>
-              <Text className="mt-2 text-[15px] leading-5 text-muted">
+              <Text className="text-[20px] font-black tracking-tight text-foreground">Couldn’t load workspace</Text>
+              <Text className="mt-2 text-[15px] leading-6 text-muted">
                 Check your connection and try again from the side menu.
               </Text>
             </View>
           ) : !businessId ? (
-            <View className="rounded-2xl border border-border/70 bg-surface px-5 py-8">
-              <View className="mb-3 h-[52px] w-[52px] items-center justify-center rounded-full bg-accent/18">
-                <Ionicons name="storefront-outline" size={28} color={accent} />
+            <View className="mx-4 rounded-[32px] border border-border/70 bg-surface px-6 py-10 shadow-sm">
+              <View className="mb-4 h-14 w-14 items-center justify-center rounded-full bg-accent/18">
+                <Ionicons name="storefront-outline" size={30} color={accent} />
               </View>
-              <Text className="text-[17px] font-bold text-foreground">Finish setup</Text>
-              <Text className="mt-2 text-[15px] leading-5 text-muted">
+              <Text className="text-[20px] font-black tracking-tight text-foreground">Finish setup</Text>
+              <Text className="mt-2 text-[15px] leading-6 text-muted">
                 Create or select a business to see your dashboard and start selling.
               </Text>
             </View>
           ) : (
             <>
               {dataRefreshing ? (
-                <View className="mb-3 flex-row items-center gap-2 rounded-xl bg-accent/10 px-3 py-2">
-                  <Ionicons name="phone-portrait-outline" size={18} color={accent} />
-                  <Text className="flex-1 text-[13px] font-medium text-foreground">
-                    Syncing local data — sales and catalog stay usable offline-first.
+                <View className="mx-4 mb-4 flex-row items-center gap-3 rounded-2xl bg-accent/10 px-4 py-3">
+                  <Ionicons name="sync" size={18} color={accent} />
+                  <Text className="flex-1 text-[13px] font-bold text-foreground">
+                    Syncing data...
                   </Text>
                 </View>
               ) : null}
 
-              <View className="mb-4 overflow-hidden rounded-[22px] border border-border/65 bg-surface">
-                <View className="bg-accent/12 px-4 pb-4 pt-4">
-                  <View className="flex-row items-center justify-between">
-                    <View className="flex-row items-center gap-2">
-                      <View className="h-2 w-2 rounded-full bg-accent" />
-                      <Text className="text-[12px] font-bold uppercase tracking-wider text-muted">
-                        All-time revenue
-                      </Text>
-                    </View>
-                    <Pressable
-                      onPress={() => router.push("/(tabs)/reports")}
-                      className="flex-row items-center gap-0.5 rounded-full bg-background/60 px-2.5 py-1 active:opacity-80"
+              {/* Hero Section */}
+              <View
+                className="mx-4 mb-8 overflow-hidden rounded-[36px] p-6 shadow-sm"
+                style={{ backgroundColor: accent }}
+              >
+                <View className="flex-row items-start justify-between">
+                  <View>
+                    <Text
+                      style={{ color: accentFg, opacity: 0.8 }}
+                      className="mb-1 text-[13px] font-bold uppercase tracking-widest"
                     >
-                      <Text className="text-[12px] font-semibold text-accent">Reports</Text>
-                      <Ionicons name="chevron-forward" size={14} color={accent} />
-                    </Pressable>
+                      Today&apos;s Revenue
+                    </Text>
+                    <Text
+                      style={{ color: accentFg }}
+                      className="text-[44px] font-black leading-[52px] tracking-tighter"
+                    >
+                      {formatMinorUnitsToCurrency(todayReport.totalRevenueCents, businessCurrency)}
+                    </Text>
+                    <Text
+                      style={{ color: accentFg, opacity: 0.9 }}
+                      className="mt-1 text-[15px] font-semibold"
+                    >
+                      {todayReport.saleCount} {todayReport.saleCount === 1 ? "sale" : "sales"} today
+                    </Text>
                   </View>
-                  <Text className="mt-2 text-[34px] font-bold tabular-nums leading-[38px] tracking-tight text-foreground">
-                    {formatMinorUnitsToCurrency(allReport.totalRevenueCents, businessCurrency)}
-                  </Text>
-                  <Text className="mt-1.5 text-[14px] leading-5 text-muted">
-                    {allReport.saleCount} lifetime {allReport.saleCount === 1 ? "sale" : "sales"}
-                    {allReport.saleCount > 0 ? ` · ${avgAllTimeLabel} avg ticket` : ""}
-                  </Text>
+                  <View className="h-12 w-12 items-center justify-center rounded-full bg-white/20">
+                    <Ionicons name="trending-up" size={24} color={accentFg} />
+                  </View>
                 </View>
-                <View className="flex-row border-t border-border/55 bg-background/40">
-                  <View className="min-w-0 flex-1 border-r border-border/50 px-3.5 py-3">
-                    <Text
-                      className="text-[11px] font-bold uppercase tracking-wide text-muted"
-                      numberOfLines={1}
-                    >
-                      Catalog
-                    </Text>
-                    <Text className="mt-1 text-[20px] font-bold tabular-nums text-foreground">
-                      {products.length}
-                    </Text>
-                    <Text className="text-[11px] text-muted">active products</Text>
+
+                <Pressable
+                  onPress={() => router.push("/(tabs)/counter")}
+                  className="mt-8 flex-row items-center justify-center rounded-[24px] py-4 active:opacity-90"
+                  style={{ backgroundColor: accentFg }}
+                >
+                  <Ionicons name="scan" size={22} color={accent} />
+                  <Text className="ml-2 text-[17px] font-black tracking-tight" style={{ color: accent }}>
+                    Checkout Counter
+                  </Text>
+                </Pressable>
+              </View>
+
+              {/* Stock Alerts */}
+              {stockIssueCount > 0 && (
+                <Pressable
+                  onPress={() => router.push("/(tabs)/items/inventory")}
+                  className="mx-4 mb-8 flex-row items-center rounded-[28px] border border-orange-500/20 bg-orange-500/10 p-4 active:opacity-80 dark:border-orange-400/20 dark:bg-orange-400/10"
+                >
+                  <View className="mr-4 h-12 w-12 items-center justify-center rounded-full bg-orange-500/20">
+                    <Ionicons name="warning" size={24} color="#ea580c" />
                   </View>
-                  <View className="min-w-0 flex-1 border-r border-border/50 px-3.5 py-3">
-                    <Text
-                      className="text-[11px] font-bold uppercase tracking-wide text-muted"
-                      numberOfLines={1}
-                    >
-                      Categories
+                  <View className="flex-1">
+                    <Text className="text-[16px] font-black tracking-tight text-foreground">
+                      Inventory Alert
                     </Text>
-                    <Text className="mt-1 text-[20px] font-bold tabular-nums text-foreground">
-                      {categories.length}
+                    <Text className="mt-0.5 text-[14px] font-medium text-muted">
+                      {stockSignals.skuOutOfStock} empty, {stockSignals.skuLowStock} low
                     </Text>
-                    <Text className="text-[11px] text-muted">groups</Text>
                   </View>
-                  <View className="min-w-0 flex-1 px-3.5 py-3">
-                    <Text
-                      className="text-[11px] font-bold uppercase tracking-wide text-muted"
-                      numberOfLines={1}
-                    >
-                      Stock SKUs
-                    </Text>
-                    <Text className="mt-1 text-[20px] font-bold tabular-nums text-foreground">
-                      {stockSignals.trackedSkuCount}
-                    </Text>
-                    <Text className="text-[11px] text-muted">tracked</Text>
+                  <View className="h-8 w-8 items-center justify-center rounded-full bg-background/50">
+                    <Ionicons name="arrow-forward" size={18} color="#ea580c" />
                   </View>
+                </Pressable>
+              )}
+
+              {/* Quick Actions */}
+              <View className="mb-8">
+                <Text className="mx-4 mb-4 text-[18px] font-black tracking-tight text-foreground">
+                  Quick Actions
+                </Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
+                >
+                  <QuickAction
+                    icon="add"
+                    label="Add Item"
+                    onPress={() => router.push("/(tabs)/items/product/new")}
+                    iconColor={accent}
+                    surfaceColor={surface}
+                  />
+                  <QuickAction
+                    icon="folder"
+                    label="Categories"
+                    onPress={() => router.push("/(tabs)/items/category/new")}
+                    iconColor={foreground}
+                    surfaceColor={surface}
+                  />
+                  <QuickAction
+                    icon="bar-chart"
+                    label="Reports"
+                    onPress={() => router.push("/(tabs)/reports")}
+                    iconColor={foreground}
+                    surfaceColor={surface}
+                  />
+                  <QuickAction
+                    icon="receipt"
+                    label="Receipts"
+                    onPress={() => router.push("/(tabs)/receipts")}
+                    iconColor={foreground}
+                    surfaceColor={surface}
+                  />
+                  <QuickAction
+                    icon="albums"
+                    label="Inventory"
+                    onPress={() => router.push("/(tabs)/items/inventory")}
+                    iconColor={foreground}
+                    surfaceColor={surface}
+                  />
+                  <QuickAction
+                    icon="cube"
+                    label="Catalog"
+                    onPress={() => router.push("/(tabs)/items")}
+                    iconColor={foreground}
+                    surfaceColor={surface}
+                  />
+                </ScrollView>
+              </View>
+
+              {/* Overview Stats */}
+              <View className="mb-8 px-4">
+                <Text className="mb-4 text-[18px] font-black tracking-tight text-foreground">
+                  Performance
+                </Text>
+                <View className="flex-row flex-wrap justify-between">
+                  <OverviewCard
+                    title="7 Days"
+                    amount={weekReport.totalRevenueCents}
+                    subtitle={`${weekReport.saleCount} sales`}
+                    currency={businessCurrency}
+                  />
+                  <OverviewCard
+                    title="This Month"
+                    amount={monthReport.totalRevenueCents}
+                    subtitle={`${monthReport.saleCount} sales`}
+                    currency={businessCurrency}
+                  />
+                  <OverviewCard
+                    title="All Time"
+                    amount={allReport.totalRevenueCents}
+                    subtitle={`${allReport.saleCount} sales`}
+                    currency={businessCurrency}
+                  />
+                  <OverviewCard
+                    title="Catalog"
+                    amount={products.length}
+                    subtitle="active items"
+                    isNumber
+                  />
                 </View>
               </View>
 
-              <Text className="mb-2.5 px-0.5 text-[12px] font-bold uppercase tracking-wider text-muted">
-                Performance window
-              </Text>
-              <ScrollView
-                horizontal
-                style={styles.kpiStrip}
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ gap: 10, paddingBottom: 6, paddingRight: 4 }}
-              >
-                <View className="w-[154px] rounded-2xl border border-border/65 bg-surface p-3.5">
-                  <Text className="text-[11px] font-bold uppercase tracking-wide text-muted">
-                    {reportPeriodLabel("today")}
-                  </Text>
-                  <Text className="mt-2 text-[20px] font-bold tabular-nums text-foreground">
-                    {formatMinorUnitsToCurrency(todayReport.totalRevenueCents, businessCurrency)}
-                  </Text>
-                  <Text className="mt-1 text-[12px] text-muted">
-                    {todayReport.saleCount} sales
-                    {todayReport.saleCount > 0
-                      ? ` · ${formatMinorUnitsToCurrency(todayReport.averageTicketCents, businessCurrency)} avg`
-                      : ""}
-                  </Text>
-                </View>
-                <View className="w-[154px] rounded-2xl border border-border/65 bg-surface p-3.5">
-                  <Text className="text-[11px] font-bold uppercase tracking-wide text-muted">
-                    {reportPeriodLabel("month")}
-                  </Text>
-                  <Text className="mt-2 text-[20px] font-bold tabular-nums text-foreground">
-                    {formatMinorUnitsToCurrency(monthReport.totalRevenueCents, businessCurrency)}
-                  </Text>
-                  <Text className="mt-1 text-[12px] text-muted">
-                    {monthReport.saleCount} sales
-                    {monthReport.saleCount > 0 ? ` · ${avgMonthLabel} avg` : ""}
-                  </Text>
-                </View>
-                <View className="w-[154px] rounded-2xl border border-border/65 bg-surface p-3.5">
-                  <Text className="text-[11px] font-bold uppercase tracking-wide text-muted">
-                    {reportPeriodLabel("last7")}
-                  </Text>
-                  <Text className="mt-2 text-[20px] font-bold tabular-nums text-foreground">
-                    {formatMinorUnitsToCurrency(weekReport.totalRevenueCents, businessCurrency)}
-                  </Text>
-                  <Text className="mt-1 text-[12px] text-muted">
-                    {weekReport.saleCount} sales
-                    {weekReport.saleCount > 0
-                      ? ` · ${formatMinorUnitsToCurrency(weekReport.averageTicketCents, businessCurrency)} avg`
-                      : ""}
-                  </Text>
-                </View>
-              </ScrollView>
-
-              {stockIssueCount > 0 ? (
-                <Pressable
-                  onPress={() => router.push("/(tabs)/items/inventory")}
-                  className="mb-4 mt-3 overflow-hidden rounded-2xl border border-orange-500/45 bg-orange-500/10 active:opacity-92 dark:border-orange-400/35 dark:bg-orange-400/12"
-                >
-                  <View className="flex-row items-start gap-3 px-4 py-3.5">
-                    <View className="mt-0.5 h-10 w-10 items-center justify-center rounded-xl bg-orange-500/22">
-                      <Ionicons name="warning-outline" size={22} color="#ea580c" />
-                    </View>
-                    <View className="min-w-0 flex-1">
-                      <Text className="text-[16px] font-bold text-foreground">Stock needs attention</Text>
-                      <Text className="mt-1 text-[14px] leading-5 text-muted">
-                        {stockSignals.skuOutOfStock} out of stock
-                        {stockSignals.skuLowStock > 0
-                          ? ` · ${stockSignals.skuLowStock} at or below alert`
-                          : ""}
-                      </Text>
-                      <Text className="mt-2 text-[13px] font-semibold text-orange-700 dark:text-orange-300">
-                        Open inventory →
-                      </Text>
-                    </View>
-                  </View>
-                </Pressable>
-              ) : stockSignals.trackedSkuCount > 0 ? (
-                <View className="mb-4 mt-3 flex-row items-center gap-3 rounded-2xl border border-emerald-500/35 bg-emerald-500/8 px-4 py-3 dark:border-emerald-400/30 dark:bg-emerald-400/10">
-                  <Ionicons name="checkmark-circle-outline" size={22} color="#059669" />
-                  <View className="min-w-0 flex-1">
-                    <Text className="text-[15px] font-semibold text-foreground">Inventory looks healthy</Text>
-                    <Text className="mt-0.5 text-[13px] text-muted">
-                      No SKUs below alert or at zero right now.
+              {/* Recent Sales */}
+              {recentSales.length > 0 && (
+                <View className="mb-4 px-4">
+                  <View className="mb-4 flex-row items-end justify-between">
+                    <Text className="text-[18px] font-black tracking-tight text-foreground">
+                      Recent Activity
                     </Text>
-                  </View>
-                </View>
-              ) : null}
-
-              {recentSales.length > 0 ? (
-                <View className="mb-4 mt-1 overflow-hidden rounded-[20px] border border-border/65 bg-surface">
-                  <View className="flex-row items-center justify-between border-b border-border/55 bg-background/35 px-4 py-3">
-                    <Text className="text-[15px] font-bold text-foreground">Recent sales</Text>
-                    <Pressable
-                      onPress={() => router.push("/(tabs)/today")}
-                      className="flex-row items-center gap-0.5 active:opacity-70"
-                    >
-                      <Text className="text-[13px] font-semibold text-accent">Today</Text>
-                      <Ionicons name="chevron-forward" size={16} color={accent} />
+                    <Pressable onPress={() => router.push("/(tabs)/today")} className="active:opacity-70">
+                      <Text className="text-[14px] font-bold text-accent">View All</Text>
                     </Pressable>
                   </View>
-                  <View className="px-3">
+                  <View className="overflow-hidden rounded-[32px] border border-border/40 bg-surface">
                     {recentSales.map((sale, idx) => (
                       <RecentSaleRow
                         key={sale.id}
                         sale={sale}
                         businessCurrency={businessCurrency}
-                        muted={muted}
                         isLast={idx === recentSales.length - 1}
                         onPress={() =>
                           router.push({
@@ -577,105 +572,7 @@ export default function DashboardTab() {
                     ))}
                   </View>
                 </View>
-              ) : null}
-
-              <Text className="mb-2 mt-1 px-0.5 text-[12px] font-bold uppercase tracking-wider text-muted">
-                Shortcuts
-              </Text>
-
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Start a sale at the counter"
-                onPress={() => router.push("/(tabs)/counter")}
-                className="mb-3 min-h-[76px] flex-row items-center justify-between overflow-hidden rounded-2xl border border-accent/25 px-5 py-4 active:opacity-92"
-                style={{ backgroundColor: accent }}
-              >
-                <View className="min-w-0 flex-1 pr-3">
-                  <Text className="text-[18px] font-bold" style={{ color: accentFg }} numberOfLines={1}>
-                    New sale
-                  </Text>
-                  <Text
-                    className="mt-0.5 text-[14px]"
-                    style={{ color: accentFg, opacity: 0.9 }}
-                    numberOfLines={2}
-                  >
-                    Counter checkout — works offline, syncs when you’re back online
-                  </Text>
-                </View>
-                <View
-                  className="h-12 w-12 items-center justify-center rounded-2xl"
-                  style={{ backgroundColor: "rgba(255,255,255,0.2)" }}
-                >
-                  <Ionicons name="storefront" size={26} color={accentFg} />
-                </View>
-              </Pressable>
-
-              <View className="mb-2 overflow-hidden rounded-[20px] border border-border/70 bg-surface">
-                <ShortcutRow
-                  icon="add-circle-outline"
-                  title="Add product"
-                  subtitle="Create a new item in your catalog"
-                  onPress={() => router.push("/(tabs)/items/product/new")}
-                  iconTint={accent}
-                  iconBgClass="bg-accent/14"
-                  muted={muted}
-                />
-                <ShortcutRow
-                  icon="folder-open-outline"
-                  title="Add category"
-                  subtitle="Organize items into groups"
-                  onPress={() => router.push("/(tabs)/items/category/new")}
-                  iconTint={foreground}
-                  iconBgClass="bg-foreground/8"
-                  muted={muted}
-                />
-                <ShortcutRow
-                  icon="calendar-outline"
-                  title="Today’s activity"
-                  subtitle="Expandable list of today’s completed sales"
-                  onPress={() => router.push("/(tabs)/today")}
-                  iconTint={foreground}
-                  iconBgClass="bg-foreground/8"
-                  muted={muted}
-                />
-                <ShortcutRow
-                  icon="bar-chart-outline"
-                  title="Reports & trends"
-                  subtitle="Payments, best sellers, and history by period"
-                  onPress={() => router.push("/(tabs)/reports")}
-                  iconTint={foreground}
-                  iconBgClass="bg-foreground/8"
-                  muted={muted}
-                />
-                <ShortcutRow
-                  icon="receipt-outline"
-                  title="Receipts"
-                  subtitle="Search and revisit past receipts"
-                  onPress={() => router.push("/(tabs)/receipts")}
-                  iconTint={foreground}
-                  iconBgClass="bg-foreground/8"
-                  muted={muted}
-                />
-                <ShortcutRow
-                  icon="albums-outline"
-                  title="Inventory"
-                  subtitle="Stock levels, adjustments, and alerts"
-                  onPress={() => router.push("/(tabs)/items/inventory")}
-                  iconTint={foreground}
-                  iconBgClass="bg-foreground/8"
-                  muted={muted}
-                />
-                <ShortcutRow
-                  icon="cube-outline"
-                  title="Product catalog"
-                  subtitle="Browse and edit items"
-                  onPress={() => router.push("/(tabs)/items")}
-                  iconTint={foreground}
-                  iconBgClass="bg-foreground/8"
-                  muted={muted}
-                  isLast
-                />
-              </View>
+              )}
             </>
           )}
         </ScrollView>
@@ -683,3 +580,4 @@ export default function DashboardTab() {
     </View>
   );
 }
+

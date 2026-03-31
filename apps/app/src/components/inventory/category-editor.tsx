@@ -30,7 +30,7 @@ import {
 } from "@/lib/queries/business-catalog";
 
 const INPUT_ROW_CLASS =
-  "border-0 border-transparent bg-transparent rounded-xl py-2.5 px-3 text-[15px] leading-5 shadow-none ios:shadow-none android:shadow-none focus:border-transparent text-field-foreground";
+  "border-0 border-transparent bg-background/50 rounded-[16px] py-3.5 px-4 text-[16px] font-medium leading-5 shadow-none ios:shadow-none android:shadow-none focus:border-transparent text-field-foreground";
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
@@ -82,9 +82,7 @@ export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProp
 
   const [parentId, setParentId] = useState<string | null>(null);
   const [name, setName] = useState("");
-  const [sortStr, setSortStr] = useState("0");
   const [nameError, setNameError] = useState("");
-  const [sortError, setSortError] = useState("");
 
   const hydratedIdRef = useRef<string | null>(null);
   const parentRemapDisposersRef = useRef<Array<() => void>>([]);
@@ -104,7 +102,6 @@ export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProp
     if (!isEdit) {
       setParentId(null);
       setName(suggestedName?.trim() ?? "");
-      setSortStr("0");
     }
   }, [isEdit, suggestedName]);
 
@@ -114,7 +111,6 @@ export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProp
     if (hydratedIdRef.current === editingCategory.id) return;
     hydratedIdRef.current = editingCategory.id;
     setName(editingCategory.name);
-    setSortStr(String(editingCategory.sortOrder));
     setParentId(editingCategory.parentId);
   }, [isEdit, editingCategory]);
 
@@ -171,15 +167,9 @@ export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProp
 
   const onSave = useCallback(() => {
     setNameError("");
-    setSortError("");
     const n = name.trim();
     if (!n) {
       setNameError("Name is required");
-      return;
-    }
-    const sortParsed = Number.parseInt(sortStr, 10);
-    if (!Number.isFinite(sortParsed)) {
-      setSortError("Enter a valid sort order");
       return;
     }
 
@@ -190,7 +180,6 @@ export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProp
         {
           name: n,
           parentId,
-          sortOrder: sortParsed,
         },
         {
           onSuccess: () => {
@@ -209,7 +198,7 @@ export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProp
         sortOrder: number;
       } = {
         name: n,
-        sortOrder: sortParsed,
+        sortOrder: 0,
       };
       if (parentId) body.parentId = parentId;
       createMutation.mutate(body, {
@@ -224,7 +213,6 @@ export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProp
     }
   }, [
     name,
-    sortStr,
     parentId,
     businessId,
     isEdit,
@@ -300,26 +288,34 @@ export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProp
     <KeyboardAvoidingScaffold className="bg-background">
       <StatusBar style="light" />
       <View
-        className="flex-row items-center px-2 py-2"
         style={{
           backgroundColor: accent,
-          paddingTop: Math.max(insets.top, 8),
+          paddingTop: Math.max(insets.top, 12),
+          paddingBottom: 24,
+          paddingHorizontal: 16,
+          borderBottomLeftRadius: 32,
+          borderBottomRightRadius: 32,
         }}
       >
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={12}
-          className="h-10 w-10 items-center justify-center rounded-full active:bg-white/15"
-        >
-          <Ionicons name="chevron-back" size={26} color={accentFg} />
-        </Pressable>
-        <Text
-          className="min-w-0 flex-1 text-center text-[17px] font-semibold"
-          style={{ color: accentFg }}
-        >
-          {isEdit ? "Edit category" : "New category"}
-        </Text>
-        <View className="h-10 w-10" />
+        <View className="flex-row items-center justify-between gap-2 py-1 mb-2 mt-2">
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            hitSlop={10}
+            onPress={() => router.back()}
+            className="h-11 w-11 items-center justify-center rounded-full bg-white/20 active:bg-white/30"
+          >
+            <Ionicons name="chevron-back" size={24} color={accentFg} />
+          </Pressable>
+          <Text
+            className="min-w-0 flex-1 text-center text-[24px] font-black tracking-tighter"
+            style={{ color: accentFg }}
+            numberOfLines={1}
+          >
+            {isEdit ? "Edit Category" : "New Category"}
+          </Text>
+          <View className="h-11 w-11" />
+        </View>
       </View>
 
       {!networkOnline ? (
@@ -361,8 +357,8 @@ export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProp
             emptyOptionsLabel="Create category"
           />
 
-          <View className="gap-1">
-            <Text className="text-[14px] font-medium text-foreground">Name *</Text>
+          <View className="gap-1.5">
+            <Text className="text-[15px] font-bold text-foreground ml-1">Name *</Text>
             <TextField className="gap-0">
               <Input
                 value={name}
@@ -373,51 +369,31 @@ export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProp
               />
             </TextField>
             {nameError ? (
-              <Text className="text-[13px] text-danger">{nameError}</Text>
-            ) : null}
-          </View>
-
-          <View className="gap-1">
-            <Text className="text-[14px] font-medium text-foreground">Sort order</Text>
-            <TextField className="gap-0">
-              <Input
-                value={sortStr}
-                onChangeText={setSortStr}
-                placeholder="0"
-                keyboardType="number-pad"
-                variant="secondary"
-                className={INPUT_ROW_CLASS}
-              />
-            </TextField>
-            <Text className="text-[12px] text-muted">
-              Lower numbers appear first in lists.
-            </Text>
-            {sortError ? (
-              <Text className="text-[13px] text-danger">{sortError}</Text>
+              <Text className="text-[13px] font-medium text-danger ml-1">{nameError}</Text>
             ) : null}
           </View>
         </FormSectionCard>
       </ScrollView>
 
       <View
-        className="absolute bottom-0 left-0 right-0 border-t border-border bg-background px-4 pt-3"
-        style={{ paddingBottom: Math.max(insets.bottom, 12) }}
+        className="absolute bottom-0 left-0 right-0 border-t border-border/40 bg-background px-4 pt-4"
+        style={{ paddingBottom: Math.max(insets.bottom, 16) }}
       >
         {isEdit ? (
           <Button
             variant="secondary"
-            className="mb-2 border-danger/40"
+            className="mb-3 border-danger/20 bg-danger/10"
             onPress={onDelete}
             isDisabled={saving}
           >
-            <Button.Label style={{ color: danger }} className="font-semibold">
+            <Button.Label style={{ color: danger }} className="font-bold text-[16px]">
               Delete category
             </Button.Label>
           </Button>
         ) : null}
-        <Button className="w-full" onPress={onSave} isDisabled={saving}>
-          <Button.Label className="font-semibold text-accent-foreground">
-            {saving ? "Saving…" : "Save"}
+        <Button className="w-full h-[56px] rounded-full" onPress={onSave} isDisabled={saving}>
+          <Button.Label className="font-black text-[17px] tracking-tight text-accent-foreground">
+            {saving ? "Saving…" : "Save Category"}
           </Button.Label>
         </Button>
       </View>

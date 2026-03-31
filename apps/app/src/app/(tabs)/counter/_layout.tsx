@@ -1,7 +1,7 @@
 import { Stack } from "expo-router";
 import React from "react";
 
-import { CounterCheckoutProvider } from "@/app/(tabs)/counter/counter-checkout-context";
+import { CounterCheckoutProvider } from "@/app/(tabs)/counter/_counter-checkout-context";
 
 export default function CounterStackLayout() {
   return (

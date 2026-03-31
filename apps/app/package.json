@@ -12,7 +12,8 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "reset-project": "node ./scripts/reset-project.js"
+    "reset-project": "node ./scripts/reset-project.js",
+    "generate:assets": "node ./scripts/generate-app-assets.mjs"
   },
   "dependencies": {
     "@better-auth-extended/onboarding": "^0.1.1",
@@ -76,9 +77,10 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
-    "typescript": "~5.9.2",
     "eslint": "^9.25.0",
-    "eslint-config-expo": "~10.0.0"
+    "eslint-config-expo": "~10.0.0",
+    "sharp": "^0.34.5",
+    "typescript": "~5.9.2"
   },
   "private": true
 }

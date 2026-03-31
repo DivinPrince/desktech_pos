@@ -82,6 +82,39 @@ function applyStockAdjustDraft(draft: ProductRow, body: StockAdjustBody): void {
   draft.updatedAt = new Date();
 }
 
+/** Undo local stock + pending sale rows after an online checkout API failure. */
+function rollbackCounterCheckoutOptimism(args: {
+  catalogReg: ReturnType<typeof getCatalogCollectionRegistry>;
+  salesReg: ReturnType<typeof getSalesCollectionRegistry>;
+  queryClient: QueryClient;
+  businessId: string;
+  pendingSaleId: string;
+  stockBodies: StockAdjustBody[];
+}): void {
+  const { catalogReg, salesReg, queryClient, businessId, pendingSaleId, stockBodies } = args;
+  for (const body of stockBodies) {
+    const revert: StockAdjustBody = {
+      ...body,
+      quantityDelta: -body.quantityDelta,
+    };
+    catalogReg.mirrorProductUpdate(queryClient, businessId, revert.productId, (d) =>
+      applyStockAdjustDraft(d, revert),
+    );
+    try {
+      const coll = catalogReg.ensureProduct(queryClient, businessId, revert.productId);
+      coll.update(revert.productId, (d) => applyStockAdjustDraft(d, revert));
+    } catch {
+      /* row missing in detail slice */
+    }
+  }
+  salesReg.mirrorSaleDeleteFromMatchingLists(queryClient, businessId, pendingSaleId);
+  try {
+    salesReg.ensureSale(queryClient, businessId, pendingSaleId).delete(pendingSaleId);
+  } catch {
+    /* */
+  }
+}
+
 export function useSalesRangeQuery(
   businessId: string | undefined,
   enabled: boolean,
@@ -307,7 +340,6 @@ export function useCompleteCounterSaleMutation(businessId: string | undefined) {
 
       const idempotencyKey = randomIdempotencyKey();
       const pendingSaleId = `pending:${idempotencyKey}`;
-      const completedAtIso = completedAt.toISOString();
       const optimisticRow = buildOptimisticCounterSaleRow({
         businessId,
         pendingSaleId,
@@ -320,33 +352,41 @@ export function useCompleteCounterSaleMutation(businessId: string | undefined) {
       applyStock();
       salesReg.mirrorSaleInsertIntoMatchingLists(queryClient, businessId, optimisticRow);
 
-      void (async () => {
-        try {
-          const replayParams = {
-            idempotencyKey,
-            transaction: { metadata: { businessId, body: bodyPayload } },
-          } satisfies CatalogOfflineMutationParams;
-          const result = await catalogCompleteCounterSaleMutationFn(
-            replayParams as unknown as Parameters<typeof catalogCompleteCounterSaleMutationFn>[0],
+      try {
+        const replayParams = {
+          idempotencyKey,
+          transaction: { metadata: { businessId, body: bodyPayload } },
+        } satisfies CatalogOfflineMutationParams;
+        const result = await catalogCompleteCounterSaleMutationFn(
+          replayParams as unknown as Parameters<typeof catalogCompleteCounterSaleMutationFn>[0],
+        );
+        await finishReplay(pendingSaleId, result);
+        const sale = result.sale;
+        const doneAt = sale.completedAt ?? completedAt;
+        return {
+          saleId: sale.id,
+          totalCents: sale.totalCents,
+          completedAtIso: doneAt.toISOString(),
+        };
+      } catch (e) {
+        rollbackCounterCheckoutOptimism({
+          catalogReg,
+          salesReg,
+          queryClient,
+          businessId,
+          pendingSaleId,
+          stockBodies,
+        });
+        invalidateCatalog();
+        invalidateSalesQueries(queryClient, businessId);
+        if (__DEV__) {
+          console.warn(
+            "[desktech] catalogCompleteCounterSale failed (createDraft / setLines / completeSale)",
+            e,
           );
-          await finishReplay(pendingSaleId, result);
-        } catch (e) {
-          if (__DEV__) {
-            console.warn(
-              "[desktech] catalogCompleteCounterSale failed (createDraft / setLines / completeSale)",
-              e,
-            );
-          }
-          invalidateCatalog();
-          invalidateSalesQueries(queryClient, businessId);
         }
-      })();
-
-      return {
-        saleId: pendingSaleId,
-        totalCents: totalFromLines,
-        completedAtIso,
-      };
+        throw e;
+      }
     },
   });
 }

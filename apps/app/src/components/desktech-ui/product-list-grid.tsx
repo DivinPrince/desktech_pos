@@ -46,28 +46,33 @@ function ProductListGridRoot({ children, className = "" }: GridRootProps) {
 }
 
 /** Media band + body tuned for readable POS tiles (portrait, multi-column). */
-const MEDIA_BAND = "h-[92px] w-full items-center justify-center";
-const BODY_PAD = "gap-1 px-2.5 py-2";
-const TITLE_CARD = "text-[15px] font-semibold leading-snug";
+const MEDIA_BAND = "h-[100px] w-full items-center justify-center bg-surface";
+const BODY_PAD = "gap-1.5 px-3 py-3 bg-surface";
+const TITLE_CARD = "text-[14px] font-bold leading-tight text-foreground tracking-tight";
 /** Single line: avoids wrap jitter that made cards uneven height. */
 const PRICE_ROW =
-  "text-[14px] font-semibold tabular-nums leading-[18px] text-foreground";
-const META_LINE = "text-[14px] font-medium leading-[18px] tabular-nums";
+  "text-[13px] font-black tabular-nums leading-[18px] text-muted tracking-tight";
 /** Solid product image placeholder (no icon). */
 const PLACEHOLDER_CIRCLE =
-  "h-[58px] w-[58px] shrink-0 rounded-full";
+  "h-[64px] w-[64px] shrink-0 rounded-full items-center justify-center";
 
 /** Slightly stronger than hairline; `shadow-none` overrides HeroUI Surface default shadow. */
-const CARD_OUTLINE_SOLID = "border border-border/75 shadow-none";
-const CARD_OUTLINE_DASHED = "border border-dashed border-border/75 shadow-none";
+const CARD_OUTLINE_SOLID = "border border-border/40 shadow-none";
+const CARD_OUTLINE_DASHED = "border border-dashed border-border/40 shadow-none bg-surface/50";
 
 type ProductCardProps = {
   title: string;
   price: string;
   onPress?: () => void;
   onLongPress?: () => void;
-  /** When &gt; 0, shows an `Nx` pill on the tile (e.g. counter quantity). */
+  /** When > 0, shows an `Nx` pill on the tile (e.g. counter quantity). */
   quantityLabel?: number;
+  /** Optional line under price (e.g. stock). */
+  footerHint?: string;
+  /** When true, `footerHint` uses the danger theme color. */
+  footerHintCritical?: boolean;
+  /** When true, fades the card and overlays an "Out of stock" badge. */
+  isOutOfStock?: boolean;
   /** HeroUI `Card` / `Surface` variant */
   variant?: SurfaceVariant;
   /** Classes on the root `Card` (layout, border, radius). */
@@ -80,10 +85,14 @@ function ProductCard({
   onPress,
   onLongPress,
   quantityLabel = 0,
+  footerHint,
+  footerHintCritical = false,
+  isOutOfStock = false,
   variant = "default",
   className = "",
 }: ProductCardProps) {
   const danger = useThemeColor("danger");
+  const muted = useThemeColor("muted");
   const accent = useThemeColor("accent");
   const accentFg = useThemeColor("accent-foreground");
 
@@ -112,14 +121,27 @@ function ProductCard({
   const card = (
     <Card
       variant={variant}
-      className={`overflow-hidden rounded-2xl p-0 ${CARD_OUTLINE_SOLID} ${className}`}
+      className={`overflow-hidden rounded-[24px] p-0 ${CARD_OUTLINE_SOLID} ${className} ${isOutOfStock ? "opacity-60" : ""}`}
     >
       <Card.Header className="p-0">
         <View className={MEDIA_BAND}>
           <View
             className={PLACEHOLDER_CIRCLE}
-            style={{ backgroundColor: danger }}
-          />
+            style={{ backgroundColor: `${accent}15` }}
+          >
+            <Text className="text-[24px] font-black" style={{ color: accent }}>
+              {title.charAt(0).toUpperCase()}
+            </Text>
+          </View>
+          {isOutOfStock && (
+            <View className="absolute inset-0 items-center justify-center bg-background/50">
+              <View className="rounded-md bg-danger px-2 py-1 shadow-sm">
+                <Text className="text-[10px] font-black uppercase tracking-widest text-danger-foreground">
+                  Out of stock
+                </Text>
+              </View>
+            </View>
+          )}
         </View>
       </Card.Header>
       <Card.Body className={BODY_PAD}>
@@ -133,6 +155,15 @@ function ProductCard({
         >
           {price}
         </Card.Description>
+        {footerHint && !isOutOfStock ? (
+          <Text
+            className="mt-0.5 text-[11px] font-bold uppercase tracking-wide"
+            style={{ color: footerHintCritical ? danger : muted }}
+            numberOfLines={1}
+          >
+            {footerHint}
+          </Text>
+        ) : null}
       </Card.Body>
     </Card>
   );
@@ -192,14 +223,16 @@ function OtherCard({
   const card = (
     <Card
       variant={variant}
-      className={`overflow-hidden rounded-2xl p-0 ${CARD_OUTLINE_DASHED} ${className}`}
+      className={`overflow-hidden rounded-[24px] p-0 ${CARD_OUTLINE_DASHED} ${className}`}
     >
       <Card.Header className="p-0">
         <View className={MEDIA_BAND}>
           <View
             className={PLACEHOLDER_CIRCLE}
-            style={{ backgroundColor: danger }}
-          />
+            style={{ backgroundColor: `${danger}15` }}
+          >
+            <Ionicons name="apps" size={24} color={danger} />
+          </View>
         </View>
       </Card.Header>
       <Card.Body className={BODY_PAD}>
@@ -210,7 +243,7 @@ function OtherCard({
           {label}
         </Card.Title>
         <Card.Description
-          className={`text-center ${META_LINE} opacity-0`}
+          className={`text-center ${PRICE_ROW} opacity-0`}
           numberOfLines={1}
         >
           {"\u00a0"}
@@ -257,11 +290,16 @@ function AddItemCard({
   const card = (
     <Card
       variant={variant}
-      className={`overflow-hidden rounded-2xl p-0 ${CARD_OUTLINE_DASHED} ${className}`}
+      className={`overflow-hidden rounded-[24px] p-0 ${CARD_OUTLINE_DASHED} ${className}`}
     >
       <Card.Header className={`p-0 ${fill}`}>
         <View className={`${MEDIA_BAND} ${fill}`}>
-          <Ionicons name="add" size={28} color={accent} />
+          <View
+            className={PLACEHOLDER_CIRCLE}
+            style={{ backgroundColor: `${accent}15` }}
+          >
+            <Ionicons name="add" size={28} color={accent} />
+          </View>
         </View>
       </Card.Header>
       <Card.Body className={`${BODY_PAD} ${fill}`}>
@@ -272,7 +310,7 @@ function AddItemCard({
           {label}
         </Card.Title>
         <Card.Description
-          className={`text-center ${META_LINE} opacity-0 ${fill}`}
+          className={`text-center ${PRICE_ROW} opacity-0 ${fill}`}
           numberOfLines={1}
         >
           {"\u00a0"}

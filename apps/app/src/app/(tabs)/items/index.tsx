@@ -4,6 +4,7 @@ import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useThemeColor } from "heroui-native/hooks";
+import { useToast } from "heroui-native/toast";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Modal,
@@ -20,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BrandedLoading, KeyboardAvoidingScaffold } from "@/components/desktech-ui";
 import { NavigationMenuTrigger } from "@/components/navigation/navigation-shell";
 import { ProductListGrid } from "@/components/desktech-ui/product-list-grid";
+import type { CartLine } from "@/lib/counter-cart/counter-cart";
 import { useCounterCart } from "@/lib/counter-cart/counter-cart";
 import { resolveActiveBusiness, useAuthSessionState } from "@/lib/auth-session";
 import { productMatchesListFilters } from "@/lib/data/catalog/collections";
@@ -49,17 +51,54 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    minHeight: 46,
-    borderRadius: 23,
-    paddingHorizontal: 12,
+    minHeight: 52,
+    borderRadius: 26,
+    paddingHorizontal: 16,
   },
 });
 
 const SEARCH_DEBOUNCE_MS = 300;
 
+function lineQuantity(
+  lines: CartLine[],
+  productId: string,
+  productVariantId?: string,
+): number {
+  const hit = lines.find(
+    (l) =>
+      l.productId === productId &&
+      (l.productVariantId ?? "") === (productVariantId ?? ""),
+  );
+  return hit?.quantity ?? 0;
+}
+
+function activeVariantsStockTotal(p: ProductRow): number {
+  return p.variants.filter((v) => v.active).reduce((s, v) => s + v.quantityOnHand, 0);
+}
+
+function productGridStockHint(
+  p: ProductRow,
+): { footerHint?: string; footerHintCritical?: boolean; isOutOfStock?: boolean } {
+  if (!p.trackStock) return {};
+  if (p.variants.length > 0) {
+    if (activeVariantsStockTotal(p) <= 0) {
+      return { isOutOfStock: true };
+    }
+    return {};
+  }
+  if (p.quantityOnHand <= 0) {
+    return { isOutOfStock: true };
+  }
+  if (p.quantityOnHand <= 3) {
+    return { footerHint: `${p.quantityOnHand} left` };
+  }
+  return {};
+}
+
 /** Uses the active business from session, falling back to cached businesses offline. */
 export default function ItemsTab() {
   const router = useRouter();
+  const { toast } = useToast();
   const insets = useSafeAreaInsets();
   const muted = useThemeColor("muted");
   const accent = useThemeColor("accent");
@@ -137,41 +176,24 @@ export default function ItemsTab() {
 
   return (
     <View style={styles.root} className="bg-background">
-      <StatusBar style="inverted" />
+      <StatusBar style="light" />
       <KeyboardAvoidingScaffold>
         <View
           style={{
             backgroundColor: accent,
             paddingTop: Math.max(insets.top, 12),
-            paddingBottom: 14,
+            paddingBottom: 24,
             paddingHorizontal: 16,
+            borderBottomLeftRadius: 32,
+            borderBottomRightRadius: 32,
           }}
         >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-            <NavigationMenuTrigger iconColor={accentFg} />
-            <View
-              style={[
-                styles.searchShell,
-                { backgroundColor: "rgba(255,255,255,0.22)" },
-              ]}
-            >
-              <Ionicons name="search-outline" size={20} color={accentFg} />
-              <TextInput
-                value={searchInput}
-                onChangeText={setSearchInput}
-                placeholder="Search items…"
-                placeholderTextColor="rgba(255,255,255,0.65)"
-                style={{
-                  flex: 1,
-                  marginLeft: 8,
-                  color: accentFg,
-                  fontSize: 15,
-                  paddingVertical: 10,
-                }}
-                returnKeyType="search"
-                autoCorrect={false}
-                autoCapitalize="none"
-              />
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 20, marginTop: 8 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+              <NavigationMenuTrigger iconColor={accentFg} />
+              <Text className="text-[28px] font-black tracking-tighter" style={{ color: accentFg }}>
+                Catalog
+              </Text>
             </View>
             <Pressable
               accessibilityRole="button"
@@ -179,17 +201,44 @@ export default function ItemsTab() {
               hitSlop={8}
               onPress={() => {}}
               style={({ pressed }) => ({
-                height: 46,
-                width: 46,
-                borderRadius: 14,
+                height: 44,
+                width: 44,
+                borderRadius: 22,
                 alignItems: "center",
                 justifyContent: "center",
-                backgroundColor: "rgba(255,255,255,0.22)",
+                backgroundColor: "rgba(255,255,255,0.2)",
                 opacity: pressed ? 0.85 : 1,
               })}
             >
-              <Ionicons name="barcode-outline" size={26} color={accentFg} />
+              <Ionicons name="barcode-outline" size={22} color={accentFg} />
             </Pressable>
+          </View>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            <View
+              style={[
+                styles.searchShell,
+                { backgroundColor: "rgba(255,255,255,0.2)" },
+              ]}
+            >
+              <Ionicons name="search" size={22} color={accentFg} style={{ opacity: 0.8 }} />
+              <TextInput
+                value={searchInput}
+                onChangeText={setSearchInput}
+                placeholder="Search items…"
+                placeholderTextColor="rgba(255,255,255,0.6)"
+                style={{
+                  flex: 1,
+                  marginLeft: 10,
+                  color: accentFg,
+                  fontSize: 16,
+                  fontWeight: "600",
+                  paddingVertical: 12,
+                }}
+                returnKeyType="search"
+                autoCorrect={false}
+                autoCapitalize="none"
+              />
+            </View>
           </View>
         </View>
 
@@ -257,22 +306,42 @@ export default function ItemsTab() {
             <ProductListGrid>
               {filteredProducts.map((p) => {
                 const qty = getQuantity(p.id);
+                const stockHintProps = productGridStockHint(p);
                 return (
                   <ProductListGrid.ProductCard
                     key={p.id}
                     title={p.active ? p.name : `${p.name} · Inactive`}
                     price={formatMinorUnitsToCurrency(p.priceCents, currency)}
                     quantityLabel={qty}
+                    {...stockHintProps}
                     onPress={
                       p.active
                         ? () => {
-                            void Haptics.impactAsync(
-                              Haptics.ImpactFeedbackStyle.Light,
-                            );
                             if (p.variants.length > 0) {
+                              void Haptics.impactAsync(
+                                Haptics.ImpactFeedbackStyle.Light,
+                              );
                               setVariantPickerProduct(p);
                               return;
                             }
+                            const inCart = lineQuantity(lines, p.id);
+                            if (p.trackStock && inCart >= p.quantityOnHand) {
+                              void Haptics.notificationAsync(
+                                Haptics.NotificationFeedbackType.Error,
+                              );
+                              toast.show({
+                                variant: "danger",
+                                label: "Out of stock",
+                                description:
+                                  p.quantityOnHand <= 0
+                                    ? `${p.name} has no units available.`
+                                    : `All ${p.quantityOnHand} units of ${p.name} are already on the counter.`,
+                              });
+                              return;
+                            }
+                            void Haptics.impactAsync(
+                              Haptics.ImpactFeedbackStyle.Light,
+                            );
                             addProduct({
                               productId: p.id,
                               name: p.name,
@@ -366,29 +435,66 @@ export default function ItemsTab() {
                   No active variants. Turn on or add options in Inventory.
                 </Text>
               ) : (
-                variantPickerOptions.map((v) => (
-                  <Pressable
-                    key={v.id}
-                    accessibilityRole="button"
-                    onPress={() => {
-                      const parent = variantPickerProduct;
-                      if (!parent) return;
-                      addProduct({
-                        productId: parent.id,
-                        name: `${parent.name} · ${v.name}`,
-                        priceCents: v.priceCents,
-                        productVariantId: v.id,
-                      });
-                      setVariantPickerProduct(null);
-                    }}
-                    className="mb-2 rounded-xl border border-border/75 bg-surface px-4 py-3.5 active:opacity-80"
-                  >
-                    <Text className="text-[15px] font-medium text-foreground">{v.name}</Text>
-                    <Text className="mt-0.5 text-[13px] tabular-nums text-muted">
-                      {formatMinorUnitsToCurrency(v.priceCents, currency)}
-                    </Text>
-                  </Pressable>
-                ))
+                variantPickerOptions.map((v) => {
+                  const parent = variantPickerProduct;
+                  const variantOos = Boolean(
+                    parent?.trackStock && v.quantityOnHand <= 0,
+                  );
+                  return (
+                    <Pressable
+                      key={v.id}
+                      accessibilityRole="button"
+                      onPress={() => {
+                        const par = variantPickerProduct;
+                        if (!par) return;
+                        const inCart = lineQuantity(lines, par.id, v.id);
+                        if (par.trackStock && inCart >= v.quantityOnHand) {
+                          void Haptics.notificationAsync(
+                            Haptics.NotificationFeedbackType.Error,
+                          );
+                          toast.show({
+                            variant: "danger",
+                            label: "Out of stock",
+                            description:
+                              v.quantityOnHand <= 0
+                                ? `${par.name} · ${v.name} has no units available.`
+                                : `All ${v.quantityOnHand} units of ${v.name} are already on the counter.`,
+                          });
+                          return;
+                        }
+                        void Haptics.impactAsync(
+                          Haptics.ImpactFeedbackStyle.Light,
+                        );
+                        addProduct({
+                          productId: par.id,
+                          name: `${par.name} · ${v.name}`,
+                          priceCents: v.priceCents,
+                          productVariantId: v.id,
+                        });
+                        setVariantPickerProduct(null);
+                      }}
+                      className={`mb-2 rounded-xl border border-border/75 bg-surface px-4 py-3.5 active:opacity-80 ${
+                        variantOos ? "opacity-55" : ""
+                      }`}
+                    >
+                      <Text className="text-[15px] font-medium text-foreground">{v.name}</Text>
+                      <Text className="mt-0.5 text-[13px] tabular-nums text-muted">
+                        {formatMinorUnitsToCurrency(v.priceCents, currency)}
+                      </Text>
+                      {parent?.trackStock ? (
+                        <Text
+                          className={`mt-1 text-[12px] font-semibold ${
+                            v.quantityOnHand <= 0 ? "text-danger" : "text-muted"
+                          }`}
+                        >
+                          {v.quantityOnHand <= 0
+                            ? "Out of stock"
+                            : `${v.quantityOnHand} available`}
+                        </Text>
+                      ) : null}
+                    </Pressable>
+                  );
+                })
               )}
             </ScrollView>
             <Pressable

@@ -11,7 +11,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { AnimatedSuccessCheck } from "@/components/counter/animated-success-check";
 import { RichReceipt } from "@/components/receipt/rich-receipt";
 import { ReceiptActionButtons } from "@/components/receipt/receipt-action-buttons";
-import { useCounterCheckout } from "@/app/(tabs)/counter/counter-checkout-context";
+import { useCounterCheckout } from "@/app/(tabs)/counter/_counter-checkout-context";
 import { formatMinorUnitsToCurrency } from "@/lib/format-money";
 
 const styles = StyleSheet.create({
@@ -53,39 +53,39 @@ export default function PaymentSuccessScreen() {
           contentContainerStyle={{
             flexGrow: 1,
             flexDirection: "column",
-            paddingHorizontal: 16,
-            paddingTop: 32,
-            paddingBottom: 40,
+            paddingHorizontal: 20,
+            paddingTop: 48,
+            paddingBottom: 48,
           }}
           keyboardShouldPersistTaps="handled"
         >
-          <View className="items-center">
+          <View className="items-center mb-6">
             <Reanimated.View
               entering={ZoomIn.springify().damping(16).stiffness(220)}
-              className="mb-5 h-[100px] w-[100px] items-center justify-center rounded-full bg-accent/18"
+              className="mb-6 h-[112px] w-[112px] items-center justify-center rounded-full bg-accent/20"
             >
-              <AnimatedSuccessCheck color={accent} size={72} />
+              <AnimatedSuccessCheck color={accent} size={80} />
             </Reanimated.View>
             <Reanimated.View entering={FadeInDown.duration(320).delay(280)}>
-              <Text className="text-center text-[22px] font-bold text-foreground">
-                Payment received
+              <Text className="text-center text-[24px] font-black tracking-tight text-foreground">
+                Payment Received
               </Text>
             </Reanimated.View>
             <Reanimated.View entering={FadeIn.duration(280).delay(360)}>
-              <Text className="mt-2 text-center text-[28px] font-bold tabular-nums text-foreground">
+              <Text className="mt-1 text-center text-[40px] font-black tabular-nums tracking-tighter text-foreground">
                 {formatMinorUnitsToCurrency(totalCents, currency)}
               </Text>
             </Reanimated.View>
           </View>
 
-          <View style={{ flex: 1, minHeight: 1, marginTop: 24 }}>
+          <View style={{ flex: 1, minHeight: 1, marginTop: 16 }}>
             <RichReceipt receipt={lastCompleted} expandVertically />
           </View>
 
-          <View className="mt-8 gap-3">
+          <View className="mt-10 gap-4">
             <ReceiptActionButtons receipt={lastCompleted} />
-            <Button variant="secondary" className="rounded-2xl" onPress={onBackToItems}>
-              <Button.Label className="font-semibold">Back to items</Button.Label>
+            <Button variant="secondary" className="min-h-[56px] rounded-[24px]" onPress={onBackToItems}>
+              <Button.Label className="font-bold text-[16px]">Back to items</Button.Label>
             </Button>
           </View>
         </ScrollView>

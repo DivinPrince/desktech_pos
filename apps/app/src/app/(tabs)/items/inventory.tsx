@@ -37,9 +37,9 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    minHeight: 44,
-    borderRadius: 14,
-    paddingHorizontal: 12,
+    minHeight: 52,
+    borderRadius: 26,
+    paddingHorizontal: 16,
   },
 });
 
@@ -143,36 +143,32 @@ export default function InventoryScreen() {
       <View
         style={{
           backgroundColor: accent,
-          paddingTop: Math.max(insets.top, 8),
-          paddingBottom: 16,
+          paddingTop: Math.max(insets.top, 12),
+          paddingBottom: 24,
           paddingHorizontal: 16,
+          borderBottomLeftRadius: 32,
+          borderBottomRightRadius: 32,
         }}
       >
-        <View className="flex-row items-center justify-between gap-2 py-1">
+        <View className="flex-row items-center justify-between gap-2 py-1 mb-2 mt-2">
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Go back"
             hitSlop={10}
             onPress={() => router.back()}
-            className="h-10 w-10 items-center justify-center rounded-full active:bg-white/15"
+            className="h-11 w-11 items-center justify-center rounded-full bg-white/20 active:bg-white/30"
           >
-            <Ionicons name="chevron-back" size={26} color={accentFg} />
+            <Ionicons name="chevron-back" size={24} color={accentFg} />
           </Pressable>
           <Text
-            className="min-w-0 flex-1 text-center text-[18px] font-semibold"
+            className="min-w-0 flex-1 text-center text-[24px] font-black tracking-tighter"
             style={{ color: accentFg }}
             numberOfLines={1}
           >
             Inventory
           </Text>
-          <View className="h-10 w-10" />
+          <View className="h-11 w-11" />
         </View>
-        <Text
-          style={{ color: accentFg, opacity: 0.9 }}
-          className="mt-1 text-center text-[14px] leading-5"
-        >
-          Manage products and categories
-        </Text>
       </View>
 
       <KeyboardAvoidingScaffold>
@@ -188,12 +184,12 @@ export default function InventoryScreen() {
           />
         </View>
 
-        <View className="flex-row items-center gap-2 px-4 pb-3">
+        <View className="flex-row items-center gap-3 px-4 pb-4">
           <View
             style={[styles.searchShell, { backgroundColor: "rgba(0,0,0,0.06)" }]}
             className="flex-1"
           >
-            <Ionicons name="search-outline" size={20} color={muted} />
+            <Ionicons name="search" size={22} color={muted} />
             <TextInput
               value={searchInput}
               onChangeText={setSearchInput}
@@ -203,10 +199,11 @@ export default function InventoryScreen() {
               placeholderTextColor={muted}
               style={{
                 flex: 1,
-                marginLeft: 8,
+                marginLeft: 10,
                 color: fg,
-                fontSize: 15,
-                paddingVertical: 10,
+                fontSize: 16,
+                fontWeight: "600",
+                paddingVertical: 12,
               }}
               returnKeyType="search"
               autoCorrect={false}
@@ -227,9 +224,9 @@ export default function InventoryScreen() {
               }
             }}
             style={({ pressed }) => ({
-              height: 44,
-              width: 44,
-              borderRadius: 14,
+              height: 52,
+              width: 52,
+              borderRadius: 26,
               alignItems: "center",
               justifyContent: "center",
               backgroundColor: accent,
@@ -287,41 +284,40 @@ export default function InventoryScreen() {
                       params: { id: p.id },
                     })
                   }
-                  className="mb-2 flex-row items-center rounded-2xl border border-border/80 bg-surface px-4 py-3.5 active:bg-accent/10"
+                  className="mb-3 flex-row items-center rounded-[24px] bg-surface px-5 py-4 active:bg-accent/10"
                 >
+                  <View className="mr-4 h-12 w-12 items-center justify-center rounded-full" style={{ backgroundColor: `${accent}15` }}>
+                    <Text className="text-[20px] font-black" style={{ color: accent }}>
+                      {p.name.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
                   <View className="min-w-0 flex-1">
                     <Text
-                      className="text-[16px] font-semibold text-foreground"
+                      className="text-[16px] font-bold text-foreground tracking-tight"
                       numberOfLines={1}
                     >
                       {p.name}
                     </Text>
                     {p.sku ? (
-                      <Text className="mt-0.5 text-[13px] text-muted" numberOfLines={1}>
+                      <Text className="mt-0.5 text-[13px] font-medium text-muted" numberOfLines={1}>
                         SKU {p.sku}
                       </Text>
                     ) : null}
                   </View>
-                  <View className="items-end gap-1 pl-2">
-                    <Text className="text-[15px] font-semibold tabular-nums text-foreground">
+                  <View className="items-end gap-1.5 pl-2">
+                    <Text className="text-[16px] font-black tabular-nums tracking-tight text-foreground">
                       {formatMinorUnitsToCurrency(p.priceCents, currency)}
                     </Text>
                     <View
-                      className={`rounded-full px-2 py-0.5 ${p.active ? "bg-success/15" : "bg-muted/25"}`}
+                      className={`rounded-full px-2.5 py-0.5 ${p.active ? "bg-success/15" : "bg-muted/20"}`}
                     >
                       <Text
-                        className={`text-[11px] font-semibold uppercase ${p.active ? "text-success" : "text-muted"}`}
+                        className={`text-[11px] font-bold uppercase tracking-wider ${p.active ? "text-success" : "text-muted"}`}
                       >
                         {p.active ? "Active" : "Inactive"}
                       </Text>
                     </View>
                   </View>
-                  <Ionicons
-                    name="chevron-forward"
-                    size={20}
-                    color={muted}
-                    style={{ marginLeft: 4 }}
-                  />
                 </Pressable>
               )}
               ListEmptyComponent={
@@ -365,19 +361,23 @@ export default function InventoryScreen() {
                       params: { id: c.id },
                     })
                   }
-                  className="mb-2 flex-row items-center rounded-2xl border border-border/80 bg-surface px-4 py-3.5 active:bg-accent/10"
+                  className="mb-3 flex-row items-center rounded-[24px] bg-surface px-5 py-4 active:bg-accent/10"
                 >
+                  <View className="mr-4 h-12 w-12 items-center justify-center rounded-full" style={{ backgroundColor: `${accent}15` }}>
+                    <Ionicons name="folder" size={22} color={accent} />
+                  </View>
                   <View className="min-w-0 flex-1">
                     <Text
-                      className="text-[16px] font-semibold text-foreground"
+                      className="text-[16px] font-bold text-foreground tracking-tight"
                       numberOfLines={1}
                     >
                       {c.name}
                     </Text>
-                    <Text className="mt-0.5 text-[13px] text-muted">
-                      Sort order {c.sortOrder}
-                      {c.parentId ? " · Subcategory" : ""}
-                    </Text>
+                    {c.parentId ? (
+                      <Text className="mt-0.5 text-[13px] font-medium text-muted">
+                        Subcategory
+                      </Text>
+                    ) : null}
                   </View>
                   <Ionicons name="chevron-forward" size={20} color={muted} />
                 </Pressable>

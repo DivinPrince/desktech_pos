@@ -158,15 +158,15 @@ export function SearchablePickerSheet({
       }}
     >
       {variant === "form" ? (
-        <View className="gap-1">
-          <Text className="text-[14px] font-medium text-foreground">{fieldLabel}</Text>
+        <View className="gap-1.5">
+          <Text className="text-[15px] font-bold text-foreground ml-1">{fieldLabel}</Text>
           <Select.Trigger
             variant="unstyled"
-            className="flex-row items-center rounded-xl border-0 bg-transparent px-3 py-2.5 shadow-none active:opacity-80"
+            className="flex-row items-center rounded-[16px] border-0 bg-background/50 px-4 py-3.5 shadow-none active:opacity-80"
           >
             <Select.Value
               placeholder={placeholder}
-              className="min-w-0 flex-1 text-[15px] leading-5 text-field-foreground"
+              className="min-w-0 flex-1 text-[16px] font-medium leading-5 text-field-foreground"
             />
             <Select.TriggerIndicator />
           </Select.Trigger>

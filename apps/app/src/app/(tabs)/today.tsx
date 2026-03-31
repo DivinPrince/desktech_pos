@@ -5,7 +5,6 @@ import { useThemeColor } from "heroui-native/hooks";
 import React, { useCallback, useMemo, useState } from "react";
 import {
   FlatList,
-  Pressable,
   StyleSheet,
   Text,
   View,
@@ -15,19 +14,15 @@ import {
   SafeAreaView,
 } from "react-native-safe-area-context";
 
+import { CounterSaleCard } from "@/components/counter-sale-card";
 import { TabScreenHeader } from "@/components/desktech-ui/tab-screen-header";
 import { resolveActiveBusiness, useAuthSessionState } from "@/lib/auth-session";
-import { paymentDisplayForKey } from "@/lib/counter-checkout/payment-options";
-import { cartLineKey } from "@/lib/counter-cart/counter-cart";
 import type { CounterSaleRow } from "@/lib/data/sales/types";
 import {
-  getSaleReceiptExtrasSync,
   hydrateSaleReceiptExtras,
-  mergeReceiptExtras,
 } from "@/lib/data/sales/receipt-extras";
 import { useOfflineExecutor } from "@/lib/data/offline/offline-executor-provider";
 import { formatMinorUnitsToCurrency } from "@/lib/format-money";
-import { formatSaleCompletedAt } from "@/lib/format-sale-completed-at";
 import { fetchDeviceAppearsOnline } from "@/lib/network/fetch-device-online";
 import { useBusinessesQuery } from "@/lib/queries/business-catalog";
 import { useSalesTodayQuery } from "@/lib/queries/business-sales";
@@ -35,7 +30,7 @@ import { useSalesTodayQuery } from "@/lib/queries/business-sales";
 const styles = StyleSheet.create({
   root: { flex: 1 },
   list: { flex: 1 },
-  listContent: { paddingHorizontal: 16, paddingTop: 12 },
+  listContent: { paddingHorizontal: 0, paddingTop: 16 },
 });
 
 function firstNameFromDisplay(displayName: string): string {
@@ -43,43 +38,53 @@ function firstNameFromDisplay(displayName: string): string {
   return part && part.length > 0 ? part : displayName;
 }
 
-function customerHasDetails(r: CounterSaleRow["receipt"]): boolean {
-  const c = r.customer;
+function SectionHeader({
+  icon,
+  title,
+  mutedColor,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  mutedColor: string;
+}) {
   return (
-    c.name.trim().length > 0 ||
-    c.phone.trim().length > 0 ||
-    c.email.trim().length > 0 ||
-    c.address.trim().length > 0
+    <View className="mb-4 flex-row items-center gap-2 px-4">
+      <View className="h-8 w-8 items-center justify-center rounded-full bg-surface border border-border/40">
+        <Ionicons name={icon} size={16} color={mutedColor} />
+      </View>
+      <Text className="text-[18px] font-black tracking-tight text-foreground">{title}</Text>
+    </View>
   );
 }
 
 function EmptyHint({
   icon,
   title,
+  subtitle,
   accent,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   title: string;
+  subtitle: string;
   accent: string;
 }) {
   return (
-    <View className="mt-6 items-center px-1">
-      <View className="w-full min-h-[120] items-center justify-center rounded-2xl border border-border/75 bg-surface px-5 py-8">
-        <View className="mb-3 h-[52px] w-[52px] items-center justify-center rounded-full bg-accent/18">
-          <Ionicons name={icon} size={28} color={accent} />
-        </View>
-        <Text className="text-center text-[16px] font-semibold text-foreground">{title}</Text>
+    <View className="mx-4 mt-2 rounded-[32px] border border-border/70 bg-surface px-6 py-10 shadow-sm">
+      <View className="mb-4 h-14 w-14 items-center justify-center rounded-full bg-accent/18">
+        <Ionicons name={icon} size={30} color={accent} />
       </View>
+      <Text className="text-[20px] font-black tracking-tight text-foreground">{title}</Text>
+      <Text className="mt-2 text-[15px] leading-6 text-muted">
+        {subtitle}
+      </Text>
     </View>
   );
 }
 
-const SALE_CARD_CLASS =
-  "mb-2 overflow-hidden rounded-2xl border border-border/75 bg-surface";
-
 export default function TodayTab() {
   const muted = useThemeColor("muted");
   const accent = useThemeColor("accent");
+  const accentFg = useThemeColor("accent-foreground");
 
   const { session, user } = useAuthSessionState();
   const displayName =
@@ -97,6 +102,8 @@ export default function TodayTab() {
   );
   const businessId = currentBusiness?.id;
   const businessCurrency = currentBusiness?.currency ?? "USD";
+
+  const businessName = currentBusiness?.name?.trim() ?? "";
 
   const { data: rows, refetch } = useSalesTodayQuery(signedIn ? businessId : undefined, signedIn, {
     currency: businessCurrency,
@@ -155,156 +162,127 @@ export default function TodayTab() {
   );
 
   const renderItem: ListRenderItem<CounterSaleRow> = useCallback(
-    ({ item }) => {
-      const extras = getSaleReceiptExtrasSync(item.id);
-      const r = mergeReceiptExtras(item.receipt, extras);
-      const expanded = expandedIds.has(item.id);
-      const timeLabel = formatSaleCompletedAt(r.completedAtIso);
-      const paymentUi = paymentDisplayForKey(r.paymentMethodKey);
-
-      return (
-        <View className={SALE_CARD_CLASS}>
-          <Pressable
-            onPress={() => toggleExpanded(item.id)}
-            className="flex-row items-center gap-3.5 px-3.5 py-4 active:opacity-90"
-          >
-            <View className="h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-background/70">
-              <Ionicons name={paymentUi.icon} size={22} color={paymentUi.iconHex} />
-            </View>
-            <View className="min-w-0 flex-1 pr-1">
-              <Text className="text-[15px] font-semibold text-foreground" numberOfLines={1}>
-                {r.paymentMethodLabel}
-              </Text>
-              <Text className="mt-1 text-[12px] tabular-nums text-muted" numberOfLines={1}>
-                {timeLabel}
-              </Text>
-            </View>
-            <View className="flex-row items-center gap-1.5">
-              <Text className="text-[16px] font-semibold tabular-nums text-foreground">
-                {formatMinorUnitsToCurrency(r.totalCents, r.currency || businessCurrency)}
-              </Text>
-              <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={18} color={muted} />
-            </View>
-          </Pressable>
-          {expanded ? (
-            <View className="border-t border-border/75 px-3 pb-3.5 pt-3">
-              {r.lines.length === 0 ? (
-                <Text className="text-[13px] text-muted">No items</Text>
-              ) : (
-                <View className="gap-2.5">
-                  {r.lines.map((line, lineIdx) => (
-                    <View
-                      key={`${cartLineKey(line)}-${lineIdx}`}
-                      className="flex-row items-start justify-between gap-3"
-                    >
-                      <Text
-                        className="min-w-0 flex-1 text-[14px] leading-5 text-foreground"
-                        numberOfLines={3}
-                      >
-                        {line.name}
-                        <Text className="text-muted">
-                          {" "}
-                          ×{line.quantity}
-                        </Text>
-                      </Text>
-                      <Text className="pt-0.5 text-[14px] font-semibold tabular-nums text-foreground">
-                        {formatMinorUnitsToCurrency(
-                          line.priceCents * line.quantity,
-                          r.currency || businessCurrency,
-                        )}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-              {r.paymentNote.trim().length > 0 ? (
-                <Text className="mt-3 text-[13px] text-muted" numberOfLines={4}>
-                  {r.paymentNote}
-                </Text>
-              ) : null}
-              {customerHasDetails(r) ? (
-                <View className="mt-3 gap-1 border-t border-border/50 pt-3">
-                  <View className="flex-row items-center gap-1.5">
-                    <Ionicons name="person-outline" size={15} color={muted} />
-                    <Text className="text-[12px] font-semibold uppercase tracking-wide text-muted">
-                      Customer
-                    </Text>
-                  </View>
-                  {r.customer.name.trim().length > 0 ? (
-                    <Text className="text-[14px] font-medium text-foreground">{r.customer.name}</Text>
-                  ) : null}
-                  {r.customer.phone.trim().length > 0 ? (
-                    <Text className="text-[13px] text-muted">
-                      {r.customer.dialCode}
-                      {r.customer.phone}
-                    </Text>
-                  ) : null}
-                  {r.customer.email.trim().length > 0 ? (
-                    <Text className="text-[13px] text-muted" numberOfLines={2}>
-                      {r.customer.email}
-                    </Text>
-                  ) : null}
-                  {r.customer.address.trim().length > 0 ? (
-                    <Text className="text-[13px] text-muted" numberOfLines={3}>
-                      {r.customer.address}
-                    </Text>
-                  ) : null}
-                </View>
-              ) : null}
-            </View>
-          ) : null}
-        </View>
-      );
-    },
+    ({ item }) => (
+      <View className="px-4 mb-3">
+        <CounterSaleCard
+          item={item}
+          expanded={expandedIds.has(item.id)}
+          onToggle={() => toggleExpanded(item.id)}
+          businessCurrency={businessCurrency}
+          muted={muted}
+        />
+      </View>
+    ),
     [businessCurrency, expandedIds, muted, toggleExpanded],
   );
 
-  const headerSubtitle2 = useMemo(() => {
+  const headerSubtitle = useMemo(() => {
     if (!signedIn) return "Sign in to see today’s activity";
     if (businessesQuery.isError) return "Could not load workspace";
     if (!businessId) return "Finish setup to track sales";
-    if (listRows.length === 0) {
-      return `${dateLine} · ${shortName}`;
-    }
-    return `${listRows.length} ${listRows.length === 1 ? "sale" : "sales"} · ${formatMinorUnitsToCurrency(totals, businessCurrency)}`;
+    if (businessName.length > 0) return businessName;
+    return `Hi, ${shortName}`;
   }, [
-    businessCurrency,
     businessesQuery.isError,
-    dateLine,
     businessId,
-    listRows.length,
+    businessName,
     shortName,
     signedIn,
-    totals,
   ]);
+
+  const headerTertiary = useMemo(() => {
+    if (!signedIn || !businessId) return null;
+    return `${dateLine} · ${shortName}`;
+  }, [businessId, dateLine, shortName, signedIn]);
 
   const listHeader = useMemo(() => {
     if (!signedIn) {
-      return <EmptyHint icon="log-in-outline" title="Sign in to see today’s sales" accent={accent} />;
+      return (
+        <EmptyHint 
+          icon="log-in-outline" 
+          title="You’re signed out" 
+          subtitle="Sign in from the menu to see today’s sales and activity."
+          accent={accent} 
+        />
+      );
     }
     if (businessesQuery.isError) {
       return (
-        <EmptyHint icon="cloud-offline-outline" title="Couldn’t load your business" accent={accent} />
+        <EmptyHint 
+          icon="cloud-offline-outline" 
+          title="Couldn’t load workspace" 
+          subtitle="Check your connection and try again from the side menu."
+          accent={accent} 
+        />
       );
     }
     if (!businessId) {
-      return <EmptyHint icon="storefront-outline" title="Finish setup to track sales" accent={accent} />;
+      return (
+        <EmptyHint 
+          icon="storefront-outline" 
+          title="Finish setup" 
+          subtitle="Create or select a business to track your daily sales."
+          accent={accent} 
+        />
+      );
     }
-    if (listRows.length === 0) {
-      return <EmptyHint icon="cart-outline" title="No sales yet today" accent={accent} />;
-    }
-    return null;
-  }, [accent, businessId, businessesQuery.isError, listRows.length, signedIn]);
+
+    return (
+      <View className="mb-2">
+        {/* Hero Section */}
+        <View
+          className="mx-4 mb-8 overflow-hidden rounded-[36px] p-6 shadow-sm"
+          style={{ backgroundColor: accent }}
+        >
+          <View className="flex-row items-start justify-between">
+            <View>
+              <Text
+                style={{ color: accentFg, opacity: 0.8 }}
+                className="mb-1 text-[13px] font-bold uppercase tracking-widest"
+              >
+                Today&apos;s Revenue
+              </Text>
+              <Text
+                style={{ color: accentFg }}
+                className="text-[44px] font-black leading-[52px] tracking-tighter"
+              >
+                {formatMinorUnitsToCurrency(totals, businessCurrency)}
+              </Text>
+              <Text
+                style={{ color: accentFg, opacity: 0.9 }}
+                className="mt-1 text-[15px] font-semibold"
+              >
+                {listRows.length} {listRows.length === 1 ? "sale" : "sales"} today
+              </Text>
+            </View>
+            <View className="h-12 w-12 items-center justify-center rounded-full bg-white/20">
+              <Ionicons name="today" size={24} color={accentFg} />
+            </View>
+          </View>
+        </View>
+
+        {listRows.length === 0 ? (
+          <EmptyHint 
+            icon="cart-outline" 
+            title="No sales yet today" 
+            subtitle="Sales you complete at the counter will appear here."
+            accent={accent} 
+          />
+        ) : (
+          <SectionHeader icon="receipt" title="Recent Sales" mutedColor={muted} />
+        )}
+      </View>
+    );
+  }, [accent, accentFg, businessId, businessesQuery.isError, listRows.length, signedIn, totals, businessCurrency, muted]);
 
   return (
     <View style={styles.root} className="bg-background">
       <StatusBar style="inverted" />
       <TabScreenHeader
         title="Today"
-        subtitle={headerSubtitle2}
-        tertiaryText={
-          signedIn && businessId && listRows.length > 0 ? `${dateLine} · ${shortName}` : null
-        }
+        subtitle={headerSubtitle}
+        tertiaryText={headerTertiary}
+        subtitleNumberOfLines={2}
         tertiaryNumberOfLines={1}
       />
 

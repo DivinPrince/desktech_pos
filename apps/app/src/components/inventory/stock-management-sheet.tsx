@@ -11,7 +11,7 @@ import { KeyboardAvoidingScaffold } from "@/components/desktech-ui";
 import { useAdjustStockMutation, type StockAdjustBody } from "@/lib/queries/business-catalog";
 
 const INPUT_ROW_CLASS =
-  "border-0 border-transparent bg-transparent rounded-xl py-2.5 px-3 text-[15px] leading-5 shadow-none ios:shadow-none android:shadow-none focus:border-transparent text-field-foreground";
+  "border-0 border-transparent bg-background/50 rounded-[16px] py-3.5 px-4 text-[16px] font-medium leading-5 shadow-none ios:shadow-none android:shadow-none focus:border-transparent text-field-foreground";
 
 const RECORD_AS_OPTIONS: { apiType: StockAdjustBody["type"]; label: string }[] = [
   { apiType: "purchase", label: "Purchase" },
@@ -139,11 +139,11 @@ export function StockManagementSheet({
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <KeyboardAvoidingScaffold className="bg-black/45" style={{ justifyContent: "flex-end" }}>
         <Pressable className="flex-1" onPress={onClose} accessibilityLabel="Dismiss" />
-        <View className="max-h-[88%] rounded-t-3xl bg-background px-4 pb-6 pt-4">
-          <View className="mb-3 h-1 w-10 self-center rounded-full bg-muted" />
-          <Text className="text-[18px] font-semibold text-foreground">{title}</Text>
+        <View className="max-h-[88%] rounded-t-[32px] bg-background px-5 pb-8 pt-4">
+          <View className="mb-4 h-1.5 w-12 self-center rounded-full bg-muted/40" />
+          <Text className="text-[22px] font-black tracking-tight text-foreground">{title}</Text>
           {subtitle ? (
-            <Text className="mt-1 text-[14px] text-muted">{subtitle}</Text>
+            <Text className="mt-1 text-[15px] font-medium text-muted">{subtitle}</Text>
           ) : null}
 
           {!trackStock ? (
@@ -154,18 +154,18 @@ export function StockManagementSheet({
             <ScrollView
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
-              className="mt-2 max-h-[520px]"
+              className="mt-4 max-h-[520px]"
             >
-              <View className="mt-2 rounded-xl bg-surface-secondary/60 px-3 py-3">
-                <Text className="text-[12px] font-medium uppercase text-muted">
+              <View className="mb-4 rounded-[24px] bg-surface px-5 py-4 shadow-sm">
+                <Text className="text-[12px] font-bold uppercase tracking-widest text-muted">
                   Available to sell
                 </Text>
-                <Text className="mt-1 text-[24px] font-semibold tabular-nums text-foreground">
+                <Text className="mt-1 text-[32px] font-black tabular-nums tracking-tighter text-foreground">
                   {currentQuantity}
                 </Text>
               </View>
 
-              <Text className="mt-4 text-[14px] font-medium text-foreground">Type</Text>
+              <Text className="mt-2 text-[15px] font-bold text-foreground ml-1">Type</Text>
               <View className="mt-2 flex-row flex-wrap gap-2" accessibilityRole="tablist">
                 {RECORD_AS_OPTIONS.map((opt, idx) => {
                   const selected = recordKey === idx;
@@ -176,10 +176,10 @@ export function StockManagementSheet({
                       accessibilityRole="tab"
                       accessibilityState={{ selected }}
                       accessibilityLabel={opt.label}
-                      className={`rounded-full px-3.5 py-2.5 ${selected ? "bg-accent" : "bg-surface-secondary"}`}
+                      className={`rounded-full px-4 py-3 ${selected ? "bg-accent" : "bg-surface"}`}
                     >
                       <Text
-                        className={`text-[13px] font-semibold ${selected ? "text-accent-foreground" : "text-foreground"}`}
+                        className={`text-[14px] font-bold ${selected ? "text-accent-foreground" : "text-foreground"}`}
                       >
                         {opt.label}
                       </Text>
@@ -190,32 +190,32 @@ export function StockManagementSheet({
 
               {isCorrection ? (
                 <>
-                  <Text className="mt-4 text-[14px] font-medium text-foreground">Direction</Text>
-                  <View className="mt-2 overflow-hidden rounded-xl border border-border">
+                  <Text className="mt-5 text-[15px] font-bold text-foreground ml-1">Direction</Text>
+                  <View className="mt-2 overflow-hidden rounded-[20px] bg-surface">
                     <Pressable
                       onPress={() => setDirection("remove")}
                       accessibilityRole="radio"
                       accessibilityState={{ selected: direction === "remove" }}
-                      className={`flex-row items-center gap-3 px-3 py-3 ${direction === "remove" ? "bg-accent/10" : "bg-background"}`}
+                      className={`flex-row items-center gap-3 px-4 py-4 ${direction === "remove" ? "bg-accent/10" : ""}`}
                     >
                       <RadioOuter selected={direction === "remove"} />
-                      <Text className="text-[15px] font-semibold text-foreground">Decrease</Text>
+                      <Text className="text-[16px] font-bold text-foreground">Decrease</Text>
                     </Pressable>
                     <Pressable
                       onPress={() => setDirection("add")}
                       accessibilityRole="radio"
                       accessibilityState={{ selected: direction === "add" }}
-                      className={`flex-row items-center gap-3 border-t border-border px-3 py-3 ${direction === "add" ? "bg-accent/10" : "bg-background"}`}
+                      className={`flex-row items-center gap-3 border-t border-border/40 px-4 py-4 ${direction === "add" ? "bg-accent/10" : ""}`}
                     >
                       <RadioOuter selected={direction === "add"} />
-                      <Text className="text-[15px] font-semibold text-foreground">Increase</Text>
+                      <Text className="text-[16px] font-bold text-foreground">Increase</Text>
                     </Pressable>
                   </View>
                 </>
               ) : null}
 
-              <View className="mt-4 gap-1">
-                <Text className="text-[14px] font-medium text-foreground">Quantity</Text>
+              <View className="mt-5 gap-1.5">
+                <Text className="text-[15px] font-bold text-foreground ml-1">Quantity</Text>
                 <TextField className="gap-0">
                   <Input
                     value={amountStr}
@@ -228,8 +228,8 @@ export function StockManagementSheet({
                 </TextField>
               </View>
 
-              <View className="mt-3 gap-1">
-                <Text className="text-[14px] font-medium text-foreground">Note</Text>
+              <View className="mt-4 gap-1.5">
+                <Text className="text-[15px] font-bold text-foreground ml-1">Note</Text>
                 <TextField className="gap-0">
                   <Input
                     value={note}
@@ -241,14 +241,14 @@ export function StockManagementSheet({
                 </TextField>
               </View>
 
-              <Button className="mt-6" onPress={onSave} isDisabled={adjustMutation.isPending}>
-                <Button.Label className="font-semibold text-accent-foreground">Save</Button.Label>
+              <Button className="mt-8 h-[56px] rounded-full" onPress={onSave} isDisabled={adjustMutation.isPending}>
+                <Button.Label className="font-black text-[17px] tracking-tight text-accent-foreground">Save</Button.Label>
               </Button>
             </ScrollView>
           )}
 
-          <Button variant="secondary" className="mt-3" onPress={onClose}>
-            <Button.Label className="font-semibold">Close</Button.Label>
+          <Button variant="secondary" className="mt-3 h-[56px] rounded-full bg-surface" onPress={onClose}>
+            <Button.Label className="font-bold text-[16px]">Close</Button.Label>
           </Button>
         </View>
       </KeyboardAvoidingScaffold>

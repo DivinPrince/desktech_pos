@@ -10,13 +10,13 @@ type FormSectionCardProps = {
 /** Grouped form block with section title (inventory / catalog editors). */
 export function FormSectionCard({ title, children }: FormSectionCardProps) {
   return (
-    <Card className="overflow-hidden rounded-2xl border border-border/80 p-0 shadow-none">
-      <View className="border-b border-border/60 bg-surface-secondary/40 px-4 py-2.5">
-        <Text className="text-[12px] font-semibold uppercase tracking-wide text-muted">
-          {title}
-        </Text>
+    <View className="mb-2">
+      <Text className="text-[14px] font-bold uppercase tracking-widest text-muted mb-3 ml-2">
+        {title}
+      </Text>
+      <View className="overflow-hidden rounded-[28px] bg-surface p-4 gap-3">
+        {children}
       </View>
-      <View className="gap-2 px-3 py-3">{children}</View>
-    </Card>
+    </View>
   );
 }

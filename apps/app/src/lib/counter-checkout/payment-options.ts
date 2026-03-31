@@ -25,8 +25,8 @@ export const PAYMENT_OPTIONS: {
     label: "Debit card",
     apiValue: "debit_card",
     icon: "card-outline",
-    iconHex: "#2563eb",
-    chipClass: "bg-blue-500/18",
+    iconHex: "#b45309",
+    chipClass: "bg-amber-600/18",
   },
   {
     key: "credit_card",

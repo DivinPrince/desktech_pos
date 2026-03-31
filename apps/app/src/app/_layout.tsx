@@ -21,7 +21,7 @@ function AuthBootScreen() {
 }
 
 function AppNavigator() {
-  const { isPending } = useAuthSessionState();
+  const { isPending, needsOnboarding, user } = useAuthSessionState();
 
   if (isPending) {
     return <AuthBootScreen />;
@@ -31,12 +31,28 @@ function AppNavigator() {
     <Stack
       screenOptions={{
         headerShown: false,
-        contentStyle: {
-          backgroundColor: "transparent",
-          flex: 1,
-        },
+        statusBarStyle: "dark",
       }}
-    />
+    >
+      <Stack.Screen name="index" />
+
+      <Stack.Protected guard={!user}>
+        <Stack.Screen name="login" />
+        <Stack.Screen name="sign-up" />
+        <Stack.Screen name="forgot-password" />
+      </Stack.Protected>
+
+      <Stack.Protected guard={Boolean(user)}>
+        <Stack.Protected guard={needsOnboarding}>
+          <Stack.Screen name="onboarding" />
+        </Stack.Protected>
+
+        <Stack.Protected guard={!needsOnboarding}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="receipt" />
+        </Stack.Protected>
+      </Stack.Protected>
+    </Stack>
   );
 }
 

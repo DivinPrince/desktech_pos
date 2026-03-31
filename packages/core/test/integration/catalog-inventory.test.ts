@@ -206,6 +206,45 @@ describe("Catalog, products & inventory", () => {
     expect(updated.trackStock).toBe(true);
   });
 
+  it("product create can set initial stock only when tracking is enabled", async () => {
+    const helpers = await getTestHelpers();
+    const fx = await seedBusinessWithTeam(helpers, garbage, `initstk-${runId}`);
+
+    const createTracked = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/products`,
+      {
+        method: "POST",
+        headers: jsonHeaders(fx.managerHeaders),
+        body: JSON.stringify({
+          name: "Tracked stock",
+          priceCents: 250,
+          trackStock: true,
+          initialQuantity: 7,
+        }),
+      },
+    );
+    const { data: tracked } = await readJson<{
+      data: { id: string; trackStock: boolean; quantityOnHand: number };
+    }>(createTracked, 201);
+    expect(tracked.trackStock).toBe(true);
+    expect(tracked.quantityOnHand).toBe(7);
+
+    const createUntracked = await app.request(
+      `http://localhost/api/businesses/${fx.businessId}/products`,
+      {
+        method: "POST",
+        headers: jsonHeaders(fx.managerHeaders),
+        body: JSON.stringify({
+          name: "Untracked stock",
+          priceCents: 250,
+          trackStock: false,
+          initialQuantity: 3,
+        }),
+      },
+    );
+    expect(createUntracked.status).toBe(400);
+  });
+
   it("DELETE product forbidden when referenced on a sale", async () => {
     const helpers = await getTestHelpers();
     const fx = await seedBusinessWithTeam(helpers, garbage, `pdel-${runId}`);

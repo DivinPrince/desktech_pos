@@ -55,11 +55,11 @@ import {
 type ProductVariantRow = ProductRow["variants"][number];
 
 const INPUT_ROW_CLASS =
-  "border-0 border-transparent bg-transparent rounded-xl py-2.5 px-3 text-[15px] leading-5 shadow-none ios:shadow-none android:shadow-none focus:border-transparent text-field-foreground";
+  "border-0 border-transparent bg-background/50 rounded-[16px] py-3.5 px-4 text-[16px] font-medium leading-5 shadow-none ios:shadow-none android:shadow-none focus:border-transparent text-field-foreground";
 
 /** Multiline: same borderless row as `INPUT_ROW_CLASS`, taller body. */
 const DESCRIPTION_INPUT_CLASS =
-  "min-h-[100px] border-0 border-transparent bg-transparent rounded-xl py-2.5 px-3 text-[15px] leading-[22px] text-field-foreground shadow-none ios:shadow-none android:shadow-none";
+  "min-h-[120px] border-0 border-transparent bg-background/50 rounded-[16px] py-3.5 px-4 text-[16px] font-medium leading-[22px] text-field-foreground shadow-none ios:shadow-none android:shadow-none";
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
@@ -183,6 +183,14 @@ function canonicalUnitValue(raw: string): string {
   return t.slice(0, 32);
 }
 
+function parseNonNegativeWholeNumber(raw: string): number | null {
+  const t = raw.trim();
+  if (!t) return 0;
+  if (!/^\d+$/.test(t)) return null;
+  const parsed = Number.parseInt(t, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function errorMessage(err: unknown): string {
   if (err instanceof APIError) return err.message;
   if (err instanceof Error) return err.message;
@@ -237,7 +245,7 @@ export function ProductEditor({ productId }: ProductEditorProps) {
   const updateVariantMutation = useUpdateProductVariantMutation(businessId, productId);
 
   const [categoryId, setCategoryId] = useState<string | null>(null);
-  const categoryRemapDisposersRef = useRef<Array<() => void>>([]);
+  const categoryRemapDisposersRef = useRef<(() => void)[]>([]);
 
   useEffect(() => {
     return () => {
@@ -252,6 +260,7 @@ export function ProductEditor({ productId }: ProductEditorProps) {
   const [priceStr, setPriceStr] = useState("");
   const [costStr, setCostStr] = useState("");
   const [stockAlertStr, setStockAlertStr] = useState("0");
+  const [initialQuantityStr, setInitialQuantityStr] = useState("0");
   const [trackStock, setTrackStock] = useState(false);
   const [active, setActive] = useState(true);
 
@@ -269,6 +278,7 @@ export function ProductEditor({ productId }: ProductEditorProps) {
   const [nameError, setNameError] = useState("");
   const [priceError, setPriceError] = useState("");
   const [costError, setCostError] = useState("");
+  const [initialQuantityError, setInitialQuantityError] = useState("");
 
   /** Ignore stale snapshots; include currency so price strings re-format when business currency changes. */
   const lastHydratedUpdatedAtMsRef = React.useRef<number>(-1);
@@ -286,6 +296,7 @@ export function ProductEditor({ productId }: ProductEditorProps) {
     setPriceStr("");
     setCostStr("");
     setStockAlertStr("0");
+    setInitialQuantityStr("0");
     setTrackStock(false);
     setActive(true);
   }, [productId]);
@@ -388,6 +399,7 @@ export function ProductEditor({ productId }: ProductEditorProps) {
     setNameError("");
     setPriceError("");
     setCostError("");
+    setInitialQuantityError("");
     const n = name.trim();
     if (!n) {
       setNameError("Name is required");
@@ -413,6 +425,13 @@ export function ProductEditor({ productId }: ProductEditorProps) {
     const stockAlertParsed = Number.parseInt(stockAlertStr, 10);
     const stockAlert =
       Number.isFinite(stockAlertParsed) && stockAlertParsed >= 0 ? stockAlertParsed : 0;
+    const initialQuantity = !isEdit && trackStock
+      ? parseNonNegativeWholeNumber(initialQuantityStr)
+      : 0;
+    if (!isEdit && trackStock && initialQuantity == null) {
+      setInitialQuantityError("Enter a valid stock quantity");
+      return;
+    }
 
     if (!businessId) return;
 
@@ -453,6 +472,9 @@ export function ProductEditor({ productId }: ProductEditorProps) {
       if (sku.trim()) createPayload.sku = sku.trim();
       if (description.trim()) createPayload.description = description.trim();
       if (typeof costCents === "number") createPayload.costCents = costCents;
+      if (trackStock && typeof initialQuantity === "number" && initialQuantity > 0) {
+        createPayload.initialQuantity = initialQuantity;
+      }
       createMutation.mutate(
         createPayload,
         {
@@ -471,6 +493,7 @@ export function ProductEditor({ productId }: ProductEditorProps) {
     priceStr,
     costStr,
     stockAlertStr,
+    initialQuantityStr,
     categoryId,
     sku,
     unit,
@@ -669,26 +692,34 @@ export function ProductEditor({ productId }: ProductEditorProps) {
       <StatusBar style="light" />
       <View style={styles.fill}>
         <View
-          className="flex-row items-center px-2 py-2"
           style={{
             backgroundColor: accent,
-            paddingTop: Math.max(insets.top, 8),
+            paddingTop: Math.max(insets.top, 12),
+            paddingBottom: 24,
+            paddingHorizontal: 16,
+            borderBottomLeftRadius: 32,
+            borderBottomRightRadius: 32,
           }}
         >
-          <Pressable
-            onPress={() => router.back()}
-            hitSlop={12}
-            className="h-10 w-10 items-center justify-center rounded-full active:bg-white/15"
-          >
-            <Ionicons name="chevron-back" size={26} color={accentFg} />
-          </Pressable>
-          <Text
-            className="min-w-0 flex-1 text-center text-[17px] font-semibold"
-            style={{ color: accentFg }}
-          >
-            {isEdit ? "Edit product" : "New product"}
-          </Text>
-          <View className="h-10 w-10" />
+          <View className="flex-row items-center justify-between gap-2 py-1 mb-2 mt-2">
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+              hitSlop={10}
+              onPress={() => router.back()}
+              className="h-11 w-11 items-center justify-center rounded-full bg-white/20 active:bg-white/30"
+            >
+              <Ionicons name="chevron-back" size={24} color={accentFg} />
+            </Pressable>
+            <Text
+              className="min-w-0 flex-1 text-center text-[24px] font-black tracking-tighter"
+              style={{ color: accentFg }}
+              numberOfLines={1}
+            >
+              {isEdit ? "Edit Product" : "New Product"}
+            </Text>
+            <View className="h-11 w-11" />
+          </View>
         </View>
 
         {!networkOnline ? (
@@ -731,8 +762,8 @@ export function ProductEditor({ productId }: ProductEditorProps) {
               emptyOptionsLabel="Create category"
             />
 
-            <View className="gap-1">
-              <Text className="text-[14px] font-medium text-foreground">Name *</Text>
+            <View className="gap-1.5">
+              <Text className="text-[15px] font-bold text-foreground ml-1">Name *</Text>
               <TextField className="gap-0">
                 <Input
                   value={name}
@@ -743,12 +774,12 @@ export function ProductEditor({ productId }: ProductEditorProps) {
                 />
               </TextField>
               {nameError ? (
-                <Text className="text-[13px] text-danger">{nameError}</Text>
+                <Text className="text-[13px] font-medium text-danger ml-1">{nameError}</Text>
               ) : null}
             </View>
 
-            <View className="gap-1">
-              <Text className="text-[14px] font-medium text-foreground">SKU</Text>
+            <View className="gap-1.5">
+              <Text className="text-[15px] font-bold text-foreground ml-1">SKU</Text>
               <TextField className="gap-0">
                 <Input
                   value={sku}
@@ -773,8 +804,8 @@ export function ProductEditor({ productId }: ProductEditorProps) {
               createFromQueryLabel={(q) => `Use “${q}”`}
             />
 
-            <View className="gap-1">
-              <Text className="text-[14px] font-medium text-foreground">Description</Text>
+            <View className="gap-1.5">
+              <Text className="text-[15px] font-bold text-foreground ml-1">Description</Text>
               <TextInput
                 value={description}
                 onChangeText={setDescription}
@@ -788,76 +819,83 @@ export function ProductEditor({ productId }: ProductEditorProps) {
           </FormSectionCard>
 
           <FormSectionCard title="Pricing">
-            <View className="gap-1">
-              <Text className="text-[14px] font-medium text-foreground">
-                Price ({currency}) *
-              </Text>
-              <TextField className="gap-0">
-                <Input
-                  value={priceStr}
-                  onChangeText={setPriceStr}
-                  placeholder="0.00"
-                  keyboardType="decimal-pad"
-                  variant="secondary"
-                  className={INPUT_ROW_CLASS}
-                />
-              </TextField>
-              {priceError ? (
-                <Text className="text-[13px] text-danger">{priceError}</Text>
-              ) : null}
-            </View>
-            <View className="gap-1">
-              <Text className="text-[14px] font-medium text-foreground">
-                Cost ({currency})
-              </Text>
-              <TextField className="gap-0">
-                <Input
-                  value={costStr}
-                  onChangeText={setCostStr}
-                  placeholder="Optional"
-                  keyboardType="decimal-pad"
-                  variant="secondary"
-                  className={INPUT_ROW_CLASS}
-                />
-              </TextField>
-              {costError ? (
-                <Text className="text-[13px] text-danger">{costError}</Text>
-              ) : null}
+            <View className="flex-row gap-3">
+              <View className="flex-1 gap-1.5">
+                <Text className="text-[15px] font-bold text-foreground ml-1">
+                  Price ({currency}) *
+                </Text>
+                <TextField className="gap-0">
+                  <Input
+                    value={priceStr}
+                    onChangeText={setPriceStr}
+                    placeholder="0.00"
+                    keyboardType="decimal-pad"
+                    variant="secondary"
+                    className={INPUT_ROW_CLASS}
+                  />
+                </TextField>
+                {priceError ? (
+                  <Text className="text-[13px] font-medium text-danger ml-1">{priceError}</Text>
+                ) : null}
+              </View>
+              <View className="flex-1 gap-1.5">
+                <Text className="text-[15px] font-bold text-foreground ml-1">
+                  Cost ({currency})
+                </Text>
+                <TextField className="gap-0">
+                  <Input
+                    value={costStr}
+                    onChangeText={setCostStr}
+                    placeholder="Optional"
+                    keyboardType="decimal-pad"
+                    variant="secondary"
+                    className={INPUT_ROW_CLASS}
+                  />
+                </TextField>
+                {costError ? (
+                  <Text className="text-[13px] font-medium text-danger ml-1">{costError}</Text>
+                ) : null}
+              </View>
             </View>
           </FormSectionCard>
 
           <FormSectionCard title="Inventory & status">
-            <View className="flex-row items-center justify-between py-2">
-              <Text className="text-[15px] text-foreground">Track stock</Text>
+            <View className="flex-row items-center justify-between py-2 px-1">
+              <Text className="text-[16px] font-bold text-foreground">Active</Text>
+              <Switch isSelected={active} onSelectedChange={setActive} />
+            </View>
+
+            <View className="flex-row items-center justify-between py-3 px-1 mt-2 border-t border-border/40">
+              <Text className="text-[16px] font-bold text-foreground">Track stock</Text>
               <Switch isSelected={trackStock} onSelectedChange={setTrackStock} />
             </View>
 
             {trackStock ? (
               isEdit && product ? (
                 product.variants.length > 0 ? (
-                  <View className="gap-3">
-                  <Text className="text-[13px] leading-5 text-muted">
+                  <View className="gap-3 mt-2">
+                  <Text className="text-[14px] font-medium leading-5 text-muted ml-1">
                     Each variant has its own price and stock.
                   </Text>
                   {product.variants.map((v: ProductVariantRow) => (
                     <View
                       key={v.id}
-                      className="rounded-xl border border-border/70 bg-surface-secondary/40 p-3"
+                      className="rounded-[20px] bg-background/50 p-4"
                     >
                       <View className="flex-row items-start justify-between gap-2">
                         <View className="min-w-0 flex-1">
                           <Text
-                            className="text-[16px] font-semibold text-foreground"
+                            className="text-[17px] font-bold text-foreground tracking-tight"
                             numberOfLines={2}
                           >
                             {v.name}
                           </Text>
-                          <Text className="mt-0.5 text-[14px] text-muted">
+                          <Text className="mt-1 text-[15px] font-medium text-muted">
                             {formatMinorUnitsToCurrency(v.priceCents, currency)}
                             {v.sku ? ` · SKU ${v.sku}` : ""}
                           </Text>
                         </View>
-                        <View className="flex-row items-center">
+                        <View className="flex-row items-center gap-1">
                           <Pressable
                             onPress={() => {
                               setEditingVariantId(v.id);
@@ -869,35 +907,37 @@ export function ProductEditor({ productId }: ProductEditorProps) {
                               setVariantEditOpen(true);
                             }}
                             hitSlop={8}
-                            className="h-9 w-9 items-center justify-center rounded-full active:bg-accent/10"
+                            className="h-10 w-10 items-center justify-center rounded-full bg-accent/10 active:bg-accent/20"
                           >
-                            <Ionicons name="create-outline" size={22} color={accent} />
+                            <Ionicons name="create" size={20} color={accent} />
                           </Pressable>
                           <Pressable
                             onPress={() => onDeleteVariant(v.id, v.name)}
                             hitSlop={8}
-                            className="h-9 w-9 items-center justify-center rounded-full active:bg-danger/10"
+                            className="h-10 w-10 items-center justify-center rounded-full bg-danger/10 active:bg-danger/20"
                           >
-                            <Ionicons name="trash-outline" size={20} color={danger} />
+                            <Ionicons name="trash" size={20} color={danger} />
                           </Pressable>
                         </View>
                       </View>
                       <Pressable
                         onPress={() => openStockSheet(v.id)}
-                        className="mt-3 rounded-xl bg-background/90 px-3 py-2.5 active:opacity-80"
+                        className="mt-4 rounded-[16px] bg-surface px-4 py-3.5 active:opacity-80 shadow-sm"
                       >
-                        <Text className="text-[12px] font-medium uppercase text-muted">
+                        <Text className="text-[12px] font-bold uppercase tracking-widest text-muted">
                           Available to sell
                         </Text>
-                        <Text className="mt-0.5 text-[18px] font-semibold tabular-nums text-foreground">
-                          {v.quantityOnHand}
-                        </Text>
-                        <Text className="mt-1 text-[12px] text-accent">Tap to adjust</Text>
+                        <View className="flex-row items-baseline justify-between mt-1">
+                          <Text className="text-[24px] font-black tabular-nums tracking-tight text-foreground">
+                            {v.quantityOnHand}
+                          </Text>
+                          <Text className="text-[13px] font-bold text-accent">Tap to adjust</Text>
+                        </View>
                       </Pressable>
                     </View>
                   ))}
-                  <View className="gap-2 rounded-xl border border-dashed border-border/80 bg-surface-secondary/30 p-3">
-                    <Text className="text-[14px] font-medium text-foreground">Add variant</Text>
+                  <View className="gap-3 rounded-[20px] border-2 border-dashed border-border/40 bg-background/30 p-4 mt-2">
+                    <Text className="text-[15px] font-bold text-foreground">Add variant</Text>
                     <TextField className="gap-0">
                       <Input
                         value={newVariantName}
@@ -929,48 +969,66 @@ export function ProductEditor({ productId }: ProductEditorProps) {
                     </TextField>
                     <Button
                       variant="secondary"
+                      className="mt-1"
                       onPress={onCreateVariant}
                       isDisabled={createVariantMutation.isPending}
                     >
-                      <Button.Label className="font-semibold">Add variant</Button.Label>
+                      <Button.Label className="font-bold text-[15px]">Add variant</Button.Label>
                     </Button>
                   </View>
                 </View>
               ) : (
                 <Pressable
                   onPress={() => openStockSheet(null)}
-                  className="rounded-xl bg-surface-secondary/50 px-3 py-3 active:opacity-80"
+                  className="rounded-[20px] bg-background/50 px-4 py-4 active:opacity-80 mt-2"
                 >
-                  <Text className="text-[12px] font-medium uppercase text-muted">
+                  <Text className="text-[12px] font-bold uppercase tracking-widest text-muted">
                     Available to sell
                   </Text>
-                  <TextField className="mt-1 gap-0" pointerEvents="none">
-                    <Input
-                      editable={false}
-                      value={String(product.quantityOnHand)}
-                      variant="secondary"
-                      className={INPUT_ROW_CLASS}
-                    />
-                  </TextField>
-                  <Text className="mt-2 text-[12px] text-accent">Tap to adjust</Text>
+                  <View className="flex-row items-center justify-between mt-2">
+                    <Text className="text-[32px] font-black tabular-nums tracking-tighter text-foreground">
+                      {product.quantityOnHand}
+                    </Text>
+                    <View className="bg-accent/10 px-3 py-1.5 rounded-full">
+                      <Text className="text-[13px] font-bold text-accent">Tap to adjust</Text>
+                    </View>
+                  </View>
                 </Pressable>
               )
             ) : (
-              <Text className="text-[13px] text-muted">
-                Save the product first to set stock and variants.
-              </Text>
+              <View className="gap-1.5 mt-2">
+                <Text className="text-[15px] font-bold text-foreground ml-1">
+                  Initial stock
+                </Text>
+                <Text className="text-[13px] font-medium text-muted ml-1 mb-1">
+                  Start this product with stock on its first save. You can adjust it later.
+                </Text>
+                <TextField className="gap-0">
+                  <Input
+                    value={initialQuantityStr}
+                    onChangeText={setInitialQuantityStr}
+                    placeholder="0"
+                    keyboardType="number-pad"
+                    variant="secondary"
+                    className={INPUT_ROW_CLASS}
+                  />
+                </TextField>
+                {initialQuantityError ? (
+                  <Text className="text-[13px] font-medium text-danger ml-1">
+                    {initialQuantityError}
+                  </Text>
+                ) : null}
+                <Text className="text-[13px] font-medium text-muted ml-1 mt-1">
+                  Variants can be added after the product is saved.
+                </Text>
+              </View>
             )
             ) : null}
 
-            <View className="flex-row items-center justify-between py-2">
-              <Text className="text-[15px] text-foreground">Active</Text>
-              <Switch isSelected={active} onSelectedChange={setActive} />
-            </View>
-
             {trackStock ? (
-              <View className="gap-1 pt-1">
-                <Text className="text-[14px] font-medium text-foreground">Stock alert</Text>
-                <Text className="text-[12px] text-muted">
+              <View className="gap-1.5 pt-3 mt-2 border-t border-border/40">
+                <Text className="text-[15px] font-bold text-foreground ml-1">Stock alert</Text>
+                <Text className="text-[13px] font-medium text-muted ml-1 mb-1">
                   You are alerted when on-hand quantity is at or below this level.
                 </Text>
                 <TextField className="gap-0">
@@ -990,24 +1048,24 @@ export function ProductEditor({ productId }: ProductEditorProps) {
         </ScrollView>
 
         <View
-          className="border-t border-border bg-background px-4 pt-3"
-          style={{ paddingBottom: Math.max(insets.bottom, 12) }}
+          className="border-t border-border/40 bg-background px-4 pt-4"
+          style={{ paddingBottom: Math.max(insets.bottom, 16) }}
         >
           {isEdit ? (
             <Button
               variant="secondary"
-              className="mb-2 border-danger/40"
+              className="mb-3 border-danger/20 bg-danger/10"
               onPress={onDelete}
               isDisabled={saving}
             >
-              <Button.Label style={{ color: danger }} className="font-semibold">
+              <Button.Label style={{ color: danger }} className="font-bold text-[16px]">
                 Delete product
               </Button.Label>
             </Button>
           ) : null}
-          <Button className="w-full" onPress={onSave} isDisabled={saving}>
-            <Button.Label className="font-semibold text-accent-foreground">
-              {saving ? "Saving…" : "Save"}
+          <Button className="w-full h-[56px] rounded-full" onPress={onSave} isDisabled={saving}>
+            <Button.Label className="font-black text-[17px] tracking-tight text-accent-foreground">
+              {saving ? "Saving…" : "Save Product"}
             </Button.Label>
           </Button>
         </View>

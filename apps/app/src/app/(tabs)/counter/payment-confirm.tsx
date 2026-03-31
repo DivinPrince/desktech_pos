@@ -1,17 +1,17 @@
 import { useRouter } from "expo-router";
-import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { useToast } from "heroui-native/toast";
 import { APIError } from "@repo/sdk";
 import React, { useCallback, useEffect, useMemo } from "react";
-import { Text, TextInput, View } from "react-native";
+import { Pressable, Text, TextInput, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
 import {
   PAYMENT_OPTIONS,
   paymentConfirmButtonLabel,
   useCounterCheckout,
-} from "@/app/(tabs)/counter/counter-checkout-context";
-import { CheckoutSubscreenShell } from "@/app/(tabs)/counter/checkout-subscreen-shell";
+} from "@/app/(tabs)/counter/_counter-checkout-context";
+import { CheckoutSubscreenShell } from "@/app/(tabs)/counter/_checkout-subscreen-shell";
 import { resolveActiveBusiness, useAuthSessionState } from "@/lib/auth-session";
 import { useCounterCart } from "@/lib/counter-cart/counter-cart";
 import { formatMinorUnitsToCurrency } from "@/lib/format-money";
@@ -22,7 +22,7 @@ import {
 import { useBusinessesQuery } from "@/lib/queries/business-catalog";
 
 const NOTE_INPUT_CLASS =
-  "min-h-[100px] border-0 border-transparent bg-transparent rounded-xl py-2.5 px-3 text-[15px] leading-[22px] text-field-foreground shadow-none ios:shadow-none android:shadow-none";
+  "min-h-[120px] border-0 border-transparent bg-transparent rounded-xl py-3 px-4 text-[16px] leading-[24px] text-field-foreground shadow-none ios:shadow-none android:shadow-none font-medium";
 
 function errorMessage(err: unknown): string {
   if (err instanceof APIError) return err.message;
@@ -34,6 +34,8 @@ export default function PaymentConfirmScreen() {
   const router = useRouter();
   const { toast } = useToast();
   const fieldPlaceholder = useThemeColor("muted");
+  const accent = useThemeColor("accent");
+  const accentFg = useThemeColor("accent-foreground");
   const {
     customer,
     paymentMethod,
@@ -66,7 +68,7 @@ export default function PaymentConfirmScreen() {
     if (lines.length === 0 || totalCents <= 0) {
       toast.show({
         variant: "danger",
-        label: "Cart is empty",
+        label: "Counter is empty",
         description: "Add items before completing payment.",
       });
       router.replace("/counter");
@@ -109,7 +111,7 @@ export default function PaymentConfirmScreen() {
     } catch (e) {
       toast.show({
         variant: "danger",
-        label: "Payment failed",
+        label: "Couldn't complete sale",
         description: errorMessage(e),
       });
     }
@@ -133,47 +135,68 @@ export default function PaymentConfirmScreen() {
     return null;
   }
 
+  const selectedOption = PAYMENT_OPTIONS.find((o) => o.key === paymentMethod);
+
   return (
     <CheckoutSubscreenShell
       title="Confirm payment"
       onBack={() => router.back()}
     >
-      <Text className="mb-1 text-[15px] text-foreground">
-        Total{" "}
-        <Text className="font-bold tabular-nums">
+      <View className="mb-8 items-center justify-center py-6">
+        <View className="mb-4 h-20 w-20 items-center justify-center rounded-full bg-accent/15">
+          <Ionicons name={selectedOption?.icon ?? "card"} size={40} color={accent} />
+        </View>
+        <Text className="text-[15px] font-bold uppercase tracking-widest text-muted mb-2">
+          Total Amount
+        </Text>
+        <Text className="text-[48px] font-black tabular-nums tracking-tighter text-foreground leading-none">
           {formatMinorUnitsToCurrency(totalCents, currency)}
         </Text>
-      </Text>
-      <Text className="mb-4 text-[14px] text-muted">
-        Add an optional note, then confirm how you received payment.
-      </Text>
-
-      <View className="gap-1">
-        <Text className="text-[14px] font-medium text-foreground">
-          Payment note
-        </Text>
-        <TextInput
-          value={paymentNote}
-          onChangeText={setPaymentNote}
-          placeholder="Note about this payment (optional)"
-          placeholderTextColor={fieldPlaceholder}
-          multiline
-          textAlignVertical="top"
-          className={NOTE_INPUT_CLASS}
-        />
       </View>
 
-      <Button
-        className="mt-8 rounded-2xl"
-        isDisabled={completingSale}
+      <View className="mb-8">
+        <Text className="mb-3 ml-1 text-[13px] font-bold uppercase tracking-widest text-muted">
+          Payment Note
+        </Text>
+        <View className="rounded-[24px] border border-border/40 bg-surface px-1 py-1 shadow-sm">
+          <TextInput
+            value={paymentNote}
+            onChangeText={setPaymentNote}
+            placeholder="Add an optional note about this payment..."
+            placeholderTextColor={fieldPlaceholder}
+            multiline
+            textAlignVertical="top"
+            className={NOTE_INPUT_CLASS}
+          />
+        </View>
+      </View>
+
+      <Pressable
+        accessibilityRole="button"
+        disabled={completingSale}
         onPress={() => void onConfirm()}
+        className={`flex-row items-center justify-center rounded-[24px] py-4 mt-4 ${
+          completingSale ? "bg-surface border border-border/40 opacity-70" : ""
+        }`}
+        style={!completingSale ? { backgroundColor: accent } : undefined}
       >
-        <Button.Label className="font-semibold">
+        {completingSale ? (
+          <Ionicons name="sync" size={20} color={fieldPlaceholder} className="mr-2 animate-spin" />
+        ) : null}
+        <Text 
+          className={`text-[18px] font-black tracking-tight ${
+            completingSale ? "text-muted" : ""
+          }`}
+          style={!completingSale ? { color: accentFg } : undefined}
+        >
           {completingSale
             ? "Processing…"
             : paymentConfirmButtonLabel(paymentMethod)}
-        </Button.Label>
-      </Button>
+        </Text>
+        {!completingSale && (
+          <Ionicons name="checkmark-circle" size={20} color={accentFg} style={{ marginLeft: 8 }} />
+        )}
+      </Pressable>
     </CheckoutSubscreenShell>
   );
 }

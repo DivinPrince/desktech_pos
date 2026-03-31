@@ -19,6 +19,7 @@ export type CatalogProductCreateBody = {
   costCents?: number;
   stockAlert?: number;
   trackStock?: boolean;
+  initialQuantity?: number;
   active?: boolean;
 };
 

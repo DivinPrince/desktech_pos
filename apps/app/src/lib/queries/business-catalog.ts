@@ -60,6 +60,7 @@ export type ProductCreateBody = {
   costCents?: number;
   stockAlert?: number;
   trackStock?: boolean;
+  initialQuantity?: number;
   active?: boolean;
 };
 
@@ -143,7 +144,7 @@ function optimisticProductRow(businessId: string, body: ProductCreateBody, local
     stockAlert: body.stockAlert ?? 0,
     trackStock: body.trackStock ?? false,
     active: body.active ?? true,
-    quantityOnHand: 0,
+    quantityOnHand: body.trackStock ? (body.initialQuantity ?? 0) : 0,
     variants: [],
     createdAt: now,
     updatedAt: now,

@@ -40,6 +40,7 @@ export namespace ProductService {
     costCents: z.number().int().nonnegative().optional(),
     stockAlert: z.number().int().nonnegative().optional(),
     trackStock: z.boolean().optional(),
+    initialQuantity: z.number().int().nonnegative().optional(),
     active: z.boolean().optional(),
   });
 
@@ -171,6 +172,14 @@ export namespace ProductService {
 
   export const create = fn(CreateInput, async (input) => {
     return createTransaction(async (tx) => {
+      if ((input.initialQuantity ?? 0) > 0 && !input.trackStock) {
+        throw new VisibleError(
+          "validation",
+          ErrorCodes.Validation.INVALID_STATE,
+          "Turn on stock tracking to set an initial stock quantity",
+          "initialQuantity",
+        );
+      }
       if (input.categoryId) {
         const [cat] = await tx
           .select()
@@ -203,10 +212,10 @@ export namespace ProductService {
       await tx.insert(productStockTable).values({
         businessId: input.businessId,
         productId: id,
-        quantity: 0,
+        quantity: input.trackStock ? (input.initialQuantity ?? 0) : 0,
       });
 
-      return serialize(row, 0, []);
+      return serialize(row, input.trackStock ? (input.initialQuantity ?? 0) : 0, []);
     });
   });
 

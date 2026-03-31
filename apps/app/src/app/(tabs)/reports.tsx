@@ -36,7 +36,7 @@ import { useSalesRangeQuery } from "@/lib/queries/business-sales";
 const styles = StyleSheet.create({
   root: { flex: 1 },
   list: { flex: 1 },
-  listContent: { paddingHorizontal: 16, paddingTop: 10 },
+  listContent: { paddingHorizontal: 0, paddingTop: 16 },
   chipScroll: { flexGrow: 0 },
 });
 
@@ -54,9 +54,11 @@ function SectionHeader({
   mutedColor: string;
 }) {
   return (
-    <View className="mb-2.5 flex-row items-center gap-2">
-      <Ionicons name={icon} size={18} color={mutedColor} />
-      <Text className="text-[16px] font-bold tracking-tight text-foreground">{title}</Text>
+    <View className="mb-4 flex-row items-center gap-2 px-4">
+      <View className="h-8 w-8 items-center justify-center rounded-full bg-surface border border-border/40">
+        <Ionicons name={icon} size={16} color={mutedColor} />
+      </View>
+      <Text className="text-[18px] font-black tracking-tight text-foreground">{title}</Text>
     </View>
   );
 }
@@ -64,46 +66,25 @@ function SectionHeader({
 function EmptyHint({
   icon,
   title,
+  subtitle,
   accent,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   title: string;
+  subtitle: string;
   accent: string;
 }) {
   return (
-    <View className="mt-5 items-center px-1">
-      <View className="w-full min-h-[108] items-center justify-center rounded-2xl border border-border/60 bg-surface px-5 py-7">
-        <View className="mb-2.5 h-12 w-12 items-center justify-center rounded-2xl bg-accent/12">
-          <Ionicons name={icon} size={26} color={accent} />
-        </View>
-        <Text className="text-center text-[15px] font-semibold leading-5 text-foreground">{title}</Text>
+    <View className="mx-4 mt-2 rounded-[32px] border border-border/70 bg-surface px-6 py-10 shadow-sm">
+      <View className="mb-4 h-14 w-14 items-center justify-center rounded-full bg-accent/18">
+        <Ionicons name={icon} size={30} color={accent} />
       </View>
+      <Text className="text-[20px] font-black tracking-tight text-foreground">{title}</Text>
+      <Text className="mt-2 text-[15px] leading-6 text-muted">
+        {subtitle}
+      </Text>
     </View>
   );
-}
-
-/** Matches Counter tab cart lines: one fused outline, dividers between rows only (no nested card border clash). */
-function mergedGroupRowClassName(opts: {
-  index: number;
-  count: number;
-  extra?: string;
-}): string {
-  const { index, count, extra = "" } = opts;
-  const isOnly = count === 1;
-  const isFirst = index === 0;
-  const isLast = index === count - 1;
-  const edge = "border-border/75";
-  const prefix = extra.length > 0 ? `${extra} ` : "";
-  if (isOnly) {
-    return `${prefix}mb-2 rounded-2xl border ${edge} bg-surface`;
-  }
-  if (isFirst) {
-    return `${prefix}rounded-t-2xl border-b border-l border-r border-t ${edge} bg-surface`;
-  }
-  if (isLast) {
-    return `${prefix}mb-2 rounded-b-2xl border-b border-l border-r ${edge} bg-surface`;
-  }
-  return `${prefix}border-b border-l border-r ${edge} bg-surface`;
 }
 
 function formatDayKeyForLocale(dayKey: string): string {
@@ -119,6 +100,7 @@ function formatDayKeyForLocale(dayKey: string): string {
 export default function ReportsTab() {
   const muted = useThemeColor("muted");
   const accent = useThemeColor("accent");
+  const accentFg = useThemeColor("accent-foreground");
 
   const { session, user } = useAuthSessionState();
   const signedIn = Boolean(user);
@@ -205,15 +187,34 @@ export default function ReportsTab() {
 
   const listHeader = useMemo(() => {
     if (!signedIn) {
-      return <EmptyHint icon="log-in-outline" title="Sign in to see your numbers" accent={accent} />;
+      return (
+        <EmptyHint 
+          icon="log-in-outline" 
+          title="You’re signed out" 
+          subtitle="Sign in from the menu to view your sales reports and analytics."
+          accent={accent} 
+        />
+      );
     }
     if (businessesQuery.isError) {
       return (
-        <EmptyHint icon="cloud-offline-outline" title="Couldn’t load your shop" accent={accent} />
+        <EmptyHint 
+          icon="cloud-offline-outline" 
+          title="Couldn’t load workspace" 
+          subtitle="Check your connection and try again from the side menu."
+          accent={accent} 
+        />
       );
     }
     if (!businessId) {
-      return <EmptyHint icon="storefront-outline" title="Finish setup to track sales" accent={accent} />;
+      return (
+        <EmptyHint 
+          icon="storefront-outline" 
+          title="Finish setup" 
+          subtitle="Create or select a business to see your reports and start selling."
+          accent={accent} 
+        />
+      );
     }
 
     const topProductsToShow = topProductsExpanded
@@ -228,7 +229,7 @@ export default function ReportsTab() {
           horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.chipScroll}
-          contentContainerStyle={{ gap: 8, paddingBottom: 10 }}
+          contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingBottom: 16 }}
         >
           {PERIOD_PRESETS.map((preset) => {
             const selected = preset === periodPreset;
@@ -239,12 +240,12 @@ export default function ReportsTab() {
                   setPeriodPreset(preset);
                   setTopProductsExpanded(false);
                 }}
-                className={`rounded-full px-4 py-2.5 active:opacity-88 ${
-                  selected ? "bg-accent" : "bg-surface border border-border/70"
+                className={`rounded-[20px] px-5 py-3 active:opacity-80 ${
+                  selected ? "bg-foreground" : "bg-surface border border-border/40"
                 }`}
               >
                 <Text
-                  className={`text-[14px] font-semibold ${selected ? "text-accent-foreground" : "text-foreground"}`}
+                  className={`text-[14px] font-bold tracking-tight ${selected ? "text-background" : "text-foreground"}`}
                 >
                   {reportPeriodLabel(preset)}
                 </Text>
@@ -254,145 +255,173 @@ export default function ReportsTab() {
         </ScrollView>
 
         {listRows.length === 0 ? (
-          <EmptyHint icon="bar-chart-outline" title="Nothing in this time range" accent={accent} />
+          <EmptyHint 
+            icon="bar-chart-outline" 
+            title="No sales found" 
+            subtitle={`There are no recorded sales for ${periodTitle.toLowerCase()}.`}
+            accent={accent} 
+          />
         ) : (
           <>
-            <View className="mb-5 overflow-hidden rounded-2xl bg-surface border border-border/70">
-              <View className="px-4 pb-4 pt-5">
-                <Text className="text-[28px] font-bold leading-8 tabular-nums tracking-tight text-foreground">
-                  {formatMinorUnitsToCurrency(report.totalRevenueCents, businessCurrency)}
-                </Text>
-              </View>
-              <View className="flex-row border-t border-border/60 bg-background/40">
-                <View className="min-w-0 flex-1 border-r border-border/50 px-4 py-3.5">
-                  <Text className="text-[20px] font-bold tabular-nums text-foreground">
-                    {report.saleCount}
+            {/* Hero Section */}
+            <View
+              className="mx-4 mb-8 overflow-hidden rounded-[36px] p-6 shadow-sm"
+              style={{ backgroundColor: accent }}
+            >
+              <View className="flex-row items-start justify-between">
+                <View>
+                  <Text
+                    style={{ color: accentFg, opacity: 0.8 }}
+                    className="mb-1 text-[13px] font-bold uppercase tracking-widest"
+                  >
+                    {periodTitle} Revenue
                   </Text>
-                  <Text className="mt-0.5 text-[12px] text-muted">Sales</Text>
+                  <Text
+                    style={{ color: accentFg }}
+                    className="text-[44px] font-black leading-[52px] tracking-tighter"
+                  >
+                    {formatMinorUnitsToCurrency(report.totalRevenueCents, businessCurrency)}
+                  </Text>
+                  <Text
+                    style={{ color: accentFg, opacity: 0.9 }}
+                    className="mt-1 text-[15px] font-semibold"
+                  >
+                    {report.saleCount} {report.saleCount === 1 ? "sale" : "sales"}
+                  </Text>
                 </View>
-                <View className="min-w-0 flex-1 px-4 py-3.5">
-                  <Text className="text-[20px] font-bold tabular-nums text-foreground">
+                <View className="h-12 w-12 items-center justify-center rounded-full bg-white/20">
+                  <Ionicons name="bar-chart" size={24} color={accentFg} />
+                </View>
+              </View>
+
+              <View className="mt-8 flex-row items-center justify-between rounded-[24px] bg-black/10 px-5 py-4">
+                <View>
+                  <Text style={{ color: accentFg, opacity: 0.8 }} className="text-[12px] font-bold uppercase tracking-widest">
+                    Avg Ticket
+                  </Text>
+                  <Text style={{ color: accentFg }} className="mt-0.5 text-[20px] font-black tracking-tight">
                     {report.saleCount > 0
                       ? formatMinorUnitsToCurrency(report.averageTicketCents, businessCurrency)
                       : "—"}
                   </Text>
-                  <Text className="mt-0.5 text-[12px] text-muted">Average per sale</Text>
+                </View>
+                <View className="h-10 w-10 items-center justify-center rounded-full bg-white/20">
+                  <Ionicons name="receipt" size={18} color={accentFg} />
                 </View>
               </View>
             </View>
 
             {report.byPaymentMethod.length > 0 ? (
-              <View className="mb-5">
-                <SectionHeader icon="wallet-outline" title="Payments" mutedColor={muted} />
-                {report.byPaymentMethod.map((p, idx) => {
-                  const pct = Math.min(100, Math.round((p.totalCents / revenueForBars) * 100));
-                  const count = report.byPaymentMethod.length;
-                  return (
-                    <View
-                      key={String(p.paymentMethodKey)}
-                      className={mergedGroupRowClassName({
-                        index: idx,
-                        count,
-                        extra: "px-3 py-3.5",
-                      })}
-                    >
-                      <View className="mb-2 flex-row items-baseline justify-between gap-2">
-                        <Text className="min-w-0 flex-1 text-[15px] font-semibold text-foreground" numberOfLines={1}>
-                          {p.paymentMethodLabel}
-                        </Text>
-                        <Text className="text-[15px] font-bold tabular-nums text-foreground">
-                          {formatMinorUnitsToCurrency(p.totalCents, businessCurrency)}
-                        </Text>
+              <View className="mb-8">
+                <SectionHeader icon="wallet" title="Payments" mutedColor={muted} />
+                <View className="mx-4 overflow-hidden rounded-[32px] border border-border/40 bg-surface">
+                  {report.byPaymentMethod.map((p, idx) => {
+                    const pct = Math.min(100, Math.round((p.totalCents / revenueForBars) * 100));
+                    const isLast = idx === report.byPaymentMethod.length - 1;
+                    return (
+                      <View
+                        key={String(p.paymentMethodKey)}
+                        className={`px-5 py-4 ${isLast ? "" : "border-b border-border/40"}`}
+                      >
+                        <View className="mb-3 flex-row items-baseline justify-between gap-2">
+                          <Text className="min-w-0 flex-1 text-[16px] font-bold tracking-tight text-foreground" numberOfLines={1}>
+                            {p.paymentMethodLabel}
+                          </Text>
+                          <Text className="text-[16px] font-black tabular-nums tracking-tight text-foreground">
+                            {formatMinorUnitsToCurrency(p.totalCents, businessCurrency)}
+                          </Text>
+                        </View>
+                        <View className="flex-row items-center gap-3">
+                          <View className="h-2 flex-1 overflow-hidden rounded-full bg-muted/20">
+                            <View
+                              className="h-full rounded-full"
+                              style={{ width: `${pct}%`, backgroundColor: accent }}
+                            />
+                          </View>
+                          <Text className="text-[13px] font-bold text-muted">
+                            {p.count}×
+                          </Text>
+                        </View>
                       </View>
-                      <View className="h-1.5 overflow-hidden rounded-full bg-muted/40">
-                        <View
-                          className="h-full rounded-full bg-accent/80"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </View>
-                      <Text className="mt-1.5 text-[11px] text-muted">
-                        {p.count}×
-                      </Text>
-                    </View>
-                  );
-                })}
+                    );
+                  })}
+                </View>
               </View>
             ) : null}
 
             {report.topProducts.length > 0 ? (
-              <View className="mb-5">
-                <SectionHeader icon="ribbon-outline" title="Best sellers" mutedColor={muted} />
-                {topProductsToShow.map((p, idx) => {
-                  const rowCount = topProductsToShow.length;
-                  return (
-                    <View
-                      key={p.productId}
-                      className={mergedGroupRowClassName({
-                        index: idx,
-                        count: rowCount,
-                        extra: "flex-row items-center gap-3 px-3 py-3.5",
-                      })}
+              <View className="mb-8">
+                <SectionHeader icon="ribbon" title="Best Sellers" mutedColor={muted} />
+                <View className="mx-4 overflow-hidden rounded-[32px] border border-border/40 bg-surface">
+                  {topProductsToShow.map((p, idx) => {
+                    const isLast = idx === topProductsToShow.length - 1;
+                    return (
+                      <View
+                        key={p.productId}
+                        className={`flex-row items-center gap-4 px-5 py-4 ${isLast ? "" : "border-b border-border/40"}`}
+                      >
+                        <View className="h-10 w-10 items-center justify-center rounded-2xl bg-accent/10">
+                          <Text className="text-[15px] font-black text-accent">{idx + 1}</Text>
+                        </View>
+                        <View className="min-w-0 flex-1">
+                          <Text className="text-[16px] font-bold tracking-tight text-foreground" numberOfLines={2}>
+                            {p.name || p.productId}
+                          </Text>
+                          <Text className="mt-0.5 text-[13px] font-medium text-muted">{p.unitsSold} sold</Text>
+                        </View>
+                        <View className="items-end">
+                          <Text className="text-[16px] font-black tabular-nums tracking-tight text-foreground">
+                            {formatMinorUnitsToCurrency(p.lineTotalCents, businessCurrency)}
+                          </Text>
+                        </View>
+                      </View>
+                    );
+                  })}
+                  {report.topProducts.length > TOP_PRODUCTS_PREVIEW ? (
+                    <Pressable
+                      onPress={() => setTopProductsExpanded((v) => !v)}
+                      className="border-t border-border/40 bg-muted/5 py-4 active:bg-muted/10"
                     >
-                      <View className="h-8 w-8 items-center justify-center rounded-lg bg-accent/14">
-                        <Text className="text-[13px] font-bold text-accent">{idx + 1}</Text>
-                      </View>
-                      <View className="min-w-0 flex-1">
-                        <Text className="text-[15px] font-semibold text-foreground" numberOfLines={2}>
-                          {p.name || p.productId}
-                        </Text>
-                      </View>
-                      <View className="items-end">
-                        <Text className="text-[15px] font-bold tabular-nums text-foreground">
-                          {formatMinorUnitsToCurrency(p.lineTotalCents, businessCurrency)}
-                        </Text>
-                        <Text className="text-[11px] text-muted">{p.unitsSold} sold</Text>
-                      </View>
-                    </View>
-                  );
-                })}
-                {report.topProducts.length > TOP_PRODUCTS_PREVIEW ? (
-                  <Pressable
-                    onPress={() => setTopProductsExpanded((v) => !v)}
-                    className="mt-2 items-center py-2 active:opacity-75"
-                  >
-                    <Text className="text-[14px] font-semibold text-accent">
-                      {topProductsExpanded ? "Show less" : `See all ${report.topProducts.length}`}
-                    </Text>
-                  </Pressable>
-                ) : null}
+                      <Text className="text-center text-[14px] font-bold tracking-tight text-accent">
+                        {topProductsExpanded ? "Show less" : `See all ${report.topProducts.length}`}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </View>
               </View>
             ) : null}
 
             {report.byDay.length > 1 ? (
-              <View className="mb-5">
-                <SectionHeader icon="calendar-outline" title="Each day" mutedColor={muted} />
-                {[...report.byDay].reverse().map((d, idx, arr) => (
-                  <View
-                    key={d.dayKey}
-                    className={mergedGroupRowClassName({
-                      index: idx,
-                      count: arr.length,
-                      extra: "flex-row items-center justify-between gap-3 px-3 py-3.5",
-                    })}
-                  >
-                    <Text className="text-[15px] font-semibold text-foreground">
-                      {formatDayKeyForLocale(d.dayKey)}
-                    </Text>
-                    <View className="items-end">
-                      <Text className="text-[15px] font-bold tabular-nums text-foreground">
-                        {formatMinorUnitsToCurrency(d.totalCents, businessCurrency)}
-                      </Text>
-                      <Text className="text-[11px] text-muted">
-                        {d.saleCount} sale{d.saleCount === 1 ? "" : "s"}
-                      </Text>
-                    </View>
-                  </View>
-                ))}
+              <View className="mb-8">
+                <SectionHeader icon="calendar" title="Daily Breakdown" mutedColor={muted} />
+                <View className="mx-4 overflow-hidden rounded-[32px] border border-border/40 bg-surface">
+                  {[...report.byDay].reverse().map((d, idx, arr) => {
+                    const isLast = idx === arr.length - 1;
+                    return (
+                      <View
+                        key={d.dayKey}
+                        className={`flex-row items-center justify-between gap-3 px-5 py-4 ${isLast ? "" : "border-b border-border/40"}`}
+                      >
+                        <View>
+                          <Text className="text-[16px] font-bold tracking-tight text-foreground">
+                            {formatDayKeyForLocale(d.dayKey)}
+                          </Text>
+                          <Text className="mt-0.5 text-[13px] font-medium text-muted">
+                            {d.saleCount} sale{d.saleCount === 1 ? "" : "s"}
+                          </Text>
+                        </View>
+                        <Text className="text-[16px] font-black tabular-nums tracking-tight text-foreground">
+                          {formatMinorUnitsToCurrency(d.totalCents, businessCurrency)}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
               </View>
             ) : null}
 
-            <View className="mb-1 mt-1 border-t border-border/50 pt-5">
-              <SectionHeader icon="receipt-outline" title="Sales" mutedColor={muted} />
+            <View className="mb-2 mt-2">
+              <SectionHeader icon="receipt" title="Recent Sales" mutedColor={muted} />
             </View>
           </>
         )}
@@ -400,10 +429,12 @@ export default function ReportsTab() {
     );
   }, [
     accent,
+    accentFg,
     businessesQuery.isError,
     businessId,
     muted,
     periodPreset,
+    periodTitle,
     report,
     listRows.length,
     signedIn,
@@ -413,13 +444,15 @@ export default function ReportsTab() {
 
   const renderItem: ListRenderItem<CounterSaleRow> = useCallback(
     ({ item }) => (
-      <CounterSaleCard
-        item={item}
-        expanded={expandedIds.has(item.id)}
-        onToggle={() => toggleExpanded(item.id)}
-        businessCurrency={businessCurrency}
-        muted={muted}
-      />
+      <View className="px-4 mb-3">
+        <CounterSaleCard
+          item={item}
+          expanded={expandedIds.has(item.id)}
+          onToggle={() => toggleExpanded(item.id)}
+          businessCurrency={businessCurrency}
+          muted={muted}
+        />
+      </View>
     ),
     [businessCurrency, expandedIds, muted, toggleExpanded],
   );

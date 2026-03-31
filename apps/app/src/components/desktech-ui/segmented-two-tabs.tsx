@@ -32,7 +32,7 @@ export function SegmentedTwoTabs({
 
   return (
     <View
-      className={`flex-row rounded-2xl bg-surface-secondary p-1 ${className}`}
+      className={`flex-row rounded-full bg-surface-secondary p-1.5 ${className}`}
     >
       {tabs.map((tab) => {
         const selected = tab.id === value;
@@ -47,15 +47,15 @@ export function SegmentedTwoTabs({
                 onChange(tab.id);
               }
             }}
-            className="min-w-0 flex-1 rounded-[14px] py-2.5 active:opacity-90"
+            className="min-w-0 flex-1 rounded-full py-3 active:opacity-90"
             style={
               selected
-                ? { backgroundColor: accent }
+                ? { backgroundColor: accent, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 }
                 : { backgroundColor: "transparent" }
             }
           >
             <Text
-              className="text-center text-[15px] font-semibold"
+              className={`text-center text-[15px] ${selected ? "font-bold" : "font-medium"}`}
               style={{ color: selected ? accentFg : muted }}
               numberOfLines={1}
             >
