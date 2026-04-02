@@ -549,8 +549,8 @@ export function ProductEditor({ productId }: ProductEditorProps) {
 
         <View style={styles.fill}>
           <View className="gap-4">
-          <FormSectionCard title="Basics">
-            <SearchablePickerSheet
+            <FormSectionCard title="Basics">
+              <SearchablePickerSheet
               fieldLabel="Category"
               placeholder="Select category"
               title="Category"
@@ -627,46 +627,46 @@ export function ProductEditor({ productId }: ProductEditorProps) {
                 className={DESCRIPTION_INPUT_CLASS}
               />
             </View>
-          </FormSectionCard>
+            </FormSectionCard>
 
-          <FormSectionCard title="Pricing">
-            <View className="gap-1">
-              <Text className="text-[14px] font-medium text-foreground">
-                Price ({currency}) *
-              </Text>
-              <TextField className="gap-0">
-                <Input
-                  value={priceStr}
-                  onChangeText={setPriceStr}
-                  placeholder="0.00"
-                  keyboardType="decimal-pad"
-                  variant="secondary"
-                  className={INPUT_ROW_CLASS}
-                />
-              </TextField>
-              {priceError ? (
-                <Text className="text-[13px] text-danger">{priceError}</Text>
-              ) : null}
-            </View>
-            <View className="gap-1">
-              <Text className="text-[14px] font-medium text-foreground">
-                Cost ({currency})
-              </Text>
-              <TextField className="gap-0">
-                <Input
-                  value={costStr}
-                  onChangeText={setCostStr}
-                  placeholder="Optional"
-                  keyboardType="decimal-pad"
-                  variant="secondary"
-                  className={INPUT_ROW_CLASS}
-                />
-              </TextField>
-              {costError ? (
-                <Text className="text-[13px] text-danger">{costError}</Text>
-              ) : null}
-            </View>
-          </FormSectionCard>
+            <FormSectionCard title="Pricing">
+              <View className="gap-1">
+                <Text className="text-[14px] font-medium text-foreground">
+                  Price ({currency}) *
+                </Text>
+                <TextField className="gap-0">
+                  <Input
+                    value={priceStr}
+                    onChangeText={setPriceStr}
+                    placeholder="0.00"
+                    keyboardType="decimal-pad"
+                    variant="secondary"
+                    className={INPUT_ROW_CLASS}
+                  />
+                </TextField>
+                {priceError ? (
+                  <Text className="text-[13px] text-danger">{priceError}</Text>
+                ) : null}
+              </View>
+              <View className="gap-1">
+                <Text className="text-[14px] font-medium text-foreground">
+                  Cost ({currency})
+                </Text>
+                <TextField className="gap-0">
+                  <Input
+                    value={costStr}
+                    onChangeText={setCostStr}
+                    placeholder="Optional"
+                    keyboardType="decimal-pad"
+                    variant="secondary"
+                    className={INPUT_ROW_CLASS}
+                  />
+                </TextField>
+                {costError ? (
+                  <Text className="text-[13px] text-danger">{costError}</Text>
+                ) : null}
+              </View>
+            </FormSectionCard>
 
           <FormSectionCard title="Inventory & status">
             {isEdit && product ? (
