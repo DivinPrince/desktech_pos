@@ -89,27 +89,8 @@ export type CategoryUpdateBody = {
   sortOrder?: number;
 };
 
-export type ProductVariantCreateBody = {
-  name: string;
-  sku?: string | null;
-  priceCents: number;
-  costCents?: number | null;
-  active?: boolean;
-  sortOrder?: number;
-};
-
-export type ProductVariantUpdateBody = {
-  name?: string;
-  sku?: string | null;
-  priceCents?: number;
-  costCents?: number | null;
-  active?: boolean;
-  sortOrder?: number;
-};
-
 export type StockAdjustBody = {
   productId: string;
-  productVariantId?: string;
   quantityDelta: number;
   type:
     | "adjustment"
@@ -145,7 +126,6 @@ function optimisticProductRow(businessId: string, body: ProductCreateBody, local
     trackStock: body.trackStock ?? false,
     active: body.active ?? true,
     quantityOnHand: body.trackStock ? (body.initialQuantity ?? 0) : 0,
-    variants: [],
     createdAt: now,
     updatedAt: now,
   };
@@ -179,28 +159,13 @@ function applyProductUpdateDraft(draft: ProductRow, body: ProductUpdateBody): vo
 }
 
 function assertStockAdjustAllowed(snapshot: ProductRow, body: StockAdjustBody): void {
-  const q = body.productVariantId
-    ? snapshot.variants.find((v) => v.id === body.productVariantId)?.quantityOnHand
-    : snapshot.quantityOnHand;
-  if (q === undefined) return;
-  if (q + body.quantityDelta < 0) {
+  if (snapshot.quantityOnHand + body.quantityDelta < 0) {
     throw new Error("Insufficient stock for this adjustment");
   }
 }
 
-/** Match server rules: variant adjusts update the variant and parent aggregate when variants exist. */
 function applyStockAdjustDraft(draft: ProductRow, body: StockAdjustBody): void {
-  if (body.productVariantId) {
-    const v = draft.variants.find((x) => x.id === body.productVariantId);
-    if (v) {
-      v.quantityOnHand += body.quantityDelta;
-    }
-    if (draft.variants.length > 0) {
-      draft.quantityOnHand = draft.variants.reduce((s, x) => s + x.quantityOnHand, 0);
-    }
-  } else {
-    draft.quantityOnHand += body.quantityDelta;
-  }
+  draft.quantityOnHand += body.quantityDelta;
   draft.updatedAt = new Date();
 }
 
@@ -683,61 +648,5 @@ export function useAdjustStockMutation(businessId: string | undefined) {
         throw e;
       }
     },
-  });
-}
-
-export function useCreateProductVariantMutation(
-  businessId: string | undefined,
-  productId: string | undefined,
-) {
-  const sdk = useApiSdk();
-  const invalidate = useInvalidateCatalog(businessId);
-  return useMutation({
-    mutationFn: async (body: ProductVariantCreateBody) => {
-      const { data } = await sdk
-        .businesses
-        .business(businessId!)
-        .createProductVariant(productId!, body)
-        .withResponse();
-      return data.data;
-    },
-    onSuccess: invalidate,
-  });
-}
-
-export function useUpdateProductVariantMutation(
-  businessId: string | undefined,
-  productId: string | undefined,
-) {
-  const sdk = useApiSdk();
-  const invalidate = useInvalidateCatalog(businessId);
-  return useMutation({
-    mutationFn: async (input: { variantId: string; body: ProductVariantUpdateBody }) => {
-      const { data } = await sdk
-        .businesses
-        .business(businessId!)
-        .updateProductVariant(productId!, input.variantId, input.body)
-        .withResponse();
-      return data.data;
-    },
-    onSuccess: invalidate,
-  });
-}
-
-export function useDeleteProductVariantMutation(
-  businessId: string | undefined,
-  productId: string | undefined,
-) {
-  const sdk = useApiSdk();
-  const invalidate = useInvalidateCatalog(businessId);
-  return useMutation({
-    mutationFn: async (variantId: string) => {
-      await sdk
-        .businesses
-        .business(businessId!)
-        .deleteProductVariant(productId!, variantId)
-        .withResponse();
-    },
-    onSuccess: invalidate,
   });
 }

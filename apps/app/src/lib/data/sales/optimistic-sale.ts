@@ -18,7 +18,6 @@ export function buildOptimisticCounterSaleRow(args: {
     id: `local_line_${pendingSaleId.slice(0, 8)}_${i}`,
     saleId: pendingSaleId,
     productId: l.productId,
-    productVariantId: l.productVariantId ?? null,
     quantity: l.quantity,
     unitPriceCents: l.priceCents,
     lineDiscountCents: 0,

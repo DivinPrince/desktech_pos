@@ -7,7 +7,6 @@ import { useThemeColor } from "heroui-native/hooks";
 import { useToast } from "heroui-native/toast";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -35,17 +34,6 @@ import {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  variantModalRoot: {
-    flex: 1,
-    justifyContent: "center",
-    paddingHorizontal: 20,
-    backgroundColor: "rgba(0,0,0,0.45)",
-  },
-  variantModalCard: {
-    borderRadius: 16,
-    padding: 16,
-    maxHeight: "80%",
-  },
   scroll: { flex: 1 },
   searchShell: {
     flex: 1,
@@ -62,30 +50,15 @@ const SEARCH_DEBOUNCE_MS = 300;
 function lineQuantity(
   lines: CartLine[],
   productId: string,
-  productVariantId?: string,
 ): number {
-  const hit = lines.find(
-    (l) =>
-      l.productId === productId &&
-      (l.productVariantId ?? "") === (productVariantId ?? ""),
-  );
+  const hit = lines.find((l) => l.productId === productId);
   return hit?.quantity ?? 0;
-}
-
-function activeVariantsStockTotal(p: ProductRow): number {
-  return p.variants.filter((v) => v.active).reduce((s, v) => s + v.quantityOnHand, 0);
 }
 
 function productGridStockHint(
   p: ProductRow,
 ): { footerHint?: string; footerHintCritical?: boolean; isOutOfStock?: boolean } {
   if (!p.trackStock) return {};
-  if (p.variants.length > 0) {
-    if (activeVariantsStockTotal(p) <= 0) {
-      return { isOutOfStock: true };
-    }
-    return {};
-  }
   if (p.quantityOnHand <= 0) {
     return { isOutOfStock: true };
   }
@@ -103,12 +76,10 @@ export default function ItemsTab() {
   const muted = useThemeColor("muted");
   const accent = useThemeColor("accent");
   const accentFg = useThemeColor("accent-foreground");
-  const cardBg = useThemeColor("background");
   const queryClient = useQueryClient();
   const { addProduct, decrementProduct, getQuantity, lines } = useCounterCart();
 
   const [searchInput, setSearchInput] = useState("");
-  const [variantPickerProduct, setVariantPickerProduct] = useState<ProductRow | null>(null);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   useEffect(() => {
     const t = setTimeout(
@@ -161,13 +132,6 @@ export default function ItemsTab() {
     );
   }, [products, debouncedSearch]);
 
-  const variantPickerOptions = useMemo(() => {
-    if (!variantPickerProduct) return [];
-    return variantPickerProduct.variants
-      .filter((v) => v.active)
-      .slice()
-      .sort((a, b) => a.sortOrder - b.sortOrder);
-  }, [variantPickerProduct]);
   const workspaceColdLoad = businesses.length === 0 && businessesQuery.isPending;
   const productsInitialLoad =
     Boolean(businessId) && (products?.length ?? 0) === 0 && productsQuery.isPending;
@@ -317,13 +281,6 @@ export default function ItemsTab() {
                     onPress={
                       p.active
                         ? () => {
-                            if (p.variants.length > 0) {
-                              void Haptics.impactAsync(
-                                Haptics.ImpactFeedbackStyle.Light,
-                              );
-                              setVariantPickerProduct(p);
-                              return;
-                            }
                             const inCart = lineQuantity(lines, p.id);
                             if (p.trackStock && inCart >= p.quantityOnHand) {
                               void Haptics.notificationAsync(
@@ -360,7 +317,6 @@ export default function ItemsTab() {
                             );
                             decrementProduct({
                               productId: p.id,
-                              productVariantId: forProduct[0]!.productVariantId,
                             });
                           }
                         : undefined
@@ -406,107 +362,6 @@ export default function ItemsTab() {
         ) : null}
         </ScrollView>
       </KeyboardAvoidingScaffold>
-
-      <Modal
-        visible={variantPickerProduct != null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setVariantPickerProduct(null)}
-      >
-        <View style={styles.variantModalRoot}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Dismiss variant picker"
-            style={StyleSheet.absoluteFillObject}
-            onPress={() => setVariantPickerProduct(null)}
-          />
-          <View style={[styles.variantModalCard, { backgroundColor: cardBg }]}>
-            <Text className="text-[18px] font-semibold text-foreground">
-              {variantPickerProduct?.name}
-            </Text>
-            <Text className="mb-3 mt-1 text-[14px] text-muted">Choose an option</Text>
-            <ScrollView
-              keyboardShouldPersistTaps="handled"
-              style={{ maxHeight: 320 }}
-              showsVerticalScrollIndicator={false}
-            >
-              {variantPickerOptions.length === 0 ? (
-                <Text className="py-2 text-[14px] text-muted">
-                  No active variants. Turn on or add options in Inventory.
-                </Text>
-              ) : (
-                variantPickerOptions.map((v) => {
-                  const parent = variantPickerProduct;
-                  const variantOos = Boolean(
-                    parent?.trackStock && v.quantityOnHand <= 0,
-                  );
-                  return (
-                    <Pressable
-                      key={v.id}
-                      accessibilityRole="button"
-                      onPress={() => {
-                        const par = variantPickerProduct;
-                        if (!par) return;
-                        const inCart = lineQuantity(lines, par.id, v.id);
-                        if (par.trackStock && inCart >= v.quantityOnHand) {
-                          void Haptics.notificationAsync(
-                            Haptics.NotificationFeedbackType.Error,
-                          );
-                          toast.show({
-                            variant: "danger",
-                            label: "Out of stock",
-                            description:
-                              v.quantityOnHand <= 0
-                                ? `${par.name} · ${v.name} has no units available.`
-                                : `All ${v.quantityOnHand} units of ${v.name} are already on the counter.`,
-                          });
-                          return;
-                        }
-                        void Haptics.impactAsync(
-                          Haptics.ImpactFeedbackStyle.Light,
-                        );
-                        addProduct({
-                          productId: par.id,
-                          name: `${par.name} · ${v.name}`,
-                          priceCents: v.priceCents,
-                          productVariantId: v.id,
-                        });
-                        setVariantPickerProduct(null);
-                      }}
-                      className={`mb-2 rounded-xl border border-border/75 bg-surface px-4 py-3.5 active:opacity-80 ${
-                        variantOos ? "opacity-55" : ""
-                      }`}
-                    >
-                      <Text className="text-[15px] font-medium text-foreground">{v.name}</Text>
-                      <Text className="mt-0.5 text-[13px] tabular-nums text-muted">
-                        {formatMinorUnitsToCurrency(v.priceCents, currency)}
-                      </Text>
-                      {parent?.trackStock ? (
-                        <Text
-                          className={`mt-1 text-[12px] font-semibold ${
-                            v.quantityOnHand <= 0 ? "text-danger" : "text-muted"
-                          }`}
-                        >
-                          {v.quantityOnHand <= 0
-                            ? "Out of stock"
-                            : `${v.quantityOnHand} available`}
-                        </Text>
-                      ) : null}
-                    </Pressable>
-                  );
-                })
-              )}
-            </ScrollView>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => setVariantPickerProduct(null)}
-              className="mt-3 py-2"
-            >
-              <Text className="text-center text-[15px] text-muted">Cancel</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }

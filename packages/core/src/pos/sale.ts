@@ -1,15 +1,14 @@
-import { and, count, desc, eq, gt, gte, lte } from "drizzle-orm";
+import { and, desc, eq, gt, gte, lte } from "drizzle-orm";
 import { z } from "zod";
 import { withTransaction, createTransaction, type TxOrDb } from "../drizzle/transaction";
 import { ErrorCodes, NotFoundError, VisibleError } from "../error";
 import { createID } from "../util/id";
 import { fn } from "../util/fn";
-import { productTable, productVariantTable } from "./catalog.sql";
+import { productTable } from "./catalog.sql";
 import { diningTableTable } from "./dining.sql";
 import {
   inventoryBatchTable,
   productStockTable,
-  productVariantStockTable,
   stockMovementTable,
 } from "./inventory.sql";
 import { saleLineTable, saleTable, type SaleStatus, saleStatusEnum } from "./sale.sql";
@@ -19,7 +18,6 @@ export namespace SaleService {
     id: z.string(),
     saleId: z.string(),
     productId: z.string(),
-    productVariantId: z.string().nullable(),
     quantity: z.number(),
     unitPriceCents: z.number(),
     lineDiscountCents: z.number(),
@@ -50,7 +48,6 @@ export namespace SaleService {
       id: row.id,
       saleId: row.saleId,
       productId: row.productId,
-      productVariantId: row.productVariantId ?? null,
       quantity: row.quantity,
       unitPriceCents: row.unitPriceCents,
       lineDiscountCents: row.lineDiscountCents,
@@ -220,7 +217,6 @@ export namespace SaleService {
       lines: z.array(
         z.object({
           productId: z.string(),
-          productVariantId: z.string().optional(),
           quantity: z.number().int().positive(),
           unitPriceCents: z.number().int().nonnegative().optional(),
           lineDiscountCents: z.number().int().nonnegative().optional(),
@@ -262,66 +258,8 @@ export namespace SaleService {
               `Product '${p.name}' is not active`,
             );
           }
-
-          const [vc] = await tx
-            .select({ n: count() })
-            .from(productVariantTable)
-            .where(
-              and(
-                eq(productVariantTable.productId, line.productId),
-                eq(productVariantTable.businessId, input.businessId),
-              ),
-            );
-          const hasVariants = Number(vc?.n ?? 0) > 0;
-
-          let unitPriceCents: number;
-          let productNameSnapshot: string;
-          let productVariantId: string | null;
-
-          if (hasVariants) {
-            if (!line.productVariantId) {
-              throw new VisibleError(
-                "validation",
-                ErrorCodes.Validation.INVALID_STATE,
-                `Choose a variant for '${p.name}'`,
-              );
-            }
-            const [v] = await tx
-              .select()
-              .from(productVariantTable)
-              .where(
-                and(
-                  eq(productVariantTable.id, line.productVariantId),
-                  eq(productVariantTable.productId, line.productId),
-                  eq(productVariantTable.businessId, input.businessId),
-                ),
-              )
-              .limit(1);
-            if (!v) {
-              throw new NotFoundError("ProductVariant", line.productVariantId);
-            }
-            if (!v.active) {
-              throw new VisibleError(
-                "validation",
-                ErrorCodes.Validation.INVALID_STATE,
-                `Variant '${v.name}' is not active`,
-              );
-            }
-            unitPriceCents = line.unitPriceCents ?? v.priceCents;
-            productNameSnapshot = `${p.name} · ${v.name}`;
-            productVariantId = v.id;
-          } else {
-            if (line.productVariantId) {
-              throw new VisibleError(
-                "validation",
-                ErrorCodes.Validation.INVALID_STATE,
-                "This product does not use variants",
-              );
-            }
-            unitPriceCents = line.unitPriceCents ?? p.priceCents;
-            productNameSnapshot = p.name;
-            productVariantId = null;
-          }
+          const unitPriceCents = line.unitPriceCents ?? p.priceCents;
+          const productNameSnapshot = p.name;
 
           const lineDiscountCents = line.lineDiscountCents ?? 0;
           const lid = createID("sale_line");
@@ -329,7 +267,6 @@ export namespace SaleService {
             id: lid,
             saleId: input.saleId,
             productId: line.productId,
-            productVariantId,
             quantity: line.quantity,
             unitPriceCents,
             lineDiscountCents,
@@ -353,7 +290,6 @@ export namespace SaleService {
     tx: TxOrDb,
     businessId: string,
     productId: string,
-    productVariantId: string | null,
     quantity: number,
     saleId: string,
     userId: string,
@@ -364,48 +300,6 @@ export namespace SaleService {
       .where(and(eq(productTable.id, productId), eq(productTable.businessId, businessId)));
     if (!p) throw new NotFoundError("Product", productId);
     if (!p.trackStock) return;
-
-    if (productVariantId) {
-      const [stk] = await tx
-        .select()
-        .from(productVariantStockTable)
-        .where(
-          and(
-            eq(productVariantStockTable.businessId, businessId),
-            eq(productVariantStockTable.productVariantId, productVariantId),
-          ),
-        );
-      if (!stk || stk.quantity < quantity) {
-        throw new VisibleError(
-          "validation",
-          ErrorCodes.Validation.INVALID_STATE,
-          `Insufficient stock for '${p.name}'`,
-        );
-      }
-
-      await tx
-        .update(productVariantStockTable)
-        .set({ quantity: stk.quantity - quantity })
-        .where(
-          and(
-            eq(productVariantStockTable.businessId, businessId),
-            eq(productVariantStockTable.productVariantId, productVariantId),
-          ),
-        );
-
-      const movId = createID("stock_movement");
-      await tx.insert(stockMovementTable).values({
-        id: movId,
-        businessId,
-        productId,
-        productVariantId,
-        type: "sale",
-        quantityDelta: -quantity,
-        referenceSaleId: saleId,
-        createdByUserId: userId,
-      });
-      return;
-    }
 
     const [stk] = await tx
       .select()
@@ -457,7 +351,6 @@ export namespace SaleService {
       id: movId,
       businessId,
       productId,
-      productVariantId: null,
       type: "sale",
       quantityDelta: -quantity,
       referenceSaleId: saleId,
@@ -507,7 +400,6 @@ export namespace SaleService {
             tx,
             input.businessId,
             line.productId,
-            line.productVariantId,
             line.quantity,
             input.saleId,
             input.userId,
@@ -568,42 +460,6 @@ export namespace SaleService {
               );
             if (!p?.trackStock) continue;
 
-            if (line.productVariantId) {
-              const [vstk] = await tx
-                .select()
-                .from(productVariantStockTable)
-                .where(
-                  and(
-                    eq(productVariantStockTable.businessId, input.businessId),
-                    eq(productVariantStockTable.productVariantId, line.productVariantId),
-                  ),
-                );
-              if (vstk) {
-                await tx
-                  .update(productVariantStockTable)
-                  .set({ quantity: vstk.quantity + line.quantity })
-                  .where(
-                    and(
-                      eq(productVariantStockTable.businessId, input.businessId),
-                      eq(productVariantStockTable.productVariantId, line.productVariantId),
-                    ),
-                  );
-              }
-              const movId = createID("stock_movement");
-              await tx.insert(stockMovementTable).values({
-                id: movId,
-                businessId: input.businessId,
-                productId: line.productId,
-                productVariantId: line.productVariantId,
-                type: "sale_return",
-                quantityDelta: line.quantity,
-                referenceSaleId: input.saleId,
-                note: `Void: ${input.reason}`,
-                createdByUserId: input.userId,
-              });
-              continue;
-            }
-
             const [stk] = await tx
               .select()
               .from(productStockTable)
@@ -629,7 +485,6 @@ export namespace SaleService {
               id: movId,
               businessId: input.businessId,
               productId: line.productId,
-              productVariantId: null,
               type: "sale_return",
               quantityDelta: line.quantity,
               referenceSaleId: input.saleId,

@@ -1,13 +1,9 @@
-import { and, eq, gt, lte, lt, notExists } from "drizzle-orm";
+import { and, eq, gt, lte, lt } from "drizzle-orm";
 import { z } from "zod";
 import { withTransaction } from "../drizzle/transaction";
 import { fn } from "../util/fn";
-import { productTable, productVariantTable } from "./catalog.sql";
-import {
-  inventoryBatchTable,
-  productStockTable,
-  productVariantStockTable,
-} from "./inventory.sql";
+import { productTable } from "./catalog.sql";
+import { inventoryBatchTable, productStockTable } from "./inventory.sql";
 
 export namespace AlertService {
   export const LowStockItem = z.object({
@@ -29,7 +25,7 @@ export namespace AlertService {
 
   export const lowStock = fn(z.object({ businessId: z.string() }), async ({ businessId }) => {
     return withTransaction(async (tx) => {
-      const simpleRows = await tx
+      const rows = await tx
         .select({
           product: productTable,
           qty: productStockTable.quantity,
@@ -48,49 +44,10 @@ export namespace AlertService {
             eq(productTable.active, true),
             eq(productTable.trackStock, true),
             lte(productStockTable.quantity, productTable.stockAlert),
-            notExists(
-              tx
-                .select({ id: productVariantTable.id })
-                .from(productVariantTable)
-                .where(
-                  and(
-                    eq(productVariantTable.productId, productTable.id),
-                    eq(productVariantTable.businessId, businessId),
-                  ),
-                ),
-            ),
           ),
         )
         .orderBy(productTable.name);
-
-      const variantRows = await tx
-        .select({
-          product: productTable,
-          variant: productVariantTable,
-          qty: productVariantStockTable.quantity,
-        })
-        .from(productVariantTable)
-        .innerJoin(productTable, eq(productVariantTable.productId, productTable.id))
-        .innerJoin(
-          productVariantStockTable,
-          and(
-            eq(productVariantStockTable.productVariantId, productVariantTable.id),
-            eq(productVariantStockTable.businessId, businessId),
-          ),
-        )
-        .where(
-          and(
-            eq(productTable.businessId, businessId),
-            eq(productTable.active, true),
-            eq(productTable.trackStock, true),
-            eq(productVariantTable.businessId, businessId),
-            eq(productVariantTable.active, true),
-            lte(productVariantStockTable.quantity, productTable.stockAlert),
-          ),
-        )
-        .orderBy(productTable.name, productVariantTable.sortOrder, productVariantTable.name);
-
-      const fromSimple = simpleRows.map((r) =>
+      return rows.map((r) =>
         LowStockItem.parse({
           productId: r.product.id,
           name: r.product.name,
@@ -99,18 +56,6 @@ export namespace AlertService {
           stockAlert: r.product.stockAlert,
         }),
       );
-
-      const fromVariants = variantRows.map((r) =>
-        LowStockItem.parse({
-          productId: r.product.id,
-          name: `${r.product.name} · ${r.variant.name}`,
-          sku: r.variant.sku ?? r.product.sku,
-          quantityOnHand: r.qty,
-          stockAlert: r.product.stockAlert,
-        }),
-      );
-
-      return [...fromSimple, ...fromVariants];
     });
   });
 

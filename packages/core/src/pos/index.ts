@@ -10,7 +10,6 @@ export * from "./inventory.sql";
 export * from "./offline-idempotency";
 export * from "./offline-idempotency.sql";
 export * from "./product";
-export * from "./product-variant";
 export * from "./reports";
 export * from "./sale";
 export * from "./sale.sql";

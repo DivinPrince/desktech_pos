@@ -11,7 +11,6 @@ import { APIError } from "@repo/sdk";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -33,7 +32,6 @@ import { subscribeCategoryLocalIdRemap } from "@/lib/data/catalog/category-recon
 import type { ProductRow } from "@/lib/data/catalog/types";
 import { resolveActiveBusiness, useAuthSessionState } from "@/lib/auth-session";
 import {
-  formatMinorUnitsToCurrency,
   minorUnitsToMajorDecimalString,
   parseMajorUnitsToMinorUnits,
 } from "@/lib/format-money";
@@ -44,15 +42,10 @@ import {
   useCategoriesQuery,
   useCreateCategoryMutation,
   useCreateProductMutation,
-  useCreateProductVariantMutation,
   useDeleteProductMutation,
-  useDeleteProductVariantMutation,
   useProductQuery,
   useUpdateProductMutation,
-  useUpdateProductVariantMutation,
 } from "@/lib/queries/business-catalog";
-
-type ProductVariantRow = ProductRow["variants"][number];
 
 const INPUT_ROW_CLASS =
   "border-0 border-transparent bg-background/50 rounded-[16px] py-3.5 px-4 text-[16px] font-medium leading-5 shadow-none ios:shadow-none android:shadow-none focus:border-transparent text-field-foreground";
@@ -240,9 +233,6 @@ export function ProductEditor({ productId }: ProductEditorProps) {
   const createCategoryMutation = useCreateCategoryMutation(businessId);
   const updateMutation = useUpdateProductMutation(businessId, productId);
   const deleteMutation = useDeleteProductMutation(businessId);
-  const createVariantMutation = useCreateProductVariantMutation(businessId, productId);
-  const deleteVariantMutation = useDeleteProductVariantMutation(businessId, productId);
-  const updateVariantMutation = useUpdateProductVariantMutation(businessId, productId);
 
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const categoryRemapDisposersRef = useRef<(() => void)[]>([]);
@@ -265,15 +255,6 @@ export function ProductEditor({ productId }: ProductEditorProps) {
   const [active, setActive] = useState(true);
 
   const [stockSheetOpen, setStockSheetOpen] = useState(false);
-  const [stockVariantId, setStockVariantId] = useState<string | null>(null);
-  const [variantEditOpen, setVariantEditOpen] = useState(false);
-  const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
-  const [newVariantName, setNewVariantName] = useState("");
-  const [newVariantPriceStr, setNewVariantPriceStr] = useState("");
-  const [newVariantSku, setNewVariantSku] = useState("");
-  const [editVarName, setEditVarName] = useState("");
-  const [editVarPriceStr, setEditVarPriceStr] = useState("");
-  const [editVarSku, setEditVarSku] = useState("");
 
   const [nameError, setNameError] = useState("");
   const [priceError, setPriceError] = useState("");
@@ -390,9 +371,6 @@ export function ProductEditor({ productId }: ProductEditorProps) {
     createMutation.isPending ||
     updateMutation.isPending ||
     deleteMutation.isPending ||
-    createVariantMutation.isPending ||
-    deleteVariantMutation.isPending ||
-    updateVariantMutation.isPending ||
     createCategoryMutation.isPending;
 
   const onSave = useCallback(() => {
@@ -536,120 +514,9 @@ export function ProductEditor({ productId }: ProductEditorProps) {
     );
   }, [productId, businessId, deleteMutation, router, toast]);
 
-  const openStockSheet = useCallback((variantId: string | null) => {
-    setStockVariantId(variantId);
+  const openStockSheet = useCallback(() => {
     setStockSheetOpen(true);
   }, []);
-
-  const onCreateVariant = useCallback(() => {
-    const nvName = newVariantName.trim();
-    if (!nvName) {
-      toast.show({ variant: "danger", label: "Variant name is required" });
-      return;
-    }
-    const pc = parseMajorUnitsToMinorUnits(newVariantPriceStr.trim(), currency);
-    if (pc === null) {
-      toast.show({ variant: "danger", label: "Enter a valid variant price" });
-      return;
-    }
-    if (!businessId || !productId) return;
-    createVariantMutation.mutate(
-      {
-        name: nvName,
-        priceCents: pc,
-        sku: newVariantSku.trim() === "" ? null : newVariantSku.trim(),
-      },
-      {
-        onSuccess: () => {
-          toast.show({ variant: "success", label: "Variant added" });
-          setNewVariantName("");
-          setNewVariantPriceStr("");
-          setNewVariantSku("");
-        },
-        onError: (e) => {
-          toast.show({ variant: "danger", label: errorMessage(e) });
-        },
-      },
-    );
-  }, [
-    newVariantName,
-    newVariantPriceStr,
-    newVariantSku,
-    currency,
-    businessId,
-    productId,
-    createVariantMutation,
-    toast,
-  ]);
-
-  const onSaveVariantEdit = useCallback(() => {
-    if (!editingVariantId) return;
-    const n = editVarName.trim();
-    if (!n) {
-      toast.show({ variant: "danger", label: "Name is required" });
-      return;
-    }
-    const pc = parseMajorUnitsToMinorUnits(editVarPriceStr.trim(), currency);
-    if (pc === null) {
-      toast.show({ variant: "danger", label: "Enter a valid price" });
-      return;
-    }
-    updateVariantMutation.mutate(
-      {
-        variantId: editingVariantId,
-        body: {
-          name: n,
-          priceCents: pc,
-          sku: editVarSku.trim() === "" ? null : editVarSku.trim(),
-        },
-      },
-      {
-        onSuccess: () => {
-          toast.show({ variant: "success", label: "Variant updated" });
-          setVariantEditOpen(false);
-          setEditingVariantId(null);
-        },
-        onError: (e) => {
-          toast.show({ variant: "danger", label: errorMessage(e) });
-        },
-      },
-    );
-  }, [
-    editingVariantId,
-    editVarName,
-    editVarPriceStr,
-    editVarSku,
-    currency,
-    updateVariantMutation,
-    toast,
-  ]);
-
-  const onDeleteVariant = useCallback(
-    (variantId: string, label: string) => {
-      Alert.alert(
-        "Delete variant",
-        `Remove “${label}”? This cannot be undone if the variant was never sold.`,
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Delete",
-            style: "destructive",
-            onPress: () => {
-              deleteVariantMutation.mutate(variantId, {
-                onSuccess: () => {
-                  toast.show({ variant: "success", label: "Variant removed" });
-                },
-                onError: (e) => {
-                  toast.show({ variant: "danger", label: errorMessage(e) });
-                },
-              });
-            },
-          },
-        ],
-      );
-    },
-    [deleteVariantMutation, toast],
-  );
 
   const businesses = businessesQuery.data ?? [];
   if (!signedIn || (businesses.length === 0 && businessesQuery.isPending)) {
@@ -872,114 +739,8 @@ export function ProductEditor({ productId }: ProductEditorProps) {
 
             {trackStock ? (
               isEdit && product ? (
-                product.variants.length > 0 ? (
-                  <View className="gap-3 mt-2">
-                  <Text className="text-[14px] font-medium leading-5 text-muted ml-1">
-                    Each variant has its own price and stock.
-                  </Text>
-                  {product.variants.map((v: ProductVariantRow) => (
-                    <View
-                      key={v.id}
-                      className="rounded-[20px] bg-background/50 p-4"
-                    >
-                      <View className="flex-row items-start justify-between gap-2">
-                        <View className="min-w-0 flex-1">
-                          <Text
-                            className="text-[17px] font-bold text-foreground tracking-tight"
-                            numberOfLines={2}
-                          >
-                            {v.name}
-                          </Text>
-                          <Text className="mt-1 text-[15px] font-medium text-muted">
-                            {formatMinorUnitsToCurrency(v.priceCents, currency)}
-                            {v.sku ? ` · SKU ${v.sku}` : ""}
-                          </Text>
-                        </View>
-                        <View className="flex-row items-center gap-1">
-                          <Pressable
-                            onPress={() => {
-                              setEditingVariantId(v.id);
-                              setEditVarName(v.name);
-                              setEditVarPriceStr(
-                                minorUnitsToMajorDecimalString(v.priceCents, currency),
-                              );
-                              setEditVarSku(v.sku ?? "");
-                              setVariantEditOpen(true);
-                            }}
-                            hitSlop={8}
-                            className="h-10 w-10 items-center justify-center rounded-full bg-accent/10 active:bg-accent/20"
-                          >
-                            <Ionicons name="create" size={20} color={accent} />
-                          </Pressable>
-                          <Pressable
-                            onPress={() => onDeleteVariant(v.id, v.name)}
-                            hitSlop={8}
-                            className="h-10 w-10 items-center justify-center rounded-full bg-danger/10 active:bg-danger/20"
-                          >
-                            <Ionicons name="trash" size={20} color={danger} />
-                          </Pressable>
-                        </View>
-                      </View>
-                      <Pressable
-                        onPress={() => openStockSheet(v.id)}
-                        className="mt-4 rounded-[16px] bg-surface px-4 py-3.5 active:opacity-80 shadow-sm"
-                      >
-                        <Text className="text-[12px] font-bold uppercase tracking-widest text-muted">
-                          Available to sell
-                        </Text>
-                        <View className="flex-row items-baseline justify-between mt-1">
-                          <Text className="text-[24px] font-black tabular-nums tracking-tight text-foreground">
-                            {v.quantityOnHand}
-                          </Text>
-                          <Text className="text-[13px] font-bold text-accent">Tap to adjust</Text>
-                        </View>
-                      </Pressable>
-                    </View>
-                  ))}
-                  <View className="gap-3 rounded-[20px] border-2 border-dashed border-border/40 bg-background/30 p-4 mt-2">
-                    <Text className="text-[15px] font-bold text-foreground">Add variant</Text>
-                    <TextField className="gap-0">
-                      <Input
-                        value={newVariantName}
-                        onChangeText={setNewVariantName}
-                        placeholder="Name (e.g. Large / Red)"
-                        variant="secondary"
-                        className={INPUT_ROW_CLASS}
-                      />
-                    </TextField>
-                    <TextField className="gap-0">
-                      <Input
-                        value={newVariantPriceStr}
-                        onChangeText={setNewVariantPriceStr}
-                        placeholder={`Price (${currency})`}
-                        keyboardType="decimal-pad"
-                        variant="secondary"
-                        className={INPUT_ROW_CLASS}
-                      />
-                    </TextField>
-                    <TextField className="gap-0">
-                      <Input
-                        value={newVariantSku}
-                        onChangeText={setNewVariantSku}
-                        placeholder="SKU (optional)"
-                        autoCapitalize="none"
-                        variant="secondary"
-                        className={INPUT_ROW_CLASS}
-                      />
-                    </TextField>
-                    <Button
-                      variant="secondary"
-                      className="mt-1"
-                      onPress={onCreateVariant}
-                      isDisabled={createVariantMutation.isPending}
-                    >
-                      <Button.Label className="font-bold text-[15px]">Add variant</Button.Label>
-                    </Button>
-                  </View>
-                </View>
-              ) : (
                 <Pressable
-                  onPress={() => openStockSheet(null)}
+                  onPress={openStockSheet}
                   className="rounded-[20px] bg-background/50 px-4 py-4 active:opacity-80 mt-2"
                 >
                   <Text className="text-[12px] font-bold uppercase tracking-widest text-muted">
@@ -994,7 +755,7 @@ export function ProductEditor({ productId }: ProductEditorProps) {
                     </View>
                   </View>
                 </Pressable>
-              )
+              ) : null
             ) : (
               <View className="gap-1.5 mt-2">
                 <Text className="text-[15px] font-bold text-foreground ml-1">
@@ -1018,12 +779,8 @@ export function ProductEditor({ productId }: ProductEditorProps) {
                     {initialQuantityError}
                   </Text>
                 ) : null}
-                <Text className="text-[13px] font-medium text-muted ml-1 mt-1">
-                  Variants can be added after the product is saved.
-                </Text>
               </View>
-            )
-            ) : null}
+            )}
 
             {trackStock ? (
               <View className="gap-1.5 pt-3 mt-2 border-t border-border/40">
@@ -1077,98 +834,11 @@ export function ProductEditor({ productId }: ProductEditorProps) {
           onClose={() => setStockSheetOpen(false)}
           businessId={businessId}
           productId={product.id}
-          productVariantId={stockVariantId ?? undefined}
           title="Stock"
-          subtitle={
-            stockVariantId
-              ? (product.variants.find((v: ProductVariantRow) => v.id === stockVariantId)?.name ??
-                undefined)
-              : undefined
-          }
-          currentQuantity={
-            stockVariantId
-              ? (product.variants.find((v: ProductVariantRow) => v.id === stockVariantId)
-                  ?.quantityOnHand ?? 0)
-              : product.quantityOnHand
-          }
+          currentQuantity={product.quantityOnHand}
           trackStock={product.trackStock}
         />
       ) : null}
-
-      <Modal
-        visible={variantEditOpen}
-        animationType="slide"
-        transparent
-        onRequestClose={() => {
-          setVariantEditOpen(false);
-          setEditingVariantId(null);
-        }}
-      >
-        <Pressable
-          style={styles.fill}
-          className="justify-end bg-black/45"
-          onPress={() => {
-            setVariantEditOpen(false);
-            setEditingVariantId(null);
-          }}
-        >
-          <Pressable
-            className="max-h-[80%] rounded-t-3xl bg-background px-4 pb-6 pt-4"
-            onPress={(e) => e.stopPropagation()}
-          >
-            <View className="mb-3 h-1 w-10 self-center rounded-full bg-muted" />
-            <Text className="text-[18px] font-semibold text-foreground">Edit variant</Text>
-            <View className="mt-4 gap-1">
-              <Text className="text-[14px] font-medium text-foreground">Name</Text>
-              <TextField className="gap-0">
-                <Input
-                  value={editVarName}
-                  onChangeText={setEditVarName}
-                  variant="secondary"
-                  className={INPUT_ROW_CLASS}
-                />
-              </TextField>
-            </View>
-            <View className="mt-3 gap-1">
-              <Text className="text-[14px] font-medium text-foreground">Price ({currency})</Text>
-              <TextField className="gap-0">
-                <Input
-                  value={editVarPriceStr}
-                  onChangeText={setEditVarPriceStr}
-                  keyboardType="decimal-pad"
-                  variant="secondary"
-                  className={INPUT_ROW_CLASS}
-                />
-              </TextField>
-            </View>
-            <View className="mt-3 gap-1">
-              <Text className="text-[14px] font-medium text-foreground">SKU</Text>
-              <TextField className="gap-0">
-                <Input
-                  value={editVarSku}
-                  onChangeText={setEditVarSku}
-                  autoCapitalize="none"
-                  variant="secondary"
-                  className={INPUT_ROW_CLASS}
-                />
-              </TextField>
-            </View>
-            <Button className="mt-5" onPress={onSaveVariantEdit} isDisabled={saving}>
-              <Button.Label className="font-semibold text-accent-foreground">Save variant</Button.Label>
-            </Button>
-            <Button
-              variant="secondary"
-              className="mt-2"
-              onPress={() => {
-                setVariantEditOpen(false);
-                setEditingVariantId(null);
-              }}
-            >
-              <Button.Label className="font-semibold">Cancel</Button.Label>
-            </Button>
-          </Pressable>
-        </Pressable>
-      </Modal>
 
     </KeyboardAvoidingScaffold>
   );

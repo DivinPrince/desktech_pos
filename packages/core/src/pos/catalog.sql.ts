@@ -44,31 +44,5 @@ export const productTable = pgTable(
   (t) => [index("product_business_idx").on(t.businessId), index("product_business_sku_idx").on(t.businessId, t.sku)],
 );
 
-export const productVariantTable = pgTable(
-  "product_variant",
-  {
-    ...id,
-    businessId: ulid("business_id")
-      .notNull()
-      .references(() => businessTable.id, { onDelete: "cascade" }),
-    productId: ulid("product_id")
-      .notNull()
-      .references(() => productTable.id, { onDelete: "cascade" }),
-    name: varchar("name", { length: 255 }).notNull(),
-    sku: varchar("sku", { length: 120 }),
-    priceCents: money("price_cents").notNull(),
-    costCents: money("cost_cents"),
-    active: boolean("active").notNull().default(true),
-    sortOrder: integer("sort_order").notNull().default(0),
-    ...timestamps,
-  },
-  (t) => [
-    index("product_variant_product_idx").on(t.productId),
-    index("product_variant_business_idx").on(t.businessId),
-    index("product_variant_business_sku_idx").on(t.businessId, t.sku),
-  ],
-);
-
 export type CategoryRow = typeof categoryTable.$inferSelect;
 export type ProductRow = typeof productTable.$inferSelect;
-export type ProductVariantRow = typeof productVariantTable.$inferSelect;

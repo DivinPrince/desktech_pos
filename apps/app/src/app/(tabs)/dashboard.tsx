@@ -59,21 +59,10 @@ function inventorySignals(products: readonly ProductRow[]): StockSignals {
   for (const p of products) {
     if (!p.active || !p.trackStock) continue;
     const alertThreshold = Math.max(0, p.stockAlert);
-
-    if (p.variants.length > 0) {
-      for (const v of p.variants) {
-        if (!v.active) continue;
-        trackedSkuCount++;
-        const q = v.quantityOnHand;
-        if (q <= 0) skuOutOfStock++;
-        else if (alertThreshold > 0 && q <= alertThreshold) skuLowStock++;
-      }
-    } else {
-      trackedSkuCount++;
-      const q = p.quantityOnHand;
-      if (q <= 0) skuOutOfStock++;
-      else if (alertThreshold > 0 && q <= alertThreshold) skuLowStock++;
-    }
+    trackedSkuCount++;
+    const q = p.quantityOnHand;
+    if (q <= 0) skuOutOfStock++;
+    else if (alertThreshold > 0 && q <= alertThreshold) skuLowStock++;
   }
 
   return { skuOutOfStock, skuLowStock, trackedSkuCount };
@@ -257,8 +246,7 @@ export default function DashboardTab() {
   const allList = useMemo(() => allRows ?? [], [allRows]);
   const allReport = useMemo(() => buildSalesReport(allList), [allList]);
 
-  const products = productsQuery.data ?? [];
-  const categories = categoriesQuery.data ?? [];
+  const products = useMemo(() => productsQuery.data ?? [], [productsQuery.data]);
   const stockSignals = useMemo(() => inventorySignals(products), [products]);
 
   const recentSales = useMemo(() => allList.slice(0, 4), [allList]);

@@ -1,6 +1,6 @@
 {
-  "id": "d4e8c1a7-62f3-4b9e-8c0d-1a2b3c4d5e6f",
-  "prevId": "f948219a-95c5-43cf-930c-ee08d6024c09",
+  "id": "a4d202df-dbd2-4149-b833-e45cf1831f92",
+  "prevId": "d4e8c1a7-62f3-4b9e-8c0d-1a2b3c4d5e6f",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -440,168 +440,6 @@
             "id"
           ],
           "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.product_variant": {
-      "name": "product_variant",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "varchar(30)",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "business_id": {
-          "name": "business_id",
-          "type": "varchar(30)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "product_id": {
-          "name": "product_id",
-          "type": "varchar(30)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sku": {
-          "name": "sku",
-          "type": "varchar(120)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "price_cents": {
-          "name": "price_cents",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "cost_cents": {
-          "name": "cost_cents",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "active": {
-          "name": "active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "sort_order": {
-          "name": "sort_order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "product_variant_product_idx": {
-          "name": "product_variant_product_idx",
-          "columns": [
-            {
-              "expression": "product_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "product_variant_business_idx": {
-          "name": "product_variant_business_idx",
-          "columns": [
-            {
-              "expression": "business_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "product_variant_business_sku_idx": {
-          "name": "product_variant_business_sku_idx",
-          "columns": [
-            {
-              "expression": "business_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "sku",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "product_variant_business_id_business_id_fk": {
-          "name": "product_variant_business_id_business_id_fk",
-          "tableFrom": "product_variant",
-          "tableTo": "business",
-          "columnsFrom": [
-            "business_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "product_variant_product_id_product_id_fk": {
-          "name": "product_variant_product_id_product_id_fk",
-          "tableFrom": "product_variant",
-          "tableTo": "product",
-          "columnsFrom": [
-            "product_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -1080,87 +918,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.product_variant_stock": {
-      "name": "product_variant_stock",
-      "schema": "",
-      "columns": {
-        "business_id": {
-          "name": "business_id",
-          "type": "varchar(30)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "product_variant_id": {
-          "name": "product_variant_id",
-          "type": "varchar(30)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "quantity": {
-          "name": "quantity",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "product_variant_stock_business_id_business_id_fk": {
-          "name": "product_variant_stock_business_id_business_id_fk",
-          "tableFrom": "product_variant_stock",
-          "tableTo": "business",
-          "columnsFrom": [
-            "business_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "product_variant_stock_product_variant_id_product_variant_id_fk": {
-          "name": "product_variant_stock_product_variant_id_product_variant_id_fk",
-          "tableFrom": "product_variant_stock",
-          "tableTo": "product_variant",
-          "columnsFrom": [
-            "product_variant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "product_variant_stock_business_id_product_variant_id_pk": {
-          "name": "product_variant_stock_business_id_product_variant_id_pk",
-          "columns": [
-            "business_id",
-            "product_variant_id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.stock_movement": {
       "name": "stock_movement",
       "schema": "",
@@ -1182,12 +939,6 @@
           "type": "varchar(30)",
           "primaryKey": false,
           "notNull": true
-        },
-        "product_variant_id": {
-          "name": "product_variant_id",
-          "type": "varchar(30)",
-          "primaryKey": false,
-          "notNull": false
         },
         "type": {
           "name": "type",
@@ -1263,21 +1014,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "stock_movement_variant_idx": {
-          "name": "stock_movement_variant_idx",
-          "columns": [
-            {
-              "expression": "product_variant_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
@@ -1305,19 +1041,6 @@
             "id"
           ],
           "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "stock_movement_product_variant_id_product_variant_id_fk": {
-          "name": "stock_movement_product_variant_id_product_variant_id_fk",
-          "tableFrom": "stock_movement",
-          "tableTo": "product_variant",
-          "columnsFrom": [
-            "product_variant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
           "onUpdate": "no action"
         },
         "stock_movement_reference_sale_id_sale_id_fk": {
@@ -1486,12 +1209,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "product_variant_id": {
-          "name": "product_variant_id",
-          "type": "varchar(30)",
-          "primaryKey": false,
-          "notNull": false
-        },
         "quantity": {
           "name": "quantity",
           "type": "integer",
@@ -1569,19 +1286,6 @@
           "tableTo": "product",
           "columnsFrom": [
             "product_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "sale_line_product_variant_id_product_variant_id_fk": {
-          "name": "sale_line_product_variant_id_product_variant_id_fk",
-          "tableFrom": "sale_line",
-          "tableTo": "product_variant",
-          "columnsFrom": [
-            "product_variant_id"
           ],
           "columnsTo": [
             "id"

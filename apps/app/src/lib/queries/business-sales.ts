@@ -58,27 +58,13 @@ function randomIdempotencyKey(): string {
 }
 
 function assertStockAdjustAllowed(snapshot: ProductRow, body: StockAdjustBody): void {
-  const q = body.productVariantId
-    ? snapshot.variants.find((v) => v.id === body.productVariantId)?.quantityOnHand
-    : snapshot.quantityOnHand;
-  if (q === undefined) return;
-  if (q + body.quantityDelta < 0) {
+  if (snapshot.quantityOnHand + body.quantityDelta < 0) {
     throw new Error("Insufficient stock for this adjustment");
   }
 }
 
 function applyStockAdjustDraft(draft: ProductRow, body: StockAdjustBody): void {
-  if (body.productVariantId) {
-    const v = draft.variants.find((x) => x.id === body.productVariantId);
-    if (v) {
-      v.quantityOnHand += body.quantityDelta;
-    }
-    if (draft.variants.length > 0) {
-      draft.quantityOnHand = draft.variants.reduce((s, x) => s + x.quantityOnHand, 0);
-    }
-  } else {
-    draft.quantityOnHand += body.quantityDelta;
-  }
+  draft.quantityOnHand += body.quantityDelta;
   draft.updatedAt = new Date();
 }
 
@@ -248,13 +234,9 @@ export function useCompleteCounterSaleMutation(businessId: string | undefined) {
         const single = catalogReg.ensureProduct(queryClient, businessId, line.productId);
         const snap = single.get(line.productId) as ProductRow | undefined;
         if (!snap) continue;
-        if (snap.variants.length > 0 && !line.productVariantId) {
-          throw new Error(`Choose a variant for “${snap.name}”.`);
-        }
         if (!snap.trackStock) continue;
         const body: StockAdjustBody = {
           productId: line.productId,
-          productVariantId: line.productVariantId,
           quantityDelta: -line.quantity,
           type: "sale",
         };
@@ -279,7 +261,6 @@ export function useCompleteCounterSaleMutation(businessId: string | undefined) {
       const bodyPayload = {
         lines: input.lines.map((l) => ({
           productId: l.productId,
-          productVariantId: l.productVariantId,
           quantity: l.quantity,
           unitPriceCents: l.priceCents,
         })),

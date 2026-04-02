@@ -97,7 +97,6 @@ export default function CounterTab() {
                 onPress={() =>
                   decrementProduct({
                     productId: item.productId,
-                    productVariantId: item.productVariantId,
                   })
                 }
                 className="h-7 w-7 items-center justify-center rounded-full bg-surface active:bg-accent/10"

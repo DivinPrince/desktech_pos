@@ -8,13 +8,13 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.desktop-vhfbuomdivin.dev.desktech-pos.spura.app"
+        "EXPO_PUBLIC_API_URL": "https://api.preview.dev.desktech-pos.spura.app"
       }
     },
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.desktop-vhfbuomdivin.dev.desktech-pos.spura.app"
+        "EXPO_PUBLIC_API_URL": "https://api.preview.dev.desktech-pos.spura.app"
       }
     },
     "production": {

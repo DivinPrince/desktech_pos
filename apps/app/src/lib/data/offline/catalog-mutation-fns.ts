@@ -85,7 +85,6 @@ export type CatalogDeleteProductMetadata = {
 /** Same shape as app `StockAdjustBody` / API (keep in sync). */
 export type CatalogAdjustStockBody = {
   productId: string;
-  productVariantId?: string;
   quantityDelta: number;
   type:
     | "adjustment"
@@ -109,7 +108,6 @@ export type CatalogCompleteCounterSaleBody = {
     productId: string;
     quantity: number;
     unitPriceCents: number;
-    productVariantId?: string;
   }[];
   paymentMethod: string;
 };
@@ -224,7 +222,6 @@ export const catalogCompleteCounterSaleMutationFn: CatalogOfflineMutationFn = as
       saleId,
       body.lines.map((l) => ({
         productId: l.productId,
-        productVariantId: l.productVariantId,
         quantity: l.quantity,
         unitPriceCents: l.unitPriceCents,
       })),

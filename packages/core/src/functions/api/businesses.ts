@@ -7,7 +7,6 @@ import {
   InventoryService,
   OfflineIdempotencyService,
   ProductService,
-  ProductVariantService,
   ReportService,
   SaleService,
 } from "@repo/core/pos";
@@ -28,11 +27,6 @@ import { ErrorCodes, VisibleError } from "@repo/core/error";
 
 const idParam = z.object({
   id: z.string(),
-});
-
-const productAndVariantParams = z.object({
-  productId: z.string(),
-  variantId: z.string(),
 });
 
 const createBusinessBody = BusinessService.CreateInput.omit({ ownerUserId: true });
@@ -277,55 +271,6 @@ export const businessScopedApi = new Hono<AppEnv>()
       return success(c);
     },
   )
-  .post(
-    "/products/:productId/variants",
-    requireBusinessMinimum("manager"),
-    validate("param", z.object({ productId: z.string() })),
-    validate("json", ProductVariantService.CreateInput.omit({ businessId: true, productId: true })),
-    async (c) => {
-      const businessId = c.req.param("businessId")!;
-      const { productId } = c.req.valid("param");
-      return ok(
-        c,
-        await ProductVariantService.create({
-          businessId,
-          productId,
-          ...c.req.valid("json"),
-        }),
-        201,
-      );
-    },
-  )
-  .patch(
-    "/products/:productId/variants/:variantId",
-    requireBusinessMinimum("manager"),
-    validate("param", productAndVariantParams),
-    validate("json", ProductVariantService.UpdateInput.omit({ businessId: true, productId: true, id: true })),
-    async (c) => {
-      const businessId = c.req.param("businessId")!;
-      const { productId, variantId } = c.req.valid("param");
-      return ok(
-        c,
-        await ProductVariantService.update({
-          businessId,
-          productId,
-          id: variantId,
-          ...c.req.valid("json"),
-        }),
-      );
-    },
-  )
-  .delete(
-    "/products/:productId/variants/:variantId",
-    requireBusinessMinimum("manager"),
-    validate("param", productAndVariantParams),
-    async (c) => {
-      const businessId = c.req.param("businessId")!;
-      const { productId, variantId } = c.req.valid("param");
-      await ProductVariantService.remove({ businessId, productId, id: variantId });
-      return success(c);
-    },
-  )
   .get(
     "/stock/movements",
     requireBusinessMinimum("manager"),
@@ -360,7 +305,6 @@ export const businessScopedApi = new Hono<AppEnv>()
       "json",
       z.object({
         productId: z.string(),
-        productVariantId: z.string().optional(),
         quantityDelta: z.number().int(),
         type: z.enum([
           "adjustment",
@@ -566,7 +510,6 @@ export const businessScopedApi = new Hono<AppEnv>()
         lines: z.array(
           z.object({
             productId: z.string(),
-            productVariantId: z.string().optional(),
             quantity: z.number().int().positive(),
             unitPriceCents: z.number().int().nonnegative().optional(),
             lineDiscountCents: z.number().int().nonnegative().optional(),

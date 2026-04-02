@@ -6,7 +6,6 @@ import {
   ExpenseService,
   InventoryService,
   ProductService,
-  ProductVariantService,
   ReportService,
   SaleService,
 } from "@repo/core/pos";
@@ -18,7 +17,6 @@ type Data<T> = { data: T };
 
 type StockAdjustBody = {
   productId: string;
-  productVariantId?: string;
   quantityDelta: number;
   type:
     | "adjustment"
@@ -45,7 +43,6 @@ type BatchAdjustBody = {
 
 type SaleLineInput = {
   productId: string;
-  productVariantId?: string;
   quantity: number;
   unitPriceCents?: number;
   lineDiscountCents?: number;
@@ -177,33 +174,6 @@ export class BusinessScopedResource extends APIResource {
 
   deleteProduct(id: string) {
     return this._client.delete<{ success: boolean }>(this.prefix(`/products/${id}`));
-  }
-
-  createProductVariant(
-    productId: string,
-    body: Omit<z.infer<typeof ProductVariantService.CreateInput>, "businessId" | "productId">,
-  ) {
-    return this._client.post<
-      typeof body,
-      Data<z.infer<typeof ProductVariantService.Info>>
-    >(this.prefix(`/products/${productId}/variants`), { body });
-  }
-
-  updateProductVariant(
-    productId: string,
-    variantId: string,
-    body: Omit<z.infer<typeof ProductVariantService.UpdateInput>, "businessId" | "productId" | "id">,
-  ) {
-    return this._client.patch<
-      typeof body,
-      Data<z.infer<typeof ProductVariantService.Info>>
-    >(this.prefix(`/products/${productId}/variants/${variantId}`), { body });
-  }
-
-  deleteProductVariant(productId: string, variantId: string) {
-    return this._client.delete<{ success: boolean }>(
-      this.prefix(`/products/${productId}/variants/${variantId}`),
-    );
   }
 
   listStockMovements(query?: {

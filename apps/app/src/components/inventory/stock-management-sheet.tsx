@@ -42,8 +42,6 @@ export type StockManagementSheetProps = {
   onClose: () => void;
   businessId: string | undefined;
   productId: string;
-  /** When set, adjusts variant stock; otherwise product-level stock. */
-  productVariantId?: string | null;
   title: string;
   subtitle?: string;
   currentQuantity: number;
@@ -55,7 +53,6 @@ export function StockManagementSheet({
   onClose,
   businessId,
   productId,
-  productVariantId,
   title,
   subtitle,
   currentQuantity,
@@ -86,7 +83,7 @@ export function StockManagementSheet({
     setRecordKey(0);
     setDirection("add");
     setNote("");
-  }, [visible, productId, productVariantId]);
+  }, [visible, productId]);
 
   const onSave = useCallback(() => {
     if (!businessId || !trackStock) return;
@@ -110,7 +107,6 @@ export function StockManagementSheet({
       type: recordAs.apiType,
       note: note.trim() || undefined,
     };
-    if (productVariantId) body.productVariantId = productVariantId;
 
     adjustMutation.mutate(body, {
       onSuccess: () => {
@@ -128,7 +124,6 @@ export function StockManagementSheet({
     note,
     onClose,
     productId,
-    productVariantId,
     recordAs.apiType,
     adjustMutation,
     toast,
