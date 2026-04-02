@@ -14,7 +14,6 @@ import {
   Modal,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -551,82 +550,82 @@ export function ProductEditor({ productId }: ProductEditorProps) {
           <View className="gap-4">
             <FormSectionCard title="Basics">
               <SearchablePickerSheet
-              fieldLabel="Category"
-              placeholder="Select category"
-              title="Category"
-              searchPlaceholder="Search categories or type a new name…"
-              leadingOptions={categoryLeadingOptions}
-              options={categoryPickerOptions}
-              selectedValue={categoryId ?? ""}
-              onSelect={(v) => setCategoryId(v === "" ? null : v)}
-              onCreateFromQuery={(suggestedName) => {
-                router.push({
-                  pathname: "/items/category/new",
-                  params: { suggestName: suggestedName },
-                });
-              }}
-              createFromQueryLabel={(q) => `Create category “${q}”`}
-              onEmptyOptions={() => {
-                router.push({ pathname: "/items/category/new" });
-              }}
-              emptyOptionsLabel="Create category"
-            />
-
-            <View className="gap-1">
-              <Text className="text-[14px] font-medium text-foreground">Name *</Text>
-              <TextField className="gap-0">
-                <Input
-                  value={name}
-                  onChangeText={setName}
-                  placeholder="Product name"
-                  variant="secondary"
-                  className={INPUT_ROW_CLASS}
-                />
-              </TextField>
-              {nameError ? (
-                <Text className="text-[13px] text-danger">{nameError}</Text>
-              ) : null}
-            </View>
-
-            <View className="gap-1">
-              <Text className="text-[14px] font-medium text-foreground">SKU</Text>
-              <TextField className="gap-0">
-                <Input
-                  value={sku}
-                  onChangeText={setSku}
-                  placeholder="Optional"
-                  variant="secondary"
-                  autoCapitalize="none"
-                  className={INPUT_ROW_CLASS}
-                />
-              </TextField>
-            </View>
-
-            <View className="gap-1">
-              <Text className="text-[14px] font-medium text-foreground">Unit</Text>
-              <TextField className="gap-0">
-                <Input
-                  value={unit}
-                  onChangeText={setUnit}
-                  placeholder="ea"
-                  variant="secondary"
-                  className={INPUT_ROW_CLASS}
-                />
-              </TextField>
-            </View>
-
-            <View className="gap-1">
-              <Text className="text-[14px] font-medium text-foreground">Description</Text>
-              <TextInput
-                value={description}
-                onChangeText={setDescription}
-                placeholder="Optional notes"
-                placeholderTextColor={fieldPlaceholder}
-                multiline
-                textAlignVertical="top"
-                className={DESCRIPTION_INPUT_CLASS}
+                fieldLabel="Category"
+                placeholder="Select category"
+                title="Category"
+                searchPlaceholder="Search categories or type a new name…"
+                leadingOptions={categoryLeadingOptions}
+                options={categoryPickerOptions}
+                selectedValue={categoryId ?? ""}
+                onSelect={(v) => setCategoryId(v === "" ? null : v)}
+                onCreateFromQuery={(suggestedName) => {
+                  router.push({
+                    pathname: "/items/category/new",
+                    params: { suggestName: suggestedName },
+                  });
+                }}
+                createFromQueryLabel={(q) => `Create category “${q}”`}
+                onEmptyOptions={() => {
+                  router.push({ pathname: "/items/category/new" });
+                }}
+                emptyOptionsLabel="Create category"
               />
-            </View>
+
+              <View className="gap-1">
+                <Text className="text-[14px] font-medium text-foreground">Name *</Text>
+                <TextField className="gap-0">
+                  <Input
+                    value={name}
+                    onChangeText={setName}
+                    placeholder="Product name"
+                    variant="secondary"
+                    className={INPUT_ROW_CLASS}
+                  />
+                </TextField>
+                {nameError ? (
+                  <Text className="text-[13px] text-danger">{nameError}</Text>
+                ) : null}
+              </View>
+
+              <View className="gap-1">
+                <Text className="text-[14px] font-medium text-foreground">SKU</Text>
+                <TextField className="gap-0">
+                  <Input
+                    value={sku}
+                    onChangeText={setSku}
+                    placeholder="Optional"
+                    variant="secondary"
+                    autoCapitalize="none"
+                    className={INPUT_ROW_CLASS}
+                  />
+                </TextField>
+              </View>
+
+              <View className="gap-1">
+                <Text className="text-[14px] font-medium text-foreground">Unit</Text>
+                <TextField className="gap-0">
+                  <Input
+                    value={unit}
+                    onChangeText={setUnit}
+                    placeholder="ea"
+                    variant="secondary"
+                    className={INPUT_ROW_CLASS}
+                  />
+                </TextField>
+              </View>
+
+              <View className="gap-1">
+                <Text className="text-[14px] font-medium text-foreground">Description</Text>
+                <TextInput
+                  value={description}
+                  onChangeText={setDescription}
+                  placeholder="Optional notes"
+                  placeholderTextColor={fieldPlaceholder}
+                  multiline
+                  textAlignVertical="top"
+                  className={DESCRIPTION_INPUT_CLASS}
+                />
+              </View>
             </FormSectionCard>
 
             <FormSectionCard title="Pricing">
@@ -668,160 +667,160 @@ export function ProductEditor({ productId }: ProductEditorProps) {
               </View>
             </FormSectionCard>
 
-          <FormSectionCard title="Inventory & status">
-            {isEdit && product ? (
-              product.variants.length > 0 ? (
-                <View className="gap-3">
-                  <Text className="text-[13px] leading-5 text-muted">
-                    Each variant has its own price and stock.
-                  </Text>
-                  {product.variants.map((v: ProductVariantRow) => (
-                    <View
-                      key={v.id}
-                      className="rounded-xl border border-border/70 bg-surface-secondary/40 p-3"
-                    >
-                      <View className="flex-row items-start justify-between gap-2">
-                        <View className="min-w-0 flex-1">
-                          <Text
-                            className="text-[16px] font-semibold text-foreground"
-                            numberOfLines={2}
-                          >
-                            {v.name}
-                          </Text>
-                          <Text className="mt-0.5 text-[14px] text-muted">
-                            {formatMinorUnitsToCurrency(v.priceCents, currency)}
-                            {v.sku ? ` · SKU ${v.sku}` : ""}
-                          </Text>
-                        </View>
-                        <View className="flex-row items-center">
-                          <Pressable
-                            onPress={() => {
-                              setEditingVariantId(v.id);
-                              setEditVarName(v.name);
-                              setEditVarPriceStr(
-                                minorUnitsToMajorDecimalString(v.priceCents, currency),
-                              );
-                              setEditVarSku(v.sku ?? "");
-                              setVariantEditOpen(true);
-                            }}
-                            hitSlop={8}
-                            className="h-9 w-9 items-center justify-center rounded-full active:bg-accent/10"
-                          >
-                            <Ionicons name="create-outline" size={22} color={accent} />
-                          </Pressable>
-                          <Pressable
-                            onPress={() => onDeleteVariant(v.id, v.name)}
-                            hitSlop={8}
-                            className="h-9 w-9 items-center justify-center rounded-full active:bg-danger/10"
-                          >
-                            <Ionicons name="trash-outline" size={20} color={danger} />
-                          </Pressable>
-                        </View>
-                      </View>
-                      <Pressable
-                        onPress={() => openStockSheet(v.id)}
-                        className="mt-3 rounded-xl bg-background/90 px-3 py-2.5 active:opacity-80"
+            <FormSectionCard title="Inventory & status">
+              {isEdit && product ? (
+                product.variants.length > 0 ? (
+                  <View className="gap-3">
+                    <Text className="text-[13px] leading-5 text-muted">
+                      Each variant has its own price and stock.
+                    </Text>
+                    {product.variants.map((v: ProductVariantRow) => (
+                      <View
+                        key={v.id}
+                        className="rounded-xl border border-border/70 bg-surface-secondary/40 p-3"
                       >
-                        <Text className="text-[12px] font-medium uppercase text-muted">
-                          Available to sell
-                        </Text>
-                        <Text className="mt-0.5 text-[18px] font-semibold tabular-nums text-foreground">
-                          {v.quantityOnHand}
-                        </Text>
-                        <Text className="mt-1 text-[12px] text-accent">Tap to adjust</Text>
-                      </Pressable>
+                        <View className="flex-row items-start justify-between gap-2">
+                          <View className="min-w-0 flex-1">
+                            <Text
+                              className="text-[16px] font-semibold text-foreground"
+                              numberOfLines={2}
+                            >
+                              {v.name}
+                            </Text>
+                            <Text className="mt-0.5 text-[14px] text-muted">
+                              {formatMinorUnitsToCurrency(v.priceCents, currency)}
+                              {v.sku ? ` · SKU ${v.sku}` : ""}
+                            </Text>
+                          </View>
+                          <View className="flex-row items-center">
+                            <Pressable
+                              onPress={() => {
+                                setEditingVariantId(v.id);
+                                setEditVarName(v.name);
+                                setEditVarPriceStr(
+                                  minorUnitsToMajorDecimalString(v.priceCents, currency),
+                                );
+                                setEditVarSku(v.sku ?? "");
+                                setVariantEditOpen(true);
+                              }}
+                              hitSlop={8}
+                              className="h-9 w-9 items-center justify-center rounded-full active:bg-accent/10"
+                            >
+                              <Ionicons name="create-outline" size={22} color={accent} />
+                            </Pressable>
+                            <Pressable
+                              onPress={() => onDeleteVariant(v.id, v.name)}
+                              hitSlop={8}
+                              className="h-9 w-9 items-center justify-center rounded-full active:bg-danger/10"
+                            >
+                              <Ionicons name="trash-outline" size={20} color={danger} />
+                            </Pressable>
+                          </View>
+                        </View>
+                        <Pressable
+                          onPress={() => openStockSheet(v.id)}
+                          className="mt-3 rounded-xl bg-background/90 px-3 py-2.5 active:opacity-80"
+                        >
+                          <Text className="text-[12px] font-medium uppercase text-muted">
+                            Available to sell
+                          </Text>
+                          <Text className="mt-0.5 text-[18px] font-semibold tabular-nums text-foreground">
+                            {v.quantityOnHand}
+                          </Text>
+                          <Text className="mt-1 text-[12px] text-accent">Tap to adjust</Text>
+                        </Pressable>
+                      </View>
+                    ))}
+                    <View className="gap-2 rounded-xl border border-dashed border-border/80 bg-surface-secondary/30 p-3">
+                      <Text className="text-[14px] font-medium text-foreground">Add variant</Text>
+                      <TextField className="gap-0">
+                        <Input
+                          value={newVariantName}
+                          onChangeText={setNewVariantName}
+                          placeholder="Name (e.g. Large / Red)"
+                          variant="secondary"
+                          className={INPUT_ROW_CLASS}
+                        />
+                      </TextField>
+                      <TextField className="gap-0">
+                        <Input
+                          value={newVariantPriceStr}
+                          onChangeText={setNewVariantPriceStr}
+                          placeholder={`Price (${currency})`}
+                          keyboardType="decimal-pad"
+                          variant="secondary"
+                          className={INPUT_ROW_CLASS}
+                        />
+                      </TextField>
+                      <TextField className="gap-0">
+                        <Input
+                          value={newVariantSku}
+                          onChangeText={setNewVariantSku}
+                          placeholder="SKU (optional)"
+                          autoCapitalize="none"
+                          variant="secondary"
+                          className={INPUT_ROW_CLASS}
+                        />
+                      </TextField>
+                      <Button
+                        variant="secondary"
+                        onPress={onCreateVariant}
+                        isDisabled={createVariantMutation.isPending}
+                      >
+                        <Button.Label className="font-semibold">Add variant</Button.Label>
+                      </Button>
                     </View>
-                  ))}
-                  <View className="gap-2 rounded-xl border border-dashed border-border/80 bg-surface-secondary/30 p-3">
-                    <Text className="text-[14px] font-medium text-foreground">Add variant</Text>
-                    <TextField className="gap-0">
-                      <Input
-                        value={newVariantName}
-                        onChangeText={setNewVariantName}
-                        placeholder="Name (e.g. Large / Red)"
-                        variant="secondary"
-                        className={INPUT_ROW_CLASS}
-                      />
-                    </TextField>
-                    <TextField className="gap-0">
-                      <Input
-                        value={newVariantPriceStr}
-                        onChangeText={setNewVariantPriceStr}
-                        placeholder={`Price (${currency})`}
-                        keyboardType="decimal-pad"
-                        variant="secondary"
-                        className={INPUT_ROW_CLASS}
-                      />
-                    </TextField>
-                    <TextField className="gap-0">
-                      <Input
-                        value={newVariantSku}
-                        onChangeText={setNewVariantSku}
-                        placeholder="SKU (optional)"
-                        autoCapitalize="none"
-                        variant="secondary"
-                        className={INPUT_ROW_CLASS}
-                      />
-                    </TextField>
-                    <Button
-                      variant="secondary"
-                      onPress={onCreateVariant}
-                      isDisabled={createVariantMutation.isPending}
-                    >
-                      <Button.Label className="font-semibold">Add variant</Button.Label>
-                    </Button>
                   </View>
-                </View>
+                ) : (
+                  <Pressable
+                    onPress={() => openStockSheet(null)}
+                    className="rounded-xl bg-surface-secondary/50 px-3 py-3 active:opacity-80"
+                  >
+                    <Text className="text-[12px] font-medium uppercase text-muted">
+                      Available to sell
+                    </Text>
+                    <TextField className="mt-1 gap-0" pointerEvents="none">
+                      <Input
+                        editable={false}
+                        value={String(product.quantityOnHand)}
+                        variant="secondary"
+                        className={INPUT_ROW_CLASS}
+                      />
+                    </TextField>
+                    <Text className="mt-2 text-[12px] text-accent">Tap to adjust</Text>
+                  </Pressable>
+                )
               ) : (
-                <Pressable
-                  onPress={() => openStockSheet(null)}
-                  className="rounded-xl bg-surface-secondary/50 px-3 py-3 active:opacity-80"
-                >
-                  <Text className="text-[12px] font-medium uppercase text-muted">
-                    Available to sell
-                  </Text>
-                  <TextField className="mt-1 gap-0" pointerEvents="none">
-                    <Input
-                      editable={false}
-                      value={String(product.quantityOnHand)}
-                      variant="secondary"
-                      className={INPUT_ROW_CLASS}
-                    />
-                  </TextField>
-                  <Text className="mt-2 text-[12px] text-accent">Tap to adjust</Text>
-                </Pressable>
-              )
-            ) : (
-              <Text className="text-[13px] text-muted">
-                Save the product first to set stock and variants.
-              </Text>
-            )}
+                <Text className="text-[13px] text-muted">
+                  Save the product first to set stock and variants.
+                </Text>
+              )}
 
-            <View className="gap-1">
-              <Text className="text-[14px] font-medium text-foreground">
-                Reorder level
-              </Text>
-              <TextField className="gap-0">
-                <Input
-                  value={reorderStr}
-                  onChangeText={setReorderStr}
-                  placeholder="0"
-                  keyboardType="number-pad"
-                  variant="secondary"
-                  className={INPUT_ROW_CLASS}
-                />
-              </TextField>
-            </View>
+              <View className="gap-1">
+                <Text className="text-[14px] font-medium text-foreground">
+                  Reorder level
+                </Text>
+                <TextField className="gap-0">
+                  <Input
+                    value={reorderStr}
+                    onChangeText={setReorderStr}
+                    placeholder="0"
+                    keyboardType="number-pad"
+                    variant="secondary"
+                    className={INPUT_ROW_CLASS}
+                  />
+                </TextField>
+              </View>
 
-            <View className="flex-row items-center justify-between py-2">
-              <Text className="text-[15px] text-foreground">Track stock</Text>
-              <Switch isSelected={trackStock} onSelectedChange={setTrackStock} />
-            </View>
-            <View className="flex-row items-center justify-between py-2">
-              <Text className="text-[15px] text-foreground">Active</Text>
-              <Switch isSelected={active} onSelectedChange={setActive} />
-            </View>
-          </FormSectionCard>
+              <View className="flex-row items-center justify-between py-2">
+                <Text className="text-[15px] text-foreground">Track stock</Text>
+                <Switch isSelected={trackStock} onSelectedChange={setTrackStock} />
+              </View>
+              <View className="flex-row items-center justify-between py-2">
+                <Text className="text-[15px] text-foreground">Active</Text>
+                <Switch isSelected={active} onSelectedChange={setActive} />
+              </View>
+            </FormSectionCard>
           </View>
         </View>
 
@@ -847,107 +846,105 @@ export function ProductEditor({ productId }: ProductEditorProps) {
             </Button.Label>
           </Button>
         </View>
-      </View>
 
-      {isEdit && product ? (
-        <StockManagementSheet
-          visible={stockSheetOpen}
-          onClose={() => setStockSheetOpen(false)}
-          businessId={businessId}
-          productId={product.id}
-          productVariantId={stockVariantId ?? undefined}
-          title="Stock"
-          subtitle={
-            stockVariantId
-              ? (product.variants.find((v: ProductVariantRow) => v.id === stockVariantId)?.name ??
-                undefined)
-              : undefined
-          }
-          currentQuantity={
-            stockVariantId
-              ? (product.variants.find((v: ProductVariantRow) => v.id === stockVariantId)
-                  ?.quantityOnHand ?? 0)
-              : product.quantityOnHand
-          }
-          trackStock={product.trackStock}
-        />
-      ) : null}
+        {isEdit && product ? (
+          <StockManagementSheet
+            visible={stockSheetOpen}
+            onClose={() => setStockSheetOpen(false)}
+            businessId={businessId}
+            productId={product.id}
+            productVariantId={stockVariantId ?? undefined}
+            title="Stock"
+            subtitle={
+              stockVariantId
+                ? (product.variants.find((v: ProductVariantRow) => v.id === stockVariantId)?.name ??
+                  undefined)
+                : undefined
+            }
+            currentQuantity={
+              stockVariantId
+                ? (product.variants.find((v: ProductVariantRow) => v.id === stockVariantId)
+                    ?.quantityOnHand ?? 0)
+                : product.quantityOnHand
+            }
+            trackStock={product.trackStock}
+          />
+        ) : null}
 
-      <Modal
-        visible={variantEditOpen}
-        animationType="slide"
-        transparent
-        onRequestClose={() => {
-          setVariantEditOpen(false);
-          setEditingVariantId(null);
-        }}
-      >
-        <Pressable
-          style={styles.fill}
-          className="justify-end bg-black/45"
-          onPress={() => {
+        <Modal
+          visible={variantEditOpen}
+          animationType="slide"
+          transparent
+          onRequestClose={() => {
             setVariantEditOpen(false);
             setEditingVariantId(null);
           }}
         >
           <Pressable
-            className="max-h-[80%] rounded-t-3xl bg-background px-4 pb-6 pt-4"
-            onPress={(e) => e.stopPropagation()}
+            style={styles.fill}
+            className="justify-end bg-black/45"
+            onPress={() => {
+              setVariantEditOpen(false);
+              setEditingVariantId(null);
+            }}
           >
-            <View className="mb-3 h-1 w-10 self-center rounded-full bg-muted" />
-            <Text className="text-[18px] font-semibold text-foreground">Edit variant</Text>
-            <View className="mt-4 gap-1">
-              <Text className="text-[14px] font-medium text-foreground">Name</Text>
-              <TextField className="gap-0">
-                <Input
-                  value={editVarName}
-                  onChangeText={setEditVarName}
-                  variant="secondary"
-                  className={INPUT_ROW_CLASS}
-                />
-              </TextField>
-            </View>
-            <View className="mt-3 gap-1">
-              <Text className="text-[14px] font-medium text-foreground">Price ({currency})</Text>
-              <TextField className="gap-0">
-                <Input
-                  value={editVarPriceStr}
-                  onChangeText={setEditVarPriceStr}
-                  keyboardType="decimal-pad"
-                  variant="secondary"
-                  className={INPUT_ROW_CLASS}
-                />
-              </TextField>
-            </View>
-            <View className="mt-3 gap-1">
-              <Text className="text-[14px] font-medium text-foreground">SKU</Text>
-              <TextField className="gap-0">
-                <Input
-                  value={editVarSku}
-                  onChangeText={setEditVarSku}
-                  autoCapitalize="none"
-                  variant="secondary"
-                  className={INPUT_ROW_CLASS}
-                />
-              </TextField>
-            </View>
-            <Button className="mt-5" onPress={onSaveVariantEdit} isDisabled={saving}>
-              <Button.Label className="font-semibold text-accent-foreground">Save variant</Button.Label>
-            </Button>
-            <Button
-              variant="secondary"
-              className="mt-2"
-              onPress={() => {
-                setVariantEditOpen(false);
-                setEditingVariantId(null);
-              }}
+            <Pressable
+              className="max-h-[80%] rounded-t-3xl bg-background px-4 pb-6 pt-4"
+              onPress={(e) => e.stopPropagation()}
             >
-              <Button.Label className="font-semibold">Cancel</Button.Label>
-            </Button>
+              <View className="mb-3 h-1 w-10 self-center rounded-full bg-muted" />
+              <Text className="text-[18px] font-semibold text-foreground">Edit variant</Text>
+              <View className="mt-4 gap-1">
+                <Text className="text-[14px] font-medium text-foreground">Name</Text>
+                <TextField className="gap-0">
+                  <Input
+                    value={editVarName}
+                    onChangeText={setEditVarName}
+                    variant="secondary"
+                    className={INPUT_ROW_CLASS}
+                  />
+                </TextField>
+              </View>
+              <View className="mt-3 gap-1">
+                <Text className="text-[14px] font-medium text-foreground">Price ({currency})</Text>
+                <TextField className="gap-0">
+                  <Input
+                    value={editVarPriceStr}
+                    onChangeText={setEditVarPriceStr}
+                    keyboardType="decimal-pad"
+                    variant="secondary"
+                    className={INPUT_ROW_CLASS}
+                  />
+                </TextField>
+              </View>
+              <View className="mt-3 gap-1">
+                <Text className="text-[14px] font-medium text-foreground">SKU</Text>
+                <TextField className="gap-0">
+                  <Input
+                    value={editVarSku}
+                    onChangeText={setEditVarSku}
+                    autoCapitalize="none"
+                    variant="secondary"
+                    className={INPUT_ROW_CLASS}
+                  />
+                </TextField>
+              </View>
+              <Button className="mt-5" onPress={onSaveVariantEdit} isDisabled={saving}>
+                <Button.Label className="font-semibold text-accent-foreground">Save variant</Button.Label>
+              </Button>
+              <Button
+                variant="secondary"
+                className="mt-2"
+                onPress={() => {
+                  setVariantEditOpen(false);
+                  setEditingVariantId(null);
+                }}
+              >
+                <Button.Label className="font-semibold">Cancel</Button.Label>
+              </Button>
+            </Pressable>
           </Pressable>
-        </Pressable>
-      </Modal>
-
+        </Modal>
       </KeyboardScreen>
     </View>
   );
