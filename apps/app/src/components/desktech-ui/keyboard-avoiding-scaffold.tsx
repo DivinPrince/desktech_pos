@@ -7,6 +7,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
@@ -28,16 +29,24 @@ export function KeyboardAvoidingScaffold({
   children,
   style,
   className,
-  keyboardVerticalOffset = 0,
+  keyboardVerticalOffset,
   ...rest
 }: KeyboardAvoidingScaffoldProps) {
+  const insets = useSafeAreaInsets();
+  const behavior = Platform.select<KeyboardAvoidingViewProps["behavior"]>({
+    ios: "padding",
+    android: "height",
+    default: undefined,
+  });
+  const resolvedOffset = keyboardVerticalOffset ?? insets.top;
+
   return (
     <KeyboardAvoidingView
       {...rest}
       className={className}
       style={[styles.fill, style]}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={keyboardVerticalOffset}
+      behavior={behavior}
+      keyboardVerticalOffset={resolvedOffset}
     >
       {children}
     </KeyboardAvoidingView>

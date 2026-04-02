@@ -23,9 +23,9 @@ const LOGO_VIEW_W = 1371;
 const LOGO_VIEW_H = 765;
 
 /** Scale factor before center-crop: larger = bigger mark (more edge crop). */
-const ZOOM_ICON_SQUARE = 1.38;
-const ZOOM_SPLASH = 1.22;
-const ZOOM_FAVICON = 1.35;
+const ZOOM_ICON_SQUARE = 1.16;
+const ZOOM_SPLASH = 1.1;
+const ZOOM_FAVICON = 1.2;
 
 /**
  * `logo-on-dark.svg` wraps artwork in `scale(1.38)` for legibility.
@@ -131,12 +131,14 @@ async function main() {
     }
   }
 
-  // App Store / universal icon (1024×1024) — zoomed wordmark on brand cream
-  await logoToSquarePng(logoSvg, join(IMG, "icon.png"), 1024, ZOOM_ICON_SQUARE, {
+  // App Store / universal icon (1024×1024) — use the padded tile so the mark
+  // stays readable on launchers instead of overfilling the square.
+  await fromFile(join(IMG, "logo-tile-light.svg"), join(IMG, "icon.png"), 1024, 1024, {
     flatten: "#FFF7ED",
   });
 
-  // Android adaptive foreground (1024×1024, transparent)
+  // Android adaptive foreground (1024×1024, transparent) keeps a slightly
+  // smaller mark so launcher masks do not clip the leopard silhouette.
   await logoToSquarePng(
     logoSvg,
     join(IMG, "android-icon-foreground.png"),
@@ -159,7 +161,8 @@ async function main() {
     ZOOM_ICON_SQUARE,
   );
 
-  // Splash center image — square so the logo fills width at `imageWidth` dp (no widescreen letterboxing).
+  // Splash center image — square so the logo fills width at `imageWidth` dp
+  // without letting the mark dominate the screen.
   await logoToSquarePng(logoSvg, join(IMG, "splash-icon.png"), SPLASH_PX, ZOOM_SPLASH);
   await logoToSquarePng(
     onDarkSvg,

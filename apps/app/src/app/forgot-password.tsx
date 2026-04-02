@@ -2,14 +2,14 @@ import { Link } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Button } from "heroui-native/button";
 import React from "react";
-import { Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ForgotPasswordScreen() {
   return (
     <View className="flex-1 bg-background">
       <StatusBar style="inverted" />
-      <SafeAreaView className="flex-1 items-center justify-center px-6">
+      <SafeAreaView style={styles.safeArea} className="items-center justify-center px-6">
         <Text className="text-center text-lg text-foreground">
           Password reset coming soon.
         </Text>
@@ -22,3 +22,9 @@ export default function ForgotPasswordScreen() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
+});

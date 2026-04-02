@@ -20,6 +20,7 @@ import {
 
 import { KeyboardAvoidingScaffold } from "@/components/desktech-ui";
 import { authClient } from "@/lib/auth-client";
+import { postAuthRoute } from "@/lib/auth-session";
 
 const INPUT_ROW_CLASS =
   "border-0 border-transparent bg-transparent rounded-none py-2.5 px-4 text-[15px] leading-5 shadow-none ios:shadow-none android:shadow-none focus:border-transparent text-field-foreground";
@@ -62,6 +63,9 @@ export default function LoginScreen() {
             description: "Please wait a moment while we load your account.",
             variant: "warning",
           });
+          router.replace("/");
+        } else {
+          router.replace(postAuthRoute(sessionResult.data) ?? "/");
         }
       }
     } catch (error) {
@@ -73,7 +77,7 @@ export default function LoginScreen() {
       });
     }
     setSubmitting(false);
-  }, [email, password, toast]);
+  }, [email, password, router, toast]);
 
   return (
     <View className="flex-1 bg-background">
@@ -94,7 +98,7 @@ export default function LoginScreen() {
           <Ionicons name="sunny" size={14} color={accentColor} />
         </View>
 
-        <KeyboardAvoidingScaffold>
+        <KeyboardAvoidingScaffold keyboardVerticalOffset={Math.max(insets.top - 8, 0)}>
           <ScrollView
             style={styles.fill}
             contentContainerStyle={[

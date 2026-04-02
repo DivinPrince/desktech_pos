@@ -20,6 +20,7 @@ import {
 
 import { KeyboardAvoidingScaffold } from "@/components/desktech-ui";
 import { authClient } from "@/lib/auth-client";
+import { postAuthRoute } from "@/lib/auth-session";
 
 const INPUT_ROW_CLASS =
   "border-0 border-transparent bg-transparent rounded-none py-2.5 px-4 text-[15px] leading-5 shadow-none ios:shadow-none android:shadow-none focus:border-transparent text-field-foreground";
@@ -114,7 +115,9 @@ export default function SignUpScreen() {
             },
           });
         } else {
-          await authClient.getSession().catch(() => null);
+          const sessionResult = await authClient.getSession().catch(() => null);
+          const dest = postAuthRoute(sessionResult?.data);
+          router.replace(dest ?? "/");
         }
       }
     } catch (error) {
@@ -147,7 +150,7 @@ export default function SignUpScreen() {
           <Ionicons name="sunny" size={14} color={accentColor} />
         </View>
 
-        <KeyboardAvoidingScaffold>
+        <KeyboardAvoidingScaffold keyboardVerticalOffset={Math.max(insets.top - 8, 0)}>
           <ScrollView
             style={styles.fill}
             contentContainerStyle={[
