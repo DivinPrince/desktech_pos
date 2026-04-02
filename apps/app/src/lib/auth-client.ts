@@ -29,6 +29,16 @@ type OnboardingApi = {
   };
 };
 
+type PasswordResetApi = {
+  forgetPassword: (body: {
+    email: string;
+    redirectTo: string;
+  }) => Promise<{
+    data?: unknown;
+    error?: { message?: string } | null;
+  }>;
+};
+
 const baseClient = createAuthClient({
   baseURL,
   plugins: [
@@ -47,4 +57,6 @@ const baseClient = createAuthClient({
   ],
 });
 
-export const authClient = baseClient as typeof baseClient & OnboardingApi;
+export const authClient = baseClient as typeof baseClient &
+  OnboardingApi &
+  PasswordResetApi;

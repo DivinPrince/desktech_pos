@@ -9,8 +9,14 @@ type SessionResult = Awaited<ReturnType<typeof authClient.getSession>>;
 export type SessionPayload = NonNullable<SessionResult["data"]>;
 export type SessionUser = SessionPayload["user"];
 export type SessionActiveBusiness = NonNullable<SessionPayload["activeBusiness"]>;
+export const AUTH_ONBOARDING_ROUTE = "/onboarding" as const;
+export const AUTH_APP_ROUTE = "/(tabs)/today" as const;
 
-let pendingAuthRoute: Href | null = null;
+export type PostAuthRoute =
+  | typeof AUTH_ONBOARDING_ROUTE
+  | typeof AUTH_APP_ROUTE;
+
+let pendingAuthRoute: PostAuthRoute | null = null;
 
 export function getSessionUser(
   data: SessionResult["data"] | null | undefined,
@@ -30,6 +36,44 @@ export function sessionNeedsOnboarding(
   return data?.onboardingRedirect === true;
 }
 
+export function resolveSessionAuthRoute(
+  session: SessionResult["data"] | null | undefined,
+): PostAuthRoute | null {
+  if (sessionNeedsOnboarding(session)) {
+    return AUTH_ONBOARDING_ROUTE;
+  }
+  if (getSessionUser(session)) {
+    return AUTH_APP_ROUTE;
+  }
+  return null;
+}
+
+export function resolvePostAuthRoute(
+  session: SessionResult["data"] | null | undefined,
+  shouldOnboard?: boolean | null,
+): PostAuthRoute | null {
+  if (shouldOnboard === true) {
+    return AUTH_ONBOARDING_ROUTE;
+  }
+
+  const sessionRoute = resolveSessionAuthRoute(session);
+  if (sessionRoute) {
+    return sessionRoute;
+  }
+
+  if (shouldOnboard === false) {
+    return AUTH_APP_ROUTE;
+  }
+
+  return null;
+}
+
+export function resolveAuthHandoffRoute(
+  session: SessionResult["data"] | null | undefined,
+): PostAuthRoute | null {
+  return resolveSessionAuthRoute(session) ?? pendingAuthRoute;
+}
+
 export function resolveActiveBusiness(
   data: SessionResult["data"] | null | undefined,
   businesses?: readonly BusinessRow[] | null,
@@ -41,7 +85,7 @@ export function resolveActiveBusiness(
   return businesses?.[0] ?? null;
 }
 
-export function beginAuthTransition(route: Href) {
+export function beginAuthTransition(route: PostAuthRoute) {
   pendingAuthRoute = route;
 }
 
@@ -49,15 +93,38 @@ export function clearAuthTransition() {
   pendingAuthRoute = null;
 }
 
-export function getPendingAuthRoute(): Href | null {
+export function getPendingAuthRoute(): PostAuthRoute | null {
   return pendingAuthRoute;
+}
+
+export async function determineFreshPostAuthRoute(): Promise<{
+  route: PostAuthRoute | null;
+  session: SessionResult["data"] | null | undefined;
+  shouldOnboard: boolean | null | undefined;
+}> {
+  const [sessionResult, onboardingResult] = await Promise.all([
+    authClient.getSession(),
+    authClient.onboarding.shouldOnboard().catch(
+      () =>
+        ({
+          data: undefined,
+          error: null,
+        }) as Awaited<ReturnType<typeof authClient.onboarding.shouldOnboard>>,
+    ),
+  ]);
+
+  return {
+    route: resolvePostAuthRoute(sessionResult.data, onboardingResult.data),
+    session: sessionResult.data,
+    shouldOnboard: onboardingResult.data,
+  };
 }
 
 export function useAuthSessionState() {
   const query = authClient.useSession();
   const session = query.data;
-  const route = postAuthRoute(session);
-  if (route) {
+  const sessionRoute = resolveSessionAuthRoute(session);
+  if (sessionRoute) {
     clearAuthTransition();
   }
 
@@ -67,6 +134,8 @@ export function useAuthSessionState() {
     user: getSessionUser(session),
     activeBusiness: getSessionActiveBusiness(session),
     needsOnboarding: sessionNeedsOnboarding(session),
+    sessionRoute,
+    handoffRoute: sessionRoute ?? pendingAuthRoute,
     pendingAuthRoute,
   };
 }
@@ -74,11 +143,5 @@ export function useAuthSessionState() {
 export function postAuthRoute(
   session: SessionResult["data"] | null | undefined,
 ): Href | null {
-  if (sessionNeedsOnboarding(session)) {
-    return "/onboarding";
-  }
-  if (getSessionUser(session)) {
-    return "/(tabs)/today";
-  }
-  return null;
+  return resolveSessionAuthRoute(session);
 }

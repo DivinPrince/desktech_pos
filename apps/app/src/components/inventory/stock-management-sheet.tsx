@@ -10,6 +10,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  StyleSheet,
   Text,
   View,
   type KeyboardAvoidingViewProps,
@@ -25,6 +26,12 @@ const RECORD_AS_OPTIONS: { apiType: StockAdjustBody["type"]; label: string }[] =
   { apiType: "waste", label: "Waste / damage" },
   { apiType: "adjustment", label: "Correction" },
 ];
+
+const styles = StyleSheet.create({
+  fill: {
+    flex: 1,
+  },
+});
 
 type Direction = "add" | "remove";
 
@@ -147,7 +154,11 @@ export function StockManagementSheet({
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={kbBehavior} className="flex-1 justify-end bg-black/45">
+      <KeyboardAvoidingView
+        style={styles.fill}
+        behavior={kbBehavior}
+        className="justify-end bg-black/45"
+      >
         <Pressable className="flex-1" onPress={onClose} accessibilityLabel="Dismiss" />
         <View className="max-h-[88%] rounded-t-3xl bg-background px-4 pb-6 pt-4">
           <View className="mb-3 h-1 w-10 self-center rounded-full bg-muted" />

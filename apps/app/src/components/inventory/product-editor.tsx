@@ -11,7 +11,6 @@ import { APIError } from "@repo/sdk";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
-  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -28,6 +27,7 @@ import {
   SearchablePickerSheet,
   type SearchablePickerOption,
 } from "@/components/desktech-ui";
+import { KeyboardScreen } from "@/components/layout/keyboard-screen";
 import { StockManagementSheet } from "@/components/inventory/stock-management-sheet";
 import type { ProductRow } from "@/lib/data/catalog/types";
 import { resolveActiveBusiness, useAuthSessionState } from "@/lib/auth-session";
@@ -501,13 +501,21 @@ export function ProductEditor({ productId }: ProductEditorProps) {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.fill}
-      className="bg-background"
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
+    <View style={styles.fill} className="bg-background">
       <StatusBar style="light" />
-      <View style={styles.fill}>
+      <KeyboardScreen
+        edges={["left", "right"]}
+        keyboardVerticalOffset={Platform.OS === "ios" ? Math.max(insets.top, 8) : 0}
+        scrollContentStyle={{
+          paddingHorizontal: 16,
+          paddingTop: 16,
+          paddingBottom: 24,
+        }}
+        scrollProps={{
+          overScrollMode: "never",
+          alwaysBounceVertical: false,
+        }}
+      >
         <View
           className="flex-row items-center px-2 py-2"
           style={{
@@ -539,18 +547,8 @@ export function ProductEditor({ productId }: ProductEditorProps) {
           </View>
         ) : null}
 
-        <ScrollView
-          style={styles.fill}
-          keyboardShouldPersistTaps="handled"
-          overScrollMode="never"
-          alwaysBounceVertical={false}
-          contentContainerStyle={{
-            paddingHorizontal: 16,
-            paddingTop: 16,
-            paddingBottom: 24,
-          }}
-        >
-        <View className="gap-4">
+        <View style={styles.fill}>
+          <View className="gap-4">
           <FormSectionCard title="Basics">
             <SearchablePickerSheet
               fieldLabel="Category"
@@ -824,8 +822,8 @@ export function ProductEditor({ productId }: ProductEditorProps) {
               <Switch isSelected={active} onSelectedChange={setActive} />
             </View>
           </FormSectionCard>
+          </View>
         </View>
-        </ScrollView>
 
         <View
           className="border-t border-border bg-background px-4 pt-3"
@@ -950,6 +948,7 @@ export function ProductEditor({ productId }: ProductEditorProps) {
         </Pressable>
       </Modal>
 
-    </KeyboardAvoidingView>
+      </KeyboardScreen>
+    </View>
   );
 }

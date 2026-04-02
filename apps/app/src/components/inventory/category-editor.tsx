@@ -8,16 +8,7 @@ import { TextField } from "heroui-native/text-field";
 import { useToast } from "heroui-native/toast";
 import { APIError } from "@repo/sdk";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
@@ -25,6 +16,7 @@ import {
   SearchablePickerSheet,
   type SearchablePickerOption,
 } from "@/components/desktech-ui";
+import { KeyboardScreen } from "@/components/layout/keyboard-screen";
 import { resolveActiveBusiness, useAuthSessionState } from "@/lib/auth-session";
 import { useNetworkReachable } from "@/lib/hooks/use-network-reachable";
 import {
@@ -275,54 +267,52 @@ export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProp
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.fill}
-      className="bg-background"
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
+    <View style={styles.fill} className="bg-background">
       <StatusBar style="light" />
-      <View
-        className="flex-row items-center px-2 py-2"
-        style={{
-          backgroundColor: accent,
-          paddingTop: Math.max(insets.top, 8),
-        }}
-      >
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={12}
-          className="h-10 w-10 items-center justify-center rounded-full active:bg-white/15"
-        >
-          <Ionicons name="chevron-back" size={26} color={accentFg} />
-        </Pressable>
-        <Text
-          className="min-w-0 flex-1 text-center text-[17px] font-semibold"
-          style={{ color: accentFg }}
-        >
-          {isEdit ? "Edit category" : "New category"}
-        </Text>
-        <View className="h-10 w-10" />
-      </View>
-
-      {!networkOnline ? (
-        <View className="bg-muted px-3 py-2">
-          <Text className="text-center text-[13px] leading-[18px] text-foreground">
-            Offline — catalog changes are saved on this device and sync when you are back online.
-          </Text>
-        </View>
-      ) : null}
-
-      <ScrollView
-        style={styles.fill}
-        keyboardShouldPersistTaps="handled"
-        overScrollMode="never"
-        alwaysBounceVertical={false}
-        contentContainerStyle={{
+      <KeyboardScreen
+        edges={["left", "right"]}
+        keyboardVerticalOffset={Math.max(insets.top, 8)}
+        scrollContentStyle={{
           paddingHorizontal: 16,
           paddingTop: 16,
           paddingBottom: Math.max(insets.bottom, 20) + 88,
         }}
+        scrollProps={{
+          overScrollMode: "never",
+          alwaysBounceVertical: false,
+        }}
       >
+        <View
+          className="flex-row items-center px-2 py-2"
+          style={{
+            backgroundColor: accent,
+            paddingTop: Math.max(insets.top, 8),
+          }}
+        >
+          <Pressable
+            onPress={() => router.back()}
+            hitSlop={12}
+            className="h-10 w-10 items-center justify-center rounded-full active:bg-white/15"
+          >
+            <Ionicons name="chevron-back" size={26} color={accentFg} />
+          </Pressable>
+          <Text
+            className="min-w-0 flex-1 text-center text-[17px] font-semibold"
+            style={{ color: accentFg }}
+          >
+            {isEdit ? "Edit category" : "New category"}
+          </Text>
+          <View className="h-10 w-10" />
+        </View>
+
+        {!networkOnline ? (
+          <View className="bg-muted px-3 py-2">
+            <Text className="text-center text-[13px] leading-[18px] text-foreground">
+              Offline — catalog changes are saved on this device and sync when you are back online.
+            </Text>
+          </View>
+        ) : null}
+
         <FormSectionCard title="Details">
           <SearchablePickerSheet
             fieldLabel="Parent category"
@@ -382,31 +372,30 @@ export function CategoryEditor({ categoryId, suggestedName }: CategoryEditorProp
             ) : null}
           </View>
         </FormSectionCard>
-      </ScrollView>
 
-      <View
-        className="absolute bottom-0 left-0 right-0 border-t border-border bg-background px-4 pt-3"
-        style={{ paddingBottom: Math.max(insets.bottom, 12) }}
-      >
-        {isEdit ? (
-          <Button
-            variant="secondary"
-            className="mb-2 border-danger/40"
-            onPress={onDelete}
-            isDisabled={saving}
-          >
-            <Button.Label style={{ color: danger }} className="font-semibold">
-              Delete category
+        <View
+          className="border-t border-border bg-background px-4 pt-3"
+          style={{ marginTop: 16, paddingBottom: Math.max(insets.bottom, 12) }}
+        >
+          {isEdit ? (
+            <Button
+              variant="secondary"
+              className="mb-2 border-danger/40"
+              onPress={onDelete}
+              isDisabled={saving}
+            >
+              <Button.Label style={{ color: danger }} className="font-semibold">
+                Delete category
+              </Button.Label>
+            </Button>
+          ) : null}
+          <Button className="w-full" onPress={onSave} isDisabled={saving}>
+            <Button.Label className="font-semibold text-accent-foreground">
+              {saving ? "Saving…" : "Save"}
             </Button.Label>
           </Button>
-        ) : null}
-        <Button className="w-full" onPress={onSave} isDisabled={saving}>
-          <Button.Label className="font-semibold text-accent-foreground">
-            {saving ? "Saving…" : "Save"}
-          </Button.Label>
-        </Button>
-      </View>
-
-    </KeyboardAvoidingView>
+        </View>
+      </KeyboardScreen>
+    </View>
   );
 }

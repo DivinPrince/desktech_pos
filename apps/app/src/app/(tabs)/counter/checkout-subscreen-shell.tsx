@@ -1,16 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useThemeColor } from "heroui-native/hooks";
 import React, { type ReactNode } from "react";
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+
+import { KeyboardScreen } from "@/components/layout/keyboard-screen";
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
@@ -29,42 +22,33 @@ export function CheckoutSubscreenShell({
 
   return (
     <View style={styles.fill} className="bg-background">
-      <SafeAreaView style={styles.fill} edges={["top", "left", "right"]}>
-        <KeyboardAvoidingView
-          style={styles.fill}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-        >
-          <View className="flex-row items-center gap-2 border-b border-border/35 px-3 py-3.5">
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Go back"
-              onPress={onBack}
-              className="h-10 w-10 items-center justify-center rounded-full active:opacity-70"
-              hitSlop={8}
-            >
-              <Ionicons name="chevron-back" size={26} color={fg} />
-            </Pressable>
-            <Text
-              className="min-w-0 flex-1 text-[18px] font-semibold text-foreground"
-              numberOfLines={1}
-            >
-              {title}
-            </Text>
-          </View>
-          <ScrollView
-            style={styles.fill}
-            contentContainerStyle={{
-              paddingHorizontal: 16,
-              paddingTop: 16,
-              paddingBottom: 28,
-            }}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
+      <KeyboardScreen
+        scrollContentStyle={{
+          paddingHorizontal: 16,
+          paddingBottom: 28,
+        }}
+      >
+        <View className="flex-row items-center gap-2 border-b border-border/35 px-3 py-3.5">
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            onPress={onBack}
+            className="h-10 w-10 items-center justify-center rounded-full active:opacity-70"
+            hitSlop={8}
           >
-            {children}
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
+            <Ionicons name="chevron-back" size={26} color={fg} />
+          </Pressable>
+          <Text
+            className="min-w-0 flex-1 text-[18px] font-semibold text-foreground"
+            numberOfLines={1}
+          >
+            {title}
+          </Text>
+        </View>
+        <View style={[styles.fill, { paddingTop: 16 }]}>
+          {children}
+        </View>
+      </KeyboardScreen>
     </View>
   );
 }

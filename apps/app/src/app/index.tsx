@@ -1,11 +1,10 @@
 import { Redirect } from "expo-router";
 import React from "react";
 
-import { postAuthRoute, useAuthSessionState } from "@/lib/auth-session";
+import { useAuthSessionState } from "@/lib/auth-session";
 
 export default function Index() {
-  const { session } = useAuthSessionState();
+  const { handoffRoute } = useAuthSessionState();
 
-  const authedDest = postAuthRoute(session);
-  return <Redirect href={authedDest ?? "/login"} />;
+  return <Redirect href={handoffRoute ?? "/login"} />;
 }

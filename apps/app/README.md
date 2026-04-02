@@ -1,50 +1,83 @@
-# Welcome to your Expo app 👋
+# Desktech mobile app
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Expo Router mobile client for Desktech POS.
 
-## Get started
+## Stack
 
-1. Install dependencies
+- Expo / React Native
+- Expo Router
+- HeroUI Native
+- Uniwind + Tailwind v4
+- Better Auth with Expo SecureStore session persistence
+- TanStack Query + TanStack DB
+- SQLite persistence on native
 
-   ```bash
-   npm install
-   ```
+## Local development
 
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+From the monorepo root, install dependencies with Bun:
 
 ```bash
-npm run reset-project
+bun install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Then from `apps/app`:
 
-## Learn more
+### First Android build
 
-To learn more about developing your project with Expo, look at the following resources:
+```bash
+bun run run:android
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+This performs the native prebuild if needed, compiles the Android dev client, and installs Desktech on the emulator/device.
 
-## Join the community
+### Daily development
 
-Join our community of developers creating universal apps.
+```bash
+bun run start:dev
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Open the already-installed dev client on the device/emulator and connect to Metro.
+
+### Web preview
+
+```bash
+bun run web
+```
+
+## Important implementation notes
+
+### Auth and onboarding
+
+- Auth state comes from Better Auth `useSession()`.
+- Post-login routing is centralized in `src/lib/auth-session.ts`.
+- First-time users are routed to `/onboarding` until their first business is created.
+
+### Keyboard-safe forms
+
+- Use `src/components/layout/keyboard-screen.tsx` for form-heavy screens.
+- Do **not** rely on Uniwind `className="flex-1"` for:
+  - `SafeAreaView`
+  - `KeyboardAvoidingView`
+  - `ScrollView`
+- Use explicit `style={{ flex: 1 }}` or a `StyleSheet` entry instead.
+
+### Offline data
+
+- Native catalog collections persist via SQLite.
+- UI should prefer stale-while-revalidate behavior instead of flashing full-page loaders when cached rows already exist.
+
+### Android keyboard behavior
+
+- The app config uses `android.softwareKeyboardLayoutMode = "pan"` to keep focused fields visible in mobile form flows.
+
+## Scripts
+
+- `bun run start:dev` — Expo dev client Metro server
+- `bun run run:android` — Android native build + install
+- `bun run run:ios` — iOS native build + install
+- `bun run web` — web preview
+- `bun run lint` — Expo lint
+
+## Assets
+
+Launcher, splash, adaptive icon, and favicon assets live in `assets/images/`.

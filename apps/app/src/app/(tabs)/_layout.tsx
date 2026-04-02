@@ -5,6 +5,8 @@ import React, { useEffect, useMemo } from "react";
 import { Text, View } from "react-native";
 
 import {
+  AUTH_APP_ROUTE,
+  AUTH_ONBOARDING_ROUTE,
   resolveActiveBusiness,
   useAuthSessionState,
 } from "@/lib/auth-session";
@@ -42,7 +44,8 @@ export default function TabsLayout() {
   const accentColor = useThemeColor("accent");
   const mutedColor = useThemeColor("muted");
   const backgroundColor = useThemeColor("background");
-  const { session, user, needsOnboarding, pendingAuthRoute, refetch } = useAuthSessionState();
+  const { session, user, needsOnboarding, handoffRoute, refetch } =
+    useAuthSessionState();
   const businessesQuery = useBusinessesQuery(Boolean(user));
   const currentBusiness = useMemo(
     () => resolveActiveBusiness(session, businessesQuery.data),
@@ -50,10 +53,10 @@ export default function TabsLayout() {
   );
 
   useEffect(() => {
-    if (pendingAuthRoute === "/(tabs)/today" && !user) {
+    if (handoffRoute === AUTH_APP_ROUTE && !user) {
       void refetch();
     }
-  }, [pendingAuthRoute, refetch, user]);
+  }, [handoffRoute, refetch, user]);
 
   const reportsOptions = useMemo(
     () => tabScreenOptions("Reports", "bar-chart", "bar-chart-outline"),
@@ -90,10 +93,10 @@ export default function TabsLayout() {
   );
 
   if (needsOnboarding) {
-    return <Redirect href="/onboarding" />;
+    return <Redirect href={AUTH_ONBOARDING_ROUTE} />;
   }
 
-  if (pendingAuthRoute === "/(tabs)/today" && !user) {
+  if (handoffRoute === AUTH_APP_ROUTE && !user) {
     return (
       <View className="flex-1 items-center justify-center bg-background px-6">
         <Text className="text-center text-[15px] text-muted">Loading…</Text>

@@ -10,24 +10,16 @@ import { Surface } from "heroui-native/surface";
 import { TextField } from "heroui-native/text-field";
 import { useToast } from "heroui-native/toast";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { SearchablePickerSheet } from "@/components/desktech-ui";
+import { KeyboardScreen } from "@/components/layout/keyboard-screen";
 import { authClient } from "@/lib/auth-client";
 import {
+  AUTH_APP_ROUTE,
+  AUTH_ONBOARDING_ROUTE,
   beginAuthTransition,
-  getPendingAuthRoute,
   useAuthSessionState,
 } from "@/lib/auth-session";
 import {
@@ -46,8 +38,14 @@ export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const accentColor = useThemeColor("accent");
   const { toast } = useToast();
-  const { user, activeBusiness, needsOnboarding, isPending, refetch: refetchSession } =
-    useAuthSessionState();
+  const {
+    user,
+    activeBusiness,
+    needsOnboarding,
+    isPending,
+    handoffRoute,
+    refetch: refetchSession,
+  } = useAuthSessionState();
   const [submitPhase, setSubmitPhase] = useState<"idle" | "saving" | "finishing">(
     "idle",
   );
@@ -154,8 +152,8 @@ export default function OnboardingScreen() {
 
       setSubmitPhase("finishing");
       await refetchSession();
-      beginAuthTransition("/(tabs)/today");
-      router.replace("/(tabs)/today");
+      beginAuthTransition(AUTH_APP_ROUTE);
+      router.replace(AUTH_APP_ROUTE);
     } finally {
       setSubmitPhase("idle");
     }
@@ -169,16 +167,18 @@ export default function OnboardingScreen() {
   ]);
 
   const canContinueOnboarding = needsOnboarding || Boolean(user && !activeBusiness);
-  const isPendingOnboardingHandoff =
-    !user && getPendingAuthRoute() === "/onboarding";
+  const waitingForOnboardingSession =
+    !user && handoffRoute === AUTH_ONBOARDING_ROUTE;
 
   useEffect(() => {
-    if (isPendingOnboardingHandoff) {
-      void refetchSession();
+    if (!waitingForOnboardingSession) {
+      return;
     }
-  }, [isPendingOnboardingHandoff, refetchSession]);
 
-  if (isPending || isPendingOnboardingHandoff) {
+    void refetchSession();
+  }, [refetchSession, waitingForOnboardingSession]);
+
+  if (isPending || waitingForOnboardingSession) {
     return (
       <View className="flex-1 items-center justify-center bg-background px-6">
         <StatusBar style="inverted" />
@@ -192,14 +192,19 @@ export default function OnboardingScreen() {
   }
 
   if (!canContinueOnboarding) {
-    return <Redirect href="/(tabs)/today" />;
+    return <Redirect href={AUTH_APP_ROUTE} />;
   }
 
   return (
     <View className="flex-1 bg-background">
       <StatusBar style="inverted" />
 
-      <SafeAreaView style={styles.fill} edges={["top", "left", "right"]}>
+      <KeyboardScreen
+        scrollContentStyle={[
+          styles.scrollInner,
+          { paddingTop: 36, paddingHorizontal: 28 },
+        ]}
+      >
         <View
           pointerEvents="box-none"
           style={[
@@ -214,106 +219,86 @@ export default function OnboardingScreen() {
           <Ionicons name="storefront" size={14} color={accentColor} />
         </View>
 
-        <KeyboardAvoidingView
-          style={styles.fill}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-        >
-          <ScrollView
-            style={styles.fill}
-            contentContainerStyle={[
-              styles.scrollInner,
-              { paddingBottom: Math.max(insets.bottom, 20) + 8 },
-            ]}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
+        <View style={styles.centerColumn}>
+          <View className="items-center px-1">
+            <Text className="text-[1.875rem] font-bold text-foreground">
+              Set up your business
+            </Text>
+            <Text className="mt-2 max-w-[300px] text-center text-[15px] leading-snug text-muted">
+              Create your first workspace. You can change these details later.
+            </Text>
+          </View>
+
+          <Surface
+            variant="default"
+            className="mt-6 w-full overflow-hidden rounded-xl bg-surface shadow-surface"
           >
-            <View style={styles.centerColumn}>
-              <View className="items-center px-1">
-                <Text className="text-[1.875rem] font-bold text-foreground">
-                  Set up your business
-                </Text>
-                <Text className="mt-2 max-w-[300px] text-center text-[15px] leading-snug text-muted">
-                  Create your first workspace. You can change these details
-                  later.
-                </Text>
-              </View>
+            <TextField className="gap-0">
+              <Input
+                value={businessName}
+                onChangeText={setBusinessName}
+                placeholder="Business name"
+                autoCapitalize="words"
+                variant="secondary"
+                className={INPUT_ROW_CLASS}
+              />
+            </TextField>
+            <Separator
+              orientation="horizontal"
+              className="bg-border"
+              thickness={StyleSheet.hairlineWidth}
+            />
+            <SearchablePickerSheet
+              variant="onboarding"
+              fieldLabel="Time zone"
+              placeholder="Choose time zone"
+              title="Time zone"
+              searchPlaceholder="Search time zones"
+              options={timeZonePickerItems}
+              selectedValue={timezone}
+              onSelect={setTimezone}
+            />
+            <Separator
+              orientation="horizontal"
+              className="bg-border"
+              thickness={StyleSheet.hairlineWidth}
+            />
+            <SearchablePickerSheet
+              variant="onboarding"
+              fieldLabel="Currency"
+              placeholder="Choose currency"
+              title="Currency"
+              searchPlaceholder="Search currencies"
+              options={currencyPickerItems}
+              selectedValue={currency}
+              onSelect={setCurrency}
+            />
+          </Surface>
 
-              <Surface
-                variant="default"
-                className="mt-6 w-full overflow-hidden rounded-xl bg-surface shadow-surface"
-              >
-                <TextField className="gap-0">
-                  <Input
-                    value={businessName}
-                    onChangeText={setBusinessName}
-                    placeholder="Business name"
-                    autoCapitalize="words"
-                    variant="secondary"
-                    className={INPUT_ROW_CLASS}
-                  />
-                </TextField>
-                <Separator
-                  orientation="horizontal"
-                  className="bg-border"
-                  thickness={StyleSheet.hairlineWidth}
-                />
-                <SearchablePickerSheet
-                  variant="onboarding"
-                  fieldLabel="Time zone"
-                  placeholder="Choose time zone"
-                  title="Time zone"
-                  searchPlaceholder="Search time zones"
-                  options={timeZonePickerItems}
-                  selectedValue={timezone}
-                  onSelect={setTimezone}
-                />
-                <Separator
-                  orientation="horizontal"
-                  className="bg-border"
-                  thickness={StyleSheet.hairlineWidth}
-                />
-                <SearchablePickerSheet
-                  variant="onboarding"
-                  fieldLabel="Currency"
-                  placeholder="Choose currency"
-                  title="Currency"
-                  searchPlaceholder="Search currencies"
-                  options={currencyPickerItems}
-                  selectedValue={currency}
-                  onSelect={setCurrency}
-                />
-              </Surface>
-
-              <View className="mt-5 w-full">
-                <Button
-                  variant="primary"
-                  size="md"
-                  className="w-full"
-                  isDisabled={submitPhase !== "idle"}
-                  onPress={onContinue}
-                >
-                  <Button.Label className="font-semibold text-accent-foreground">
-                    {submitPhase === "saving"
-                      ? "Saving…"
-                      : submitPhase === "finishing"
-                        ? "Finishing setup…"
-                        : "Continue"}
-                  </Button.Label>
-                </Button>
-              </View>
-            </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-
+          <View className="mt-5 w-full">
+            <Button
+              variant="primary"
+              size="md"
+              className="w-full"
+              isDisabled={submitPhase !== "idle"}
+              onPress={onContinue}
+            >
+              <Button.Label className="font-semibold text-accent-foreground">
+                {submitPhase === "saving"
+                  ? "Saving…"
+                  : submitPhase === "finishing"
+                    ? "Finishing setup…"
+                    : "Continue"}
+              </Button.Label>
+            </Button>
+          </View>
+        </View>
+      </KeyboardScreen>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  fill: {
-    flex: 1,
-  },
   versionBadge: {
     position: "absolute",
     zIndex: 2,
@@ -324,8 +309,6 @@ const styles = StyleSheet.create({
   scrollInner: {
     flexGrow: 1,
     justifyContent: "center",
-    paddingHorizontal: 28,
-    paddingTop: 36,
   },
   centerColumn: {
     width: "100%",

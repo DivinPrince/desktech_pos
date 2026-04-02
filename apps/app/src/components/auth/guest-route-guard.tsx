@@ -2,8 +2,6 @@ import { Redirect } from "expo-router";
 import React from "react";
 
 import {
-  getPendingAuthRoute,
-  postAuthRoute,
   useAuthSessionState,
 } from "@/lib/auth-session";
 
@@ -12,11 +10,10 @@ type GuestRouteGuardProps = {
 };
 
 export function GuestRouteGuard({ children }: GuestRouteGuardProps) {
-  const { session } = useAuthSessionState();
+  const { handoffRoute } = useAuthSessionState();
 
-  const dest = postAuthRoute(session) ?? getPendingAuthRoute();
-  if (dest) {
-    return <Redirect href={dest} />;
+  if (handoffRoute) {
+    return <Redirect href={handoffRoute} />;
   }
 
   return <>{children}</>;
