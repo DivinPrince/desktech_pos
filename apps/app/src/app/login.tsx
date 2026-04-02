@@ -63,11 +63,9 @@ export default function LoginScreen() {
             description: "Please wait a moment while we load your account.",
             variant: "warning",
           });
+          router.replace("/");
         } else {
-          const dest = postAuthRoute(sessionResult.data);
-          if (dest) {
-            router.replace(dest);
-          }
+          router.replace(postAuthRoute(sessionResult.data) ?? "/");
         }
       }
     } catch (error) {
