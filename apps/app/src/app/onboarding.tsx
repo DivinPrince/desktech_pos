@@ -22,7 +22,7 @@ import {
   SearchablePickerSheet,
 } from "@/components/desktech-ui";
 import { authClient } from "@/lib/auth-client";
-import { useAuthSessionState } from "@/lib/auth-session";
+import { postAuthRoute, useAuthSessionState } from "@/lib/auth-session";
 import {
   formatCurrencyChoice,
   formatTimeZoneOffsetLabel,
@@ -144,8 +144,8 @@ export default function OnboardingScreen() {
         });
       } else {
         setSubmitPhase("finishing");
-        await refetchSession();
-        router.replace("/(tabs)/dashboard");
+        const sessionResult = await refetchSession();
+        router.replace(postAuthRoute(sessionResult.data) ?? "/");
       }
     } catch (error) {
       toast.show({
@@ -195,7 +195,7 @@ export default function OnboardingScreen() {
           <Ionicons name="storefront" size={14} color={accentColor} />
         </View>
 
-        <KeyboardAvoidingScaffold>
+        <KeyboardAvoidingScaffold keyboardVerticalOffset={Math.max(insets.top - 8, 0)}>
           <ScrollView
             style={styles.fill}
             contentContainerStyle={[
