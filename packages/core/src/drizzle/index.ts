@@ -5,14 +5,14 @@ import { Resource } from "sst";
 function resolveConnectionString(): string {
   const fromEnv = process.env.DATABASE_URL;
   if (fromEnv) return fromEnv;
-  return Resource.NeonDatabase.connectionString;
+  return Resource.DatabaseUrl.value;
 }
 
 const connectionString = resolveConnectionString();
 
 if (!connectionString) {
   throw new Error(
-    "Database URL missing: link NeonDatabase (SST) or set DATABASE_URL",
+    "Database URL missing: set SST secret DatabaseUrl (sst secret set DatabaseUrl) or DATABASE_URL",
   );
 }
 

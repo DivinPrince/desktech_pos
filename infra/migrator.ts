@@ -1,11 +1,11 @@
 import "./sst-ion-globals";
-import { neonDatabase } from "./neon";
+import { allSecrets } from "./secret";
 
 const migrator = new sst.aws.Function("DatabaseMigrator", {
   handler: "./packages/core/src/drizzle/migrator.handler",
   timeout: "120 seconds",
   memory: "512 MB",
-  link: [neonDatabase],
+  link: [...allSecrets],
   nodejs: {
     install: ["pg"],
   },

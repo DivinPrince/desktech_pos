@@ -1,7 +1,6 @@
 import { bus } from "./bus";
 import { mediaBucket } from "./bucket";
 import { domain } from "./dns";
-import { neonDatabase } from "./neon";
 import { allSecrets, secret } from "./secret";
 
 const apiDomain = "api." + domain;
@@ -19,7 +18,7 @@ export const urls = new sst.Linkable("Urls", {
 const apiFn = new sst.aws.Function("ApiFn", {
   handler: "./packages/core/src/functions/index.handler",
   streaming: !$dev,
-  link: [bus, mediaBucket, neonDatabase, urls, ...allSecrets],
+  link: [bus, mediaBucket, urls, ...allSecrets],
   url: {
     cors: false,
   },

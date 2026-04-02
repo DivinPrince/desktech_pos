@@ -49,6 +49,13 @@
       "typedRoutes": true,
       "reactCompiler": true,
       "autolinkingModuleResolution": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "fabd9288-0218-4690-9477-eaff521f578b"
+      }
+    },
+    "owner": "divin-prince"
   }
 }

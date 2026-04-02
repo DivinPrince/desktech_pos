@@ -18,7 +18,6 @@ export default $config({
           region: "us-east-1",
         },
         cloudflare: true,
-        neon: "0.9.0",
       },
     };
   },

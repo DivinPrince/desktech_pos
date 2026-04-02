@@ -3,7 +3,7 @@
  * (127.0.0.1 / localhost on port 54329, database `desktech_test`). That way `.env.test` in the shell
  * does not skip Compose while the container is stopped.
  *
- * For Neon or other remote URLs, Compose is not started; migrate + Vitest use your DATABASE_URL.
+ * For remote URLs (e.g. hosted Postgres), Compose is not started; migrate + Vitest use your DATABASE_URL.
  *
  * Requires Docker Desktop running locally for the compose path.
  *
