@@ -39,8 +39,9 @@ const apiRoutes = new Hono<AppEnv>()
 export const app = new Hono<AppEnv>();
 
 const allowedOrigins = [
-  process.env.FRONTEND_URL || "http://localhost:3000",
+  process.env.FRONTEND_URL || "http://localhost:8081",
   process.env.ADMIN_URL || "http://localhost:3001",
+  "http://localhost:8081",
 ];
 
 app.use("*", logger());

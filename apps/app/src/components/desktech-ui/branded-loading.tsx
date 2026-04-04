@@ -8,7 +8,7 @@ import {
 } from "react-native";
 
 /** Same artwork as `expo-splash-screen` in app.json for a consistent cold start → in-app handoff. */
-const BRAND_MARK = require("../../../assets/images/splash-icon.png");
+const BRAND_MARK = require("../../../assets/images/splash-icon-light.png");
 
 export type BrandedLoadingProps = {
   /** Optional caption below the logo (fullscreen / embedded), or standalone text (inline). */

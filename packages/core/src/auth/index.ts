@@ -32,6 +32,7 @@ const baseAuthOptions = {
     process.env.FRONTEND_URL || "",
     "desktech://",
     "desktech://*",
+    "http://localhost:8081",
     ...(allowExpoDevOrigins
       ? (["exp://", "exp://**", "exp://192.168.*.*:*/**"] as const)
       : []),
