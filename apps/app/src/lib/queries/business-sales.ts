@@ -40,6 +40,14 @@ function salesUtils<T extends object>(
   return c?.utils;
 }
 
+/** API JSON returns date fields as strings; keep in sync with sale row handling elsewhere. */
+function saleCompletedAtToIso(value: unknown, fallback: Date): string {
+  if (value == null || value === "") return fallback.toISOString();
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === "string") return value;
+  return fallback.toISOString();
+}
+
 export const salesKeys = {
   root: (businessId: string) => salesDataKeys.root(businessId),
 };
@@ -342,12 +350,12 @@ export function useCompleteCounterSaleMutation(businessId: string | undefined) {
           replayParams as unknown as Parameters<typeof catalogCompleteCounterSaleMutationFn>[0],
         );
         await finishReplay(pendingSaleId, result);
+        invalidateSalesQueries(queryClient, businessId);
         const sale = result.sale;
-        const doneAt = sale.completedAt ?? completedAt;
         return {
           saleId: sale.id,
           totalCents: sale.totalCents,
-          completedAtIso: doneAt.toISOString(),
+          completedAtIso: saleCompletedAtToIso(sale.completedAt ?? completedAt, completedAt),
         };
       } catch (e) {
         rollbackCounterCheckoutOptimism({

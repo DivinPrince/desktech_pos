@@ -6,6 +6,7 @@ import { TextField } from "heroui-native/text-field";
 import React, { useCallback, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
+import { CountryDialCodePicker } from "@/components/counter/country-dial-code-picker";
 import { CheckoutSubscreenShell } from "@/components/counter/checkout-subscreen-shell";
 import {
   PAYMENT_OPTIONS,
@@ -17,9 +18,6 @@ const FIELD_WELL = "rounded-[20px] bg-surface-secondary px-1";
 
 const INPUT_ROW_CLASS =
   "border-0 border-transparent bg-transparent rounded-xl py-3.5 px-3.5 text-[16px] leading-5 shadow-none ios:shadow-none android:shadow-none focus:border-transparent text-field-foreground font-medium";
-
-const DIAL_INPUT_CLASS =
-  "border-0 border-transparent bg-transparent rounded-xl py-3.5 px-2 text-[16px] leading-5 shadow-none ios:shadow-none android:shadow-none focus:border-transparent text-field-foreground text-center font-bold tabular-nums";
 
 function FieldLabel({ children }: { children: string }) {
   return (
@@ -64,19 +62,17 @@ export default function CheckoutDetailsScreen() {
         <View className="mb-5">
           <FieldLabel>Phone Number</FieldLabel>
           <View className={`${FIELD_WELL} flex-row items-stretch gap-0`}>
-            <View className="w-[88px] border-r border-border/40">
-              <TextField className="gap-0">
-                <Input
-                  value={customer.dialCode}
-                  onChangeText={(dialCode) =>
-                    setCustomer({ ...customer, dialCode })}
-                  placeholder="+1"
-                  keyboardType="phone-pad"
-                  variant="secondary"
-                  className={DIAL_INPUT_CLASS}
-                />
-              </TextField>
-            </View>
+            <CountryDialCodePicker
+              selectedIso={customer.phoneCountryIso}
+              dialCode={customer.dialCode}
+              onSelect={(entry) =>
+                setCustomer({
+                  ...customer,
+                  dialCode: entry.dialDisplay,
+                  phoneCountryIso: entry.iso,
+                })
+              }
+            />
             <View className="min-w-0 flex-1">
               <TextField className="gap-0">
                 <Input

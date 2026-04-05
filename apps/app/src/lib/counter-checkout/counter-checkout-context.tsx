@@ -25,6 +25,7 @@ export {
 
 const emptyCustomer = (): CheckoutCustomer => ({
   dialCode: "+1",
+  phoneCountryIso: "US",
   name: "",
   phone: "",
   email: "",

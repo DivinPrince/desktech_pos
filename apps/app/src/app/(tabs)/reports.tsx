@@ -145,17 +145,20 @@ export default function ReportsTab() {
 
   useFocusEffect(
     useCallback(() => {
-      void hydrateSaleReceiptExtras();
-      void refetch();
       let cancelled = false;
       void (async () => {
+        await hydrateSaleReceiptExtras();
         const online = await fetchDeviceAppearsOnline();
-        if (cancelled || !online || !offlineExecutor) return;
-        try {
-          offlineExecutor.getOnlineDetector().notifyOnline();
-        } catch {
-          /* best-effort */
+        if (cancelled) return;
+        if (online && offlineExecutor) {
+          try {
+            offlineExecutor.getOnlineDetector().notifyOnline();
+          } catch {
+            /* best-effort */
+          }
         }
+        if (cancelled) return;
+        await refetch();
       })();
       return () => {
         cancelled = true;

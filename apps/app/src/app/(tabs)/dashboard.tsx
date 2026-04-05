@@ -306,23 +306,28 @@ export default function DashboardTab() {
 
   useFocusEffect(
     useCallback(() => {
-      void hydrateSaleReceiptExtras();
-      void refetchCurrent();
-      void refetchPrevious();
-      void refetchWeek();
-      void refetchMonth();
-      void refetchAll();
-      void productsQuery.refetch();
-      void categoriesQuery.refetch();
       let cancelled = false;
       void (async () => {
+        await hydrateSaleReceiptExtras();
         const online = await fetchDeviceAppearsOnline();
-        if (cancelled || !online || !offlineExecutor) return;
-        try {
-          offlineExecutor.getOnlineDetector().notifyOnline();
-        } catch {
-          /* best-effort */
+        if (cancelled) return;
+        if (online && offlineExecutor) {
+          try {
+            offlineExecutor.getOnlineDetector().notifyOnline();
+          } catch {
+            /* best-effort */
+          }
         }
+        if (cancelled) return;
+        await Promise.all([
+          refetchCurrent(),
+          refetchPrevious(),
+          refetchWeek(),
+          refetchMonth(),
+          refetchAll(),
+          productsQuery.refetch(),
+          categoriesQuery.refetch(),
+        ]);
       })();
       return () => {
         cancelled = true;

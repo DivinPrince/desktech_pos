@@ -235,10 +235,11 @@ export const catalogCompleteCounterSaleMutationFn: CatalogOfflineMutationFn = as
   const sale = saleEnvelope.data;
 
   const uniqueIds = [...new Set(body.lines.map((l) => l.productId))];
-  const products: ProductRow[] = [];
-  for (const productId of uniqueIds) {
-    const { data: prodEnvelope } = await scoped.getProduct(productId).withResponse();
-    products.push(prodEnvelope.data);
-  }
+  const products = await Promise.all(
+    uniqueIds.map(async (productId) => {
+      const { data: prodEnvelope } = await scoped.getProduct(productId).withResponse();
+      return prodEnvelope.data;
+    }),
+  );
   return { sale, products } satisfies CatalogCompleteCounterSaleReplayResult;
 };
