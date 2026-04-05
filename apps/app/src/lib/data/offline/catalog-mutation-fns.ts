@@ -51,6 +51,8 @@ export type CatalogProductUpdateBody = {
 export type CatalogCreateProductMetadata = {
   businessId: string;
   body: CatalogProductCreateBody;
+  /** Matches optimistic `local_*` row id so replay can swap in the server product. */
+  optimisticLocalId?: string;
 };
 
 export type CatalogCreateCategoryMetadata = {

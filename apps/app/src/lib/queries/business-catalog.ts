@@ -309,10 +309,11 @@ export function useCreateProductMutation(businessId: string | undefined) {
           executor,
           mutationFnName: "catalogCreateProduct",
           idempotencyKey,
-          metadata: { businessId, body },
+          metadata: { businessId, body, optimisticLocalId: localId },
           mutate: apply,
           optimisticResult: optimistic,
           invalidate: inv,
+          invalidateAfterSuccess: false,
         });
       }
 

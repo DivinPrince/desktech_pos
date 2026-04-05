@@ -9,6 +9,8 @@ import {
   reconcileServerProductIntoQueryCache,
 } from "@/lib/data/catalog/cache-reconcile";
 import { reconcileCreatedCategory } from "@/lib/data/catalog/category-reconcile";
+import { reconcileCreatedProduct } from "@/lib/data/catalog/product-reconcile";
+import type { ProductRow } from "@/lib/data/catalog/types";
 import { getCatalogCollectionRegistry } from "@/lib/data/catalog/collections";
 import { getSalesCollectionRegistry } from "@/lib/data/sales/collections";
 import { moveSaleReceiptExtras } from "@/lib/data/sales/receipt-extras";
@@ -19,6 +21,7 @@ import {
   catalogCompleteCounterSaleMutationFn,
   catalogCreateCategoryMutationFn,
   catalogCreateProductMutationFn,
+  type CatalogCreateProductMetadata,
   catalogDeleteCategoryMutationFn,
   catalogDeleteProductMutationFn,
   catalogUpdateCategoryMutationFn,
@@ -65,7 +68,25 @@ export function OfflineExecutorProvider({ children, businessId }: Props) {
       collections: { ...catalogCols, ...salesCols },
       mutationFns: {
         _noop: async () => undefined,
-        catalogCreateProduct: catalogCreateProductMutationFn,
+        catalogCreateProduct: async (params) => {
+          const row = await catalogCreateProductMutationFn(params);
+          const meta = (params as unknown as { transaction?: { metadata?: CatalogCreateProductMetadata } })
+            .transaction?.metadata;
+          if (meta?.businessId && meta.optimisticLocalId) {
+            await reconcileCreatedProduct(
+              queryClient,
+              meta.businessId,
+              meta.optimisticLocalId,
+              row as ProductRow,
+            );
+          } else if (meta?.businessId) {
+            void queryClient.invalidateQueries({
+              queryKey: ["catalog", meta.businessId],
+              exact: false,
+            });
+          }
+          return row;
+        },
         catalogCreateCategory: async (params) => {
           const row = await catalogCreateCategoryMutationFn(params);
           const meta = (params as unknown as { transaction?: { metadata?: CatalogCreateCategoryMetadata } })

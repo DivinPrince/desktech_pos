@@ -289,6 +289,21 @@ export class CatalogCollectionRegistry {
     }
   }
 
+  /**
+   * Drop a per-product slice only if it was already materialized (avoids `ensureProduct` side
+   * effects for ids we are discarding, e.g. optimistic `local_*` after server reconcile).
+   */
+  removeProductDetailIfLoaded(businessId: string, productId: string): void {
+    const mapKey = `${businessId}|${productId}`;
+    const col = this.productSingles.get(mapKey);
+    if (!col) return;
+    try {
+      col.delete(productId);
+    } catch {
+      /* not present */
+    }
+  }
+
   namedCollectionsForOfflineExecutor(
     queryClient: QueryClient,
     options?: { offlineProductCatalogBusinessId?: string },
