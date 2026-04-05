@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { useToast } from "heroui-native/toast";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -77,7 +78,7 @@ export default function ItemsTab() {
   const accent = useThemeColor("accent");
   const accentFg = useThemeColor("accent-foreground");
   const queryClient = useQueryClient();
-  const { addProduct, decrementProduct, getQuantity, lines } = useCounterCart();
+  const { addProduct, decrementProduct, getQuantity, lines, totalUnits, totalCents } = useCounterCart();
 
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -120,7 +121,7 @@ export default function ItemsTab() {
   }, [businessId, queryClient]);
 
   const tabBarClearance = 72;
-  const scrollBottomPad = Math.max(insets.bottom, 12) + tabBarClearance + 16;
+  const scrollBottomPad = Math.max(insets.bottom, 12) + tabBarClearance + 16 + (totalUnits > 0 ? 64 : 0);
 
   const catalogError = businessesQuery.error ?? productsQuery.error;
 
@@ -329,24 +330,7 @@ export default function ItemsTab() {
                 label="Add item"
               />
             </ProductListGrid>
-            {productsInitialLoad ? (
-              <BrandedLoading
-                variant="inline"
-                className="mt-3 self-center"
-                message="Loading products…"
-              />
-            ) : products.length === 0 ? (
-              <Text
-                style={{
-                  color: muted,
-                  fontSize: 14,
-                  marginTop: 12,
-                  textAlign: "center",
-                }}
-              >
-                No products yet. Tap Add item to open inventory and add your first product.
-              </Text>
-            ) : filteredProducts.length === 0 ? (
+            {filteredProducts.length === 0 && products.length > 0 && !productsInitialLoad ? (
               <Text
                 style={{
                   color: muted,
@@ -361,6 +345,25 @@ export default function ItemsTab() {
           </View>
         ) : null}
         </ScrollView>
+        {totalUnits > 0 ? (
+          <View
+            style={{
+              position: "absolute",
+              bottom: tabBarClearance + Math.max(insets.bottom, 12),
+              left: 16,
+              right: 16,
+            }}
+          >
+            <Button
+              className="w-full h-[56px] rounded-full shadow-lg"
+              onPress={() => router.push("/counter")}
+            >
+              <Button.Label className="font-black text-[17px] tracking-tight text-accent-foreground">
+                View counter • {totalUnits} {totalUnits === 1 ? "item" : "items"} • {formatMinorUnitsToCurrency(totalCents, currency)}
+              </Button.Label>
+            </Button>
+          </View>
+        ) : null}
       </KeyboardAvoidingScaffold>
     </View>
   );

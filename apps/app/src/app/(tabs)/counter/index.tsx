@@ -1,7 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useThemeColor } from "heroui-native/hooks";
+import { useToast } from "heroui-native/toast";
 import React, { useCallback, useMemo } from "react";
 import {
   FlatList,
@@ -16,14 +18,18 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 
-import { useCounterCheckout } from "@/app/(tabs)/counter/_counter-checkout-context";
+import { useCounterCheckout } from "@/lib/counter-checkout/counter-checkout-context";
 import { BrandedLoading } from "@/components/desktech-ui";
 import { NavigationMenuTrigger } from "@/components/navigation/navigation-shell";
 import { resolveActiveBusiness, useAuthSessionState } from "@/lib/auth-session";
 import type { CartLine } from "@/lib/counter-cart/counter-cart";
 import { cartLineKey, useCounterCart } from "@/lib/counter-cart/counter-cart";
+import type { ProductRow } from "@/lib/data/catalog/types";
 import { formatMinorUnitsToCurrency } from "@/lib/format-money";
-import { useBusinessesQuery } from "@/lib/queries/business-catalog";
+import {
+  useBusinessesQuery,
+  useProductsQuery,
+} from "@/lib/queries/business-catalog";
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
@@ -40,6 +46,7 @@ const FOOTER_ABOVE_TAB_GAP = 10;
 
 export default function CounterTab() {
   const router = useRouter();
+  const { toast } = useToast();
   const { resetForNewCheckout } = useCounterCheckout();
   const insets = useSafeAreaInsets();
   const accent = useThemeColor("accent");
@@ -58,8 +65,56 @@ export default function CounterTab() {
   const businessId = currentBusiness?.id;
   const currency = currentBusiness?.currency ?? "USD";
 
-  const { lines, clear, totalCents, totalUnits, decrementProduct } = useCounterCart();
+  const productsQuery = useProductsQuery(businessId, Boolean(businessId), {
+    activeOnly: false,
+  });
+  const productsById = useMemo(() => {
+    const m = new Map<string, ProductRow>();
+    for (const p of productsQuery.data ?? []) {
+      m.set(p.id, p);
+    }
+    return m;
+  }, [productsQuery.data]);
+
+  const { lines, clear, totalCents, totalUnits, decrementProduct, addProduct } =
+    useCounterCart();
   const lineCount = lines.length;
+
+  const onIncrementLine = useCallback(
+    (item: CartLine) => {
+      const p = productsById.get(item.productId);
+      if (p) {
+        if (!p.active) {
+          void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+          toast.show({
+            variant: "danger",
+            label: "Inactive item",
+            description: `${item.name} is inactive and can't be added to the counter.`,
+          });
+          return;
+        }
+        if (p.trackStock && item.quantity >= p.quantityOnHand) {
+          void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+          toast.show({
+            variant: "danger",
+            label: "Out of stock",
+            description:
+              p.quantityOnHand <= 0
+                ? `${p.name} has no units available.`
+                : `All ${p.quantityOnHand} units of ${p.name} are already on the counter.`,
+          });
+          return;
+        }
+      }
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      addProduct({
+        productId: item.productId,
+        name: item.name,
+        priceCents: item.priceCents,
+      });
+    },
+    [addProduct, productsById, toast],
+  );
 
   const onCharge = useCallback(() => {
     if (totalCents <= 0) return;
@@ -103,15 +158,24 @@ export default function CounterTab() {
               >
                 <Ionicons name="remove" size={18} color={accent} />
               </Pressable>
-              <Text className="mx-3 text-[14px] font-bold tabular-nums text-foreground">
+              <Text className="min-w-[24px] text-center text-[14px] font-bold tabular-nums text-foreground">
                 {item.quantity}
               </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Add one unit to line"
+                hitSlop={8}
+                onPress={() => onIncrementLine(item)}
+                className="h-7 w-7 items-center justify-center rounded-full bg-surface active:bg-accent/10"
+              >
+                <Ionicons name="add" size={18} color={accent} />
+              </Pressable>
             </View>
           </View>
         </View>
       );
     },
-    [accent, currency, decrementProduct],
+    [accent, currency, decrementProduct, onIncrementLine],
   );
 
   const listEmptyDesign = useMemo(
