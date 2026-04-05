@@ -359,8 +359,8 @@ export default function DashboardTab() {
 
   const headerTertiary = useMemo(() => {
     if (!signedIn || !businessId) return null;
-    return `${dateLine} · ${shortName}`;
-  }, [businessId, dateLine, shortName, signedIn]);
+    return dateLine;
+  }, [businessId, dateLine, signedIn]);
 
   const stockIssueCount = stockSignals.skuOutOfStock + stockSignals.skuLowStock;
 
@@ -396,7 +396,7 @@ export default function DashboardTab() {
 
       <CalculatorSheet visible={calculatorOpen} onClose={() => setCalculatorOpen(false)} />
 
-      <SafeAreaView style={styles.root} edges={["left", "right", "bottom"]}>
+      <SafeAreaView style={styles.root} edges={["left", "right"]}>
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
