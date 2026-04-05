@@ -11,7 +11,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { AnimatedSuccessCheck } from "@/components/counter/animated-success-check";
 import { RichReceipt } from "@/components/receipt/rich-receipt";
 import { ReceiptActionButtons } from "@/components/receipt/receipt-action-buttons";
-import { useCounterCheckout } from "@/app/(tabs)/counter/_counter-checkout-context";
+import { useCounterCheckout } from "@/lib/counter-checkout/counter-checkout-context";
 import { formatMinorUnitsToCurrency } from "@/lib/format-money";
 
 const styles = StyleSheet.create({

@@ -1,9 +1,6 @@
-import { Ionicons } from "@expo/vector-icons";
-import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Button } from "heroui-native/button";
-import { useThemeColor } from "heroui-native/hooks";
 import { Input } from "heroui-native/input";
 import { Separator } from "heroui-native/separator";
 import { Surface } from "heroui-native/surface";
@@ -37,7 +34,6 @@ const INPUT_ROW_CLASS =
 export default function OnboardingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const accentColor = useThemeColor("accent");
   const { toast } = useToast();
   const { user, activeBusiness, needsOnboarding, isPending, refetch: refetchSession } =
     useAuthSessionState();
@@ -109,12 +105,6 @@ export default function OnboardingScreen() {
     ];
   }, [currency, allCurrencyPickerItems]);
 
-  const versionLabel = `v${Constants.expoConfig?.version ?? "1.0.0"}`;
-  const buildLabel =
-    Constants.nativeBuildVersion != null
-      ? ` (${Constants.nativeBuildVersion})`
-      : "";
-
   const onContinue = useCallback(async () => {
     const trimmedName = businessName.trim();
     if (!trimmedName) {
@@ -144,8 +134,9 @@ export default function OnboardingScreen() {
         });
       } else {
         setSubmitPhase("finishing");
-        const sessionResult = await refetchSession();
-        router.replace(postAuthRoute(sessionResult.data) ?? "/");
+        await refetchSession();
+        const sessionResult = await authClient.getSession().catch(() => null);
+        router.replace(postAuthRoute(sessionResult?.data ?? null) ?? "/");
       }
     } catch (error) {
       toast.show({
@@ -181,20 +172,6 @@ export default function OnboardingScreen() {
       <StatusBar style="inverted" />
 
       <SafeAreaView style={styles.fill} edges={["top", "left", "right"]}>
-        <View
-          pointerEvents="box-none"
-          style={[
-            styles.versionBadge,
-            { top: insets.top + 4, right: insets.right + 20 },
-          ]}
-        >
-          <Text className="text-[11px] text-muted">
-            {versionLabel}
-            {buildLabel}
-          </Text>
-          <Ionicons name="storefront" size={14} color={accentColor} />
-        </View>
-
         <KeyboardAvoidingScaffold keyboardVerticalOffset={Math.max(insets.top - 8, 0)}>
           <ScrollView
             style={styles.fill}
@@ -291,13 +268,6 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   fill: {
     flex: 1,
-  },
-  versionBadge: {
-    position: "absolute",
-    zIndex: 2,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
   },
   scrollInner: {
     flexGrow: 1,

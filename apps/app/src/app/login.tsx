@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Button } from "heroui-native/button";
@@ -34,12 +33,6 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-
-  const versionLabel = `v${Constants.expoConfig?.version ?? "1.0.0"}`;
-  const buildLabel =
-    Constants.nativeBuildVersion != null
-      ? ` (${Constants.nativeBuildVersion})`
-      : "";
 
   const onLogin = useCallback(async () => {
     setSubmitting(true);
@@ -84,20 +77,6 @@ export default function LoginScreen() {
       <StatusBar style="inverted" />
 
       <SafeAreaView style={styles.fill} edges={["top", "left", "right"]}>
-        <View
-          pointerEvents="box-none"
-          style={[
-            styles.versionBadge,
-            { top: insets.top + 4, right: insets.right + 20 },
-          ]}
-        >
-          <Text className="text-[11px] text-muted">
-            {versionLabel}
-            {buildLabel}
-          </Text>
-          <Ionicons name="sunny" size={14} color={accentColor} />
-        </View>
-
         <KeyboardAvoidingScaffold keyboardVerticalOffset={Math.max(insets.top - 8, 0)}>
           <ScrollView
             style={styles.fill}
@@ -222,13 +201,6 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   fill: {
     flex: 1,
-  },
-  versionBadge: {
-    position: "absolute",
-    zIndex: 2,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
   },
   scrollInner: {
     flexGrow: 1,

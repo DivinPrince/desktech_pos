@@ -1,30 +1,35 @@
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "../global.css";
 
-import React from "react";
-import { Stack } from "expo-router";
-import { StatusBar } from "expo-status-bar";
+import React, { useEffect } from "react";
+import { SplashScreen, Stack } from "expo-router";
 import { HeroUINativeProvider } from "heroui-native/provider";
-import { View } from "react-native";
+import { ActivityIndicator, Platform, View } from "react-native";
 
-import { BrandedLoading } from "@/components/desktech-ui";
 import { AppQueryProvider } from "@/lib/query-provider";
 import { useAuthSessionState } from "@/lib/auth-session";
 
-function AuthBootScreen() {
-  return (
-    <View className="flex-1 bg-background">
-      <StatusBar style="inverted" />
-      <BrandedLoading />
-    </View>
-  );
-}
+void SplashScreen.preventAutoHideAsync();
 
 function AppNavigator() {
   const { isPending, needsOnboarding, user } = useAuthSessionState();
 
+  useEffect(() => {
+    if (!isPending) {
+      void SplashScreen.hideAsync();
+    }
+  }, [isPending]);
+
   if (isPending) {
-    return <AuthBootScreen />;
+    if (Platform.OS !== "web") {
+      return null;
+    }
+
+    return (
+      <View className="flex-1 flex items-center justify-center">
+        <ActivityIndicator />
+      </View>
+    );
   }
 
   return (

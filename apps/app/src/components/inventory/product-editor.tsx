@@ -738,67 +738,81 @@ export function ProductEditor({ productId }: ProductEditorProps) {
             </View>
 
             {trackStock ? (
-              isEdit && product ? (
-                <Pressable
-                  onPress={openStockSheet}
-                  className="rounded-[20px] bg-background/50 px-4 py-4 active:opacity-80 mt-2"
-                >
-                  <Text className="text-[12px] font-bold uppercase tracking-widest text-muted">
-                    Available to sell
-                  </Text>
-                  <View className="flex-row items-center justify-between mt-2">
-                    <Text className="text-[32px] font-black tabular-nums tracking-tighter text-foreground">
-                      {product.quantityOnHand}
-                    </Text>
-                    <View className="bg-accent/10 px-3 py-1.5 rounded-full">
-                      <Text className="text-[13px] font-bold text-accent">Tap to adjust</Text>
+              <>
+                {isEdit && product ? (
+                  <>
+                    <Pressable
+                      onPress={openStockSheet}
+                      className="rounded-[20px] bg-background/50 px-4 py-4 active:opacity-80 mt-2"
+                    >
+                      <Text className="text-[12px] font-bold uppercase tracking-widest text-muted">
+                        Available to sell
+                      </Text>
+                      <View className="flex-row items-center justify-between mt-2">
+                        <Text className="text-[32px] font-black tabular-nums tracking-tighter text-foreground">
+                          {product.quantityOnHand}
+                        </Text>
+                        <View className="bg-accent/10 px-3 py-1.5 rounded-full">
+                          <Text className="text-[13px] font-bold text-accent">Tap to adjust</Text>
+                        </View>
+                      </View>
+                    </Pressable>
+
+                    <View className="gap-1.5 pt-3 mt-2 border-t border-border/40">
+                      <Text className="text-[15px] font-bold text-foreground ml-1">Stock alert</Text>
+                      <Text className="text-[13px] font-medium text-muted ml-1 mb-1">
+                        You are alerted when on-hand quantity is at or below this level.
+                      </Text>
+                      <TextField className="gap-0">
+                        <Input
+                          value={stockAlertStr}
+                          onChangeText={setStockAlertStr}
+                          placeholder="0"
+                          keyboardType="number-pad"
+                          variant="secondary"
+                          className={INPUT_ROW_CLASS}
+                        />
+                      </TextField>
+                    </View>
+                  </>
+                ) : !isEdit ? (
+                  <View className="flex-row gap-3 mt-2">
+                    <View className="flex-1 gap-1.5">
+                      <Text className="text-[15px] font-bold text-foreground ml-1">
+                        Initial stock
+                      </Text>
+                      <TextField className="gap-0">
+                        <Input
+                          value={initialQuantityStr}
+                          onChangeText={setInitialQuantityStr}
+                          placeholder="0"
+                          keyboardType="number-pad"
+                          variant="secondary"
+                          className={INPUT_ROW_CLASS}
+                        />
+                      </TextField>
+                      {initialQuantityError ? (
+                        <Text className="text-[13px] font-medium text-danger ml-1">
+                          {initialQuantityError}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <View className="flex-1 gap-1.5">
+                      <Text className="text-[15px] font-bold text-foreground ml-1">Stock alert</Text>
+                      <TextField className="gap-0">
+                        <Input
+                          value={stockAlertStr}
+                          onChangeText={setStockAlertStr}
+                          placeholder="0"
+                          keyboardType="number-pad"
+                          variant="secondary"
+                          className={INPUT_ROW_CLASS}
+                        />
+                      </TextField>
                     </View>
                   </View>
-                </Pressable>
-              ) : null
-            ) : (
-              <View className="gap-1.5 mt-2">
-                <Text className="text-[15px] font-bold text-foreground ml-1">
-                  Initial stock
-                </Text>
-                <Text className="text-[13px] font-medium text-muted ml-1 mb-1">
-                  Start this product with stock on its first save. You can adjust it later.
-                </Text>
-                <TextField className="gap-0">
-                  <Input
-                    value={initialQuantityStr}
-                    onChangeText={setInitialQuantityStr}
-                    placeholder="0"
-                    keyboardType="number-pad"
-                    variant="secondary"
-                    className={INPUT_ROW_CLASS}
-                  />
-                </TextField>
-                {initialQuantityError ? (
-                  <Text className="text-[13px] font-medium text-danger ml-1">
-                    {initialQuantityError}
-                  </Text>
                 ) : null}
-              </View>
-            )}
-
-            {trackStock ? (
-              <View className="gap-1.5 pt-3 mt-2 border-t border-border/40">
-                <Text className="text-[15px] font-bold text-foreground ml-1">Stock alert</Text>
-                <Text className="text-[13px] font-medium text-muted ml-1 mb-1">
-                  You are alerted when on-hand quantity is at or below this level.
-                </Text>
-                <TextField className="gap-0">
-                  <Input
-                    value={stockAlertStr}
-                    onChangeText={setStockAlertStr}
-                    placeholder="0"
-                    keyboardType="number-pad"
-                    variant="secondary"
-                    className={INPUT_ROW_CLASS}
-                  />
-                </TextField>
-              </View>
+              </>
             ) : null}
           </FormSectionCard>
         </View>

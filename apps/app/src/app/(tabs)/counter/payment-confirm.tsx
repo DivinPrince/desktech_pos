@@ -6,12 +6,12 @@ import React, { useCallback, useEffect, useMemo } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
+import { CheckoutSubscreenShell } from "@/components/counter/checkout-subscreen-shell";
 import {
   PAYMENT_OPTIONS,
   paymentConfirmButtonLabel,
   useCounterCheckout,
-} from "@/app/(tabs)/counter/_counter-checkout-context";
-import { CheckoutSubscreenShell } from "@/app/(tabs)/counter/_checkout-subscreen-shell";
+} from "@/lib/counter-checkout/counter-checkout-context";
 import { resolveActiveBusiness, useAuthSessionState } from "@/lib/auth-session";
 import { useCounterCart } from "@/lib/counter-cart/counter-cart";
 import { formatMinorUnitsToCurrency } from "@/lib/format-money";

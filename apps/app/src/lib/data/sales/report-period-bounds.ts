@@ -60,3 +60,35 @@ export function reportPeriodLabel(preset: ReportPeriodPreset): string {
     }
   }
 }
+
+export function previousReportPeriodBounds(
+  preset: ReportPeriodPreset,
+  now: Date = new Date(),
+): SalesRangeBounds | null {
+  switch (preset) {
+    case "today": {
+      const start = localStartOfDay(now);
+      start.setDate(start.getDate() - 1);
+      const end = localStartOfDay(now);
+      return { startMs: start.getTime(), endMs: end.getTime() };
+    }
+    case "last7": {
+      const start = localStartOfDay(now);
+      start.setDate(start.getDate() - 13);
+      const end = localStartOfDay(now);
+      end.setDate(end.getDate() - 6);
+      return { startMs: start.getTime(), endMs: end.getTime() };
+    }
+    case "month": {
+      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
+      const end = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      return { startMs: start.getTime(), endMs: end.getTime() };
+    }
+    case "all":
+      return null;
+    default: {
+      const _exhaustive: never = preset;
+      return _exhaustive;
+    }
+  }
+}

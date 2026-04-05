@@ -58,7 +58,7 @@ export function CheckoutSubscreenShell({
         </View>
       </View>
 
-      <SafeAreaView style={styles.fill} edges={["left", "right", "bottom"]}>
+      <SafeAreaView style={styles.fill} edges={["left", "right"]}>
         <KeyboardAvoidingScaffold>
           <ScrollView
             style={styles.fill}

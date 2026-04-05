@@ -1,5 +1,6 @@
 import "../../sst-env.d.ts";
 import { betterAuth, type BetterAuthOptions, type BetterAuthPlugin } from "better-auth";
+import { createAuthMiddleware } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { expo } from "@better-auth/expo";
 import { admin, bearer, customSession, openAPI, testUtils } from "better-auth/plugins";
@@ -25,6 +26,51 @@ import { createID } from "../util/id";
 /** Local Node uses NODE_ENV=development; SST Live (`sst dev`) runs the handler with NODE_ENV=production but sets SST_DEV=true. */
 const allowExpoDevOrigins =
   process.env.NODE_ENV === "development" || process.env.SST_DEV === "true";
+
+/**
+ * `@better-auth-extended/onboarding` registers an after hook on `/get-session` that
+ * returns `ctx.json({ onboardingRedirect: true })`, which **replaces** the entire
+ * response and drops `user` / `session`. The client then routes to `/onboarding`
+ * with no authenticated user, so Expo Router's protected stack renders nothing
+ * (white screen). This plugin runs last and restores the custom session payload.
+ */
+function mergeOnboardingRedirectIntoGetSession(): BetterAuthPlugin {
+  return {
+    id: "desktech-merge-onboarding-get-session",
+    hooks: {
+      after: [
+        {
+          matcher: (ctx) => ctx.path === "/get-session",
+          handler: createAuthMiddleware(async (ctx) => {
+            const returned = ctx.context.returned as Record<string, unknown> | null | undefined;
+            if (!returned || typeof returned !== "object") return;
+
+            const onboardingRedirect = returned.onboardingRedirect === true;
+            const hasUser = typeof returned.user === "object" && returned.user !== null;
+
+            if (onboardingRedirect && !hasUser) {
+              const envelope = ctx.context.session as
+                | { user?: { id: string }; session?: unknown }
+                | null
+                | undefined;
+              const user = envelope?.user;
+              const sess = envelope?.session;
+              if (!user?.id || !sess) return;
+
+              const activeBusiness = await BusinessService.resolveActiveForUser(user.id);
+              ctx.context.returned = {
+                user,
+                session: sess,
+                activeBusiness,
+                onboardingRedirect: true,
+              };
+            }
+          }),
+        },
+      ],
+    },
+  } as unknown as BetterAuthPlugin;
+}
 
 const baseAuthOptions = {
   basePath: "/api/auth",
@@ -146,6 +192,7 @@ const authOptions = {
       },
       baseAuthOptions,
     ) as unknown as BetterAuthPlugin,
+    mergeOnboardingRedirectIntoGetSession(),
   ],
 } satisfies BetterAuthOptions;
 

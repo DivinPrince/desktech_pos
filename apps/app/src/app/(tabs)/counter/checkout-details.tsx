@@ -6,11 +6,11 @@ import { TextField } from "heroui-native/text-field";
 import React, { useCallback, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
+import { CheckoutSubscreenShell } from "@/components/counter/checkout-subscreen-shell";
 import {
   PAYMENT_OPTIONS,
   useCounterCheckout,
-} from "@/app/(tabs)/counter/_counter-checkout-context";
-import { CheckoutSubscreenShell } from "@/app/(tabs)/counter/_checkout-subscreen-shell";
+} from "@/lib/counter-checkout/counter-checkout-context";
 
 /** Inputs sit inside a calm field well (HeroUI secondary is borderless). */
 const FIELD_WELL = "rounded-[20px] bg-surface-secondary px-1";

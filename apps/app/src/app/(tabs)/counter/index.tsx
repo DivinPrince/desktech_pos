@@ -280,7 +280,7 @@ export default function CounterTab() {
         </View>
       </View>
 
-      <SafeAreaView style={styles.root} edges={["left", "right", "bottom"]}>
+      <SafeAreaView style={styles.root} edges={["left", "right"]}>
         {!signedIn ? (
           <View className="flex-1 justify-center px-4">
             <View className="mx-4 rounded-[32px] border border-border/70 bg-surface px-6 py-10 shadow-sm">

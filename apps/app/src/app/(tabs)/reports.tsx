@@ -225,88 +225,120 @@ export default function ReportsTab() {
 
     return (
       <>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.chipScroll}
-          contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingBottom: 16 }}
-        >
-          {PERIOD_PRESETS.map((preset) => {
-            const selected = preset === periodPreset;
-            return (
-              <Pressable
-                key={preset}
-                onPress={() => {
-                  setPeriodPreset(preset);
-                  setTopProductsExpanded(false);
-                }}
-                className={`rounded-[20px] px-5 py-3 active:opacity-80 ${
-                  selected ? "bg-foreground" : "bg-surface border border-border/40"
-                }`}
-              >
-                <Text
-                  className={`text-[14px] font-bold tracking-tight ${selected ? "text-background" : "text-foreground"}`}
-                >
-                  {reportPeriodLabel(preset)}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-
         {listRows.length === 0 ? (
-          <EmptyHint 
-            icon="bar-chart-outline" 
-            title="No sales found" 
-            subtitle={`There are no recorded sales for ${periodTitle.toLowerCase()}.`}
-            accent={accent} 
-          />
+          <View className="mx-4 mt-2 rounded-[36px] border border-border/40 bg-surface px-6 py-12 shadow-sm items-center justify-center">
+            <View className="mb-6 h-20 w-20 items-center justify-center rounded-full bg-accent/10">
+              <Ionicons name="bar-chart-outline" size={40} color={accent} />
+            </View>
+            <Text className="text-[22px] font-black tracking-tight text-foreground text-center mb-2">
+              No sales yet
+            </Text>
+            <Text className="text-[15px] leading-6 text-muted text-center px-4">
+              There are no recorded sales for {periodTitle.toLowerCase()}. Try selecting a different time period or check back later.
+            </Text>
+            
+            <View className="mt-8 flex-row items-center bg-black/5 dark:bg-white/5 rounded-full p-1 self-center">
+              {PERIOD_PRESETS.map((preset) => {
+                const selected = preset === periodPreset;
+                return (
+                  <Pressable
+                    key={preset}
+                    onPress={() => {
+                      setPeriodPreset(preset);
+                      setTopProductsExpanded(false);
+                    }}
+                    className={`px-3 py-1.5 rounded-full ${selected ? "bg-surface shadow-sm" : ""}`}
+                  >
+                    <Text
+                      style={{ color: selected ? accent : muted }}
+                      className={`text-[13px] font-bold ${selected ? "" : "opacity-80"}`}
+                    >
+                      {reportPeriodLabel(preset)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
         ) : (
           <>
             {/* Hero Section */}
             <View
-              className="mx-4 mb-8 overflow-hidden rounded-[36px] p-6 shadow-sm"
+              className="mx-4 mb-8 overflow-hidden rounded-[36px] p-6 shadow-sm relative"
               style={{ backgroundColor: accent }}
             >
-              <View className="flex-row items-start justify-between">
-                <View>
-                  <Text
-                    style={{ color: accentFg, opacity: 0.8 }}
-                    className="mb-1 text-[13px] font-bold uppercase tracking-widest"
-                  >
-                    {periodTitle} Revenue
-                  </Text>
-                  <Text
-                    style={{ color: accentFg }}
-                    className="text-[44px] font-black leading-[52px] tracking-tighter"
-                  >
-                    {formatMinorUnitsToCurrency(report.totalRevenueCents, businessCurrency)}
-                  </Text>
-                  <Text
-                    style={{ color: accentFg, opacity: 0.9 }}
-                    className="mt-1 text-[15px] font-semibold"
-                  >
-                    {report.saleCount} {report.saleCount === 1 ? "sale" : "sales"}
-                  </Text>
-                </View>
-                <View className="h-12 w-12 items-center justify-center rounded-full bg-white/20">
-                  <Ionicons name="bar-chart" size={24} color={accentFg} />
-                </View>
+              {/* Background Pattern */}
+              <View className="absolute inset-0 overflow-hidden pointer-events-none">
+                <View className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10" />
+                <View className="absolute -bottom-10 -left-10 w-32 h-32 rounded-full bg-white/10" />
+                <View className="absolute top-1/2 left-1/2 w-48 h-48 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-white/5 rounded-3xl" />
               </View>
 
-              <View className="mt-8 flex-row items-center justify-between rounded-[24px] bg-black/10 px-5 py-4">
-                <View>
-                  <Text style={{ color: accentFg, opacity: 0.8 }} className="text-[12px] font-bold uppercase tracking-widest">
-                    Avg Ticket
-                  </Text>
-                  <Text style={{ color: accentFg }} className="mt-0.5 text-[20px] font-black tracking-tight">
-                    {report.saleCount > 0
-                      ? formatMinorUnitsToCurrency(report.averageTicketCents, businessCurrency)
-                      : "—"}
-                  </Text>
+              <View className="relative z-10">
+                {/* Inline Period Selector */}
+                <View className="flex-row items-center bg-black/10 rounded-full p-1 mb-6 self-start">
+                  {PERIOD_PRESETS.map((preset) => {
+                    const selected = preset === periodPreset;
+                    return (
+                      <Pressable
+                        key={preset}
+                        onPress={() => {
+                          setPeriodPreset(preset);
+                          setTopProductsExpanded(false);
+                        }}
+                        className={`px-3 py-1.5 rounded-full ${selected ? "bg-white shadow-sm" : ""}`}
+                      >
+                        <Text
+                          style={{ color: selected ? accent : accentFg }}
+                          className={`text-[13px] font-bold ${selected ? "" : "opacity-80"}`}
+                        >
+                          {reportPeriodLabel(preset)}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
                 </View>
-                <View className="h-10 w-10 items-center justify-center rounded-full bg-white/20">
-                  <Ionicons name="receipt" size={18} color={accentFg} />
+
+                <View className="flex-row items-start justify-between">
+                  <View>
+                    <Text
+                      style={{ color: accentFg, opacity: 0.8 }}
+                      className="mb-1 text-[13px] font-bold uppercase tracking-widest"
+                    >
+                      {periodTitle} Revenue
+                    </Text>
+                    <Text
+                      style={{ color: accentFg }}
+                      className="text-[44px] font-black leading-[52px] tracking-tighter"
+                    >
+                      {formatMinorUnitsToCurrency(report.totalRevenueCents, businessCurrency)}
+                    </Text>
+                    <Text
+                      style={{ color: accentFg, opacity: 0.9 }}
+                      className="mt-1 text-[15px] font-semibold"
+                    >
+                      {report.saleCount} {report.saleCount === 1 ? "sale" : "sales"}
+                    </Text>
+                  </View>
+                  <View className="h-12 w-12 items-center justify-center rounded-full bg-white/20">
+                    <Ionicons name="bar-chart" size={24} color={accentFg} />
+                  </View>
+                </View>
+
+                <View className="mt-8 flex-row items-center justify-between rounded-[24px] bg-black/10 px-5 py-4">
+                  <View>
+                    <Text style={{ color: accentFg, opacity: 0.8 }} className="text-[12px] font-bold uppercase tracking-widest">
+                      Avg Ticket
+                    </Text>
+                    <Text style={{ color: accentFg }} className="mt-0.5 text-[20px] font-black tracking-tight">
+                      {report.saleCount > 0
+                        ? formatMinorUnitsToCurrency(report.averageTicketCents, businessCurrency)
+                        : "—"}
+                    </Text>
+                  </View>
+                  <View className="h-10 w-10 items-center justify-center rounded-full bg-white/20">
+                    <Ionicons name="receipt" size={18} color={accentFg} />
+                  </View>
                 </View>
               </View>
             </View>
@@ -467,7 +499,7 @@ export default function ReportsTab() {
         subtitleNumberOfLines={1}
       />
 
-      <SafeAreaView style={styles.root} edges={["left", "right", "bottom"]}>
+      <SafeAreaView style={styles.root} edges={["left", "right"]}>
         <FlatList
           style={styles.list}
           data={signedIn && businessId ? listRows : []}

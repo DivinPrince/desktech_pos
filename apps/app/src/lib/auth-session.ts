@@ -25,7 +25,9 @@ export function getSessionActiveBusiness(
 export function sessionNeedsOnboarding(
   data: SessionResult["data"] | null | undefined,
 ): boolean {
-  return data?.onboardingRedirect === true;
+  if (data?.onboardingRedirect === true) return true;
+  const u = data?.user as { shouldOnboard?: boolean } | undefined;
+  return u?.shouldOnboard === true;
 }
 
 export function resolveActiveBusiness(

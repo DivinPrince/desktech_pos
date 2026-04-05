@@ -286,7 +286,7 @@ export default function TodayTab() {
         tertiaryNumberOfLines={1}
       />
 
-      <SafeAreaView style={styles.root} edges={["left", "right", "bottom"]}>
+      <SafeAreaView style={styles.root} edges={["left", "right"]}>
         <FlatList
           style={styles.list}
           data={signedIn && businessId ? listRows : []}

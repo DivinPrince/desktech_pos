@@ -200,7 +200,7 @@ export default function ReceiptsTab() {
       <StatusBar style="inverted" />
       <TabScreenHeader title="Receipts" subtitle={headerSubtitle} />
 
-      <SafeAreaView style={styles.root} edges={["left", "right", "bottom"]}>
+      <SafeAreaView style={styles.root} edges={["left", "right"]}>
         <FlatList
           style={styles.list}
           data={signedIn && businessId ? listRows : []}
