@@ -3,7 +3,16 @@
 
 @import "heroui-native/styles";
 
+/*
+ * HeroUI Native utilities can be resolved from either `src/` or compiled `lib/`
+ * depending on Metro/export conditions, and installs may be app-local or hoisted
+ * in the monorepo root. Scan all of those locations so release extraction keeps
+ * the same component classes that dev resolves at runtime.
+ */
+@source "../node_modules/heroui-native/src";
 @source "../node_modules/heroui-native/lib";
+@source "../../../node_modules/heroui-native/src";
+@source "../../../node_modules/heroui-native/lib";
 
 /**
  * Desktech theme — full HeroUI Native semantic tokens (light + dark).

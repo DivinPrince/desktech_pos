@@ -1,6 +1,4 @@
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import "../global.css";
-
 import React, { useEffect } from "react";
 import { SplashScreen, Stack } from "expo-router";
 import { HeroUINativeProvider } from "heroui-native/provider";
