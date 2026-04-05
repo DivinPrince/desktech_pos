@@ -1,6 +1,7 @@
 export { AppHeader } from "./app-header";
 export { BrandedLoading, type BrandedLoadingProps } from "./branded-loading";
 export { BentoTile } from "./bento-tile";
+export { CalculatorSheet, type CalculatorSheetProps } from "./calculator-sheet";
 export { CategoryRail, type CategoryRailItem } from "./category-rail";
 export { ColorSwatch } from "./color-swatch";
 export { FormSectionCard } from "./form-section-card";

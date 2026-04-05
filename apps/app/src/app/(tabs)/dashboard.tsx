@@ -3,7 +3,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useThemeColor } from "heroui-native/hooks";
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { CalculatorSheet } from "@/components/desktech-ui/calculator-sheet";
 import { TabScreenHeader } from "@/components/desktech-ui/tab-screen-header";
 import { paymentDisplayForKey } from "@/lib/counter-checkout/payment-options";
 import { resolveActiveBusiness, useAuthSessionState } from "@/lib/auth-session";
@@ -20,6 +21,9 @@ import type { ProductRow } from "@/lib/data/catalog/types";
 import { buildSalesReport } from "@/lib/data/sales/build-sales-report";
 import {
   reportPeriodBounds,
+  previousReportPeriodBounds,
+  reportPeriodLabel,
+  type ReportPeriodPreset,
 } from "@/lib/data/sales/report-period-bounds";
 import { hydrateSaleReceiptExtras } from "@/lib/data/sales/receipt-extras";
 import type { CounterSaleRow } from "@/lib/data/sales/types";
@@ -32,7 +36,7 @@ import {
   useCategoriesQuery,
   useProductsQuery,
 } from "@/lib/queries/business-catalog";
-import { useSalesRangeQuery, useSalesTodayQuery } from "@/lib/queries/business-sales";
+import { useSalesRangeQuery } from "@/lib/queries/business-sales";
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
@@ -159,6 +163,8 @@ function RecentSaleRow({
   );
 }
 
+const PERIOD_PRESETS: ReportPeriodPreset[] = ["today", "last7", "month", "all"];
+
 export default function DashboardTab() {
   const router = useRouter();
   const accent = useThemeColor("accent");
@@ -190,6 +196,12 @@ export default function DashboardTab() {
   });
   const categoriesQuery = useCategoriesQuery(businessId, catalogEnabled);
 
+  const [periodPreset, setPeriodPreset] = useState<ReportPeriodPreset>("today");
+  const [calculatorOpen, setCalculatorOpen] = useState(false);
+
+  const currentBounds = useMemo(() => reportPeriodBounds(periodPreset, new Date()), [periodPreset]);
+  const previousBounds = useMemo(() => previousReportPeriodBounds(periodPreset, new Date()), [periodPreset]);
+
   const weekBounds = useMemo(() => reportPeriodBounds("last7", new Date()), []);
   const monthBounds = useMemo(() => reportPeriodBounds("month", new Date()), []);
   const allBounds = useMemo(() => reportPeriodBounds("all", new Date()), []);
@@ -200,12 +212,42 @@ export default function DashboardTab() {
   );
 
   const {
-    data: todayRows,
-    refetch: refetchToday,
-    isFetching: todayFetching,
-  } = useSalesTodayQuery(signedIn ? businessId : undefined, signedIn, salesMeta);
-  const todayList = useMemo(() => todayRows ?? [], [todayRows]);
-  const todayReport = useMemo(() => buildSalesReport(todayList), [todayList]);
+    data: currentRows,
+    refetch: refetchCurrent,
+    isFetching: currentFetching,
+  } = useSalesRangeQuery(
+    signedIn ? businessId : undefined,
+    signedIn,
+    signedIn && businessId ? currentBounds : null,
+    salesMeta,
+  );
+  const currentList = useMemo(() => currentRows ?? [], [currentRows]);
+  const currentReport = useMemo(() => buildSalesReport(currentList), [currentList]);
+
+  const {
+    data: previousRows,
+    refetch: refetchPrevious,
+    isFetching: previousFetching,
+  } = useSalesRangeQuery(
+    signedIn ? businessId : undefined,
+    signedIn,
+    signedIn && businessId ? previousBounds : null,
+    salesMeta,
+  );
+  const previousList = useMemo(() => previousRows ?? [], [previousRows]);
+  const previousReport = useMemo(() => buildSalesReport(previousList), [previousList]);
+
+  const trend = useMemo(() => {
+    if (!previousBounds) return null;
+    const curr = currentReport.totalRevenueCents;
+    const prev = previousReport.totalRevenueCents;
+    if (prev === 0 && curr === 0) return { direction: "flat", text: "0%" };
+    if (prev === 0) return { direction: "up", text: "100%" };
+    const diff = curr - prev;
+    const pct = Math.round((Math.abs(diff) / prev) * 100);
+    if (diff === 0) return { direction: "flat", text: "0%" };
+    return { direction: diff > 0 ? "up" : "down", text: `${pct}%` };
+  }, [currentReport.totalRevenueCents, previousReport.totalRevenueCents, previousBounds]);
 
   const {
     data: weekRows,
@@ -252,7 +294,8 @@ export default function DashboardTab() {
   const recentSales = useMemo(() => allList.slice(0, 4), [allList]);
 
   const dataRefreshing =
-    todayFetching ||
+    currentFetching ||
+    previousFetching ||
     weekFetching ||
     monthFetching ||
     allFetching ||
@@ -264,7 +307,8 @@ export default function DashboardTab() {
   useFocusEffect(
     useCallback(() => {
       void hydrateSaleReceiptExtras();
-      void refetchToday();
+      void refetchCurrent();
+      void refetchPrevious();
       void refetchWeek();
       void refetchMonth();
       void refetchAll();
@@ -287,7 +331,8 @@ export default function DashboardTab() {
       offlineExecutor,
       refetchAll,
       refetchMonth,
-      refetchToday,
+      refetchCurrent,
+      refetchPrevious,
       refetchWeek,
       categoriesQuery,
       productsQuery,
@@ -328,7 +373,28 @@ export default function DashboardTab() {
         tertiaryText={headerTertiary}
         subtitleNumberOfLines={2}
         tertiaryNumberOfLines={1}
+        trailing={
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open calculator"
+            hitSlop={8}
+            onPress={() => setCalculatorOpen(true)}
+            style={({ pressed }) => ({
+              height: 44,
+              width: 44,
+              borderRadius: 14,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "rgba(255,255,255,0.22)",
+              opacity: pressed ? 0.85 : 1,
+            })}
+          >
+            <Ionicons name="calculator-outline" size={26} color={accentFg} />
+          </Pressable>
+        }
       />
+
+      <CalculatorSheet visible={calculatorOpen} onClose={() => setCalculatorOpen(false)} />
 
       <SafeAreaView style={styles.root} edges={["left", "right", "bottom"]}>
         <ScrollView
@@ -380,45 +446,80 @@ export default function DashboardTab() {
 
               {/* Hero Section */}
               <View
-                className="mx-4 mb-8 overflow-hidden rounded-[36px] p-6 shadow-sm"
+                className="mx-4 mb-8 overflow-hidden rounded-[36px] p-6 shadow-sm relative"
                 style={{ backgroundColor: accent }}
               >
-                <View className="flex-row items-start justify-between">
-                  <View>
-                    <Text
-                      style={{ color: accentFg, opacity: 0.8 }}
-                      className="mb-1 text-[13px] font-bold uppercase tracking-widest"
-                    >
-                      Today&apos;s Revenue
-                    </Text>
-                    <Text
-                      style={{ color: accentFg }}
-                      className="text-[44px] font-black leading-[52px] tracking-tighter"
-                    >
-                      {formatMinorUnitsToCurrency(todayReport.totalRevenueCents, businessCurrency)}
-                    </Text>
-                    <Text
-                      style={{ color: accentFg, opacity: 0.9 }}
-                      className="mt-1 text-[15px] font-semibold"
-                    >
-                      {todayReport.saleCount} {todayReport.saleCount === 1 ? "sale" : "sales"} today
-                    </Text>
-                  </View>
-                  <View className="h-12 w-12 items-center justify-center rounded-full bg-white/20">
-                    <Ionicons name="trending-up" size={24} color={accentFg} />
-                  </View>
+                {/* Background Pattern */}
+                <View className="absolute inset-0 overflow-hidden pointer-events-none">
+                  <View className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10" />
+                  <View className="absolute -bottom-10 -left-10 w-32 h-32 rounded-full bg-white/10" />
+                  <View className="absolute top-1/2 left-1/2 w-48 h-48 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-white/5 rounded-3xl" />
                 </View>
 
-                <Pressable
-                  onPress={() => router.push("/(tabs)/counter")}
-                  className="mt-8 flex-row items-center justify-center rounded-[24px] py-4 active:opacity-90"
-                  style={{ backgroundColor: accentFg }}
-                >
-                  <Ionicons name="scan" size={22} color={accent} />
-                  <Text className="ml-2 text-[17px] font-black tracking-tight" style={{ color: accent }}>
-                    Checkout Counter
-                  </Text>
-                </Pressable>
+                <View className="relative z-10">
+                  {/* Inline Period Selector */}
+                  <View className="flex-row items-center bg-black/10 rounded-full p-1 mb-6 self-start">
+                    {PERIOD_PRESETS.map((preset) => {
+                      const selected = preset === periodPreset;
+                      return (
+                        <Pressable
+                          key={preset}
+                          onPress={() => setPeriodPreset(preset)}
+                          className={`px-3 py-1.5 rounded-full ${selected ? "bg-white shadow-sm" : ""}`}
+                        >
+                          <Text
+                            style={{ color: selected ? accent : accentFg }}
+                            className={`text-[13px] font-bold ${selected ? "" : "opacity-80"}`}
+                          >
+                            {reportPeriodLabel(preset)}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+
+                  <View className="flex-row items-start justify-between">
+                    <View>
+                      <Text
+                        style={{ color: accentFg, opacity: 0.8 }}
+                        className="mb-1 text-[13px] font-bold uppercase tracking-widest"
+                      >
+                        {reportPeriodLabel(periodPreset)} Revenue
+                      </Text>
+                      <Text
+                        style={{ color: accentFg }}
+                        className="text-[44px] font-black leading-[52px] tracking-tighter"
+                      >
+                        {formatMinorUnitsToCurrency(currentReport.totalRevenueCents, businessCurrency)}
+                      </Text>
+                      
+                      <View className="flex-row items-center mt-2">
+                        <Text
+                          style={{ color: accentFg, opacity: 0.9 }}
+                          className="text-[15px] font-semibold mr-3"
+                        >
+                          {currentReport.saleCount} {currentReport.saleCount === 1 ? "sale" : "sales"}
+                        </Text>
+                        
+                        {trend && (
+                          <View className="flex-row items-center bg-white/20 px-2 py-1 rounded-full">
+                            <Ionicons 
+                              name={trend.direction === "up" ? "trending-up" : trend.direction === "down" ? "trending-down" : "remove"} 
+                              size={14} 
+                              color={accentFg} 
+                            />
+                            <Text style={{ color: accentFg }} className="ml-1 text-[13px] font-bold">
+                              {trend.text}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                    <View className="h-12 w-12 items-center justify-center rounded-full bg-white/20">
+                      <Ionicons name="bar-chart" size={24} color={accentFg} />
+                    </View>
+                  </View>
+                </View>
               </View>
 
               {/* Stock Alerts */}

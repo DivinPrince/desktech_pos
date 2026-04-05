@@ -1,4 +1,4 @@
-import React from "react";
+import React, { type ReactNode } from "react";
 import { Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -12,6 +12,8 @@ type TabScreenHeaderProps = {
   tertiaryText?: string | null;
   subtitleNumberOfLines?: number;
   tertiaryNumberOfLines?: number;
+  /** e.g. header action aligned with the menu trigger */
+  trailing?: ReactNode;
 };
 
 export function TabScreenHeader({
@@ -20,6 +22,7 @@ export function TabScreenHeader({
   tertiaryText,
   subtitleNumberOfLines = 2,
   tertiaryNumberOfLines = 2,
+  trailing,
 }: TabScreenHeaderProps) {
   const insets = useSafeAreaInsets();
   const accent = useThemeColor("accent");
@@ -65,6 +68,7 @@ export function TabScreenHeader({
             </Text>
           ) : null}
         </View>
+        {trailing ? <View style={{ flexShrink: 0 }}>{trailing}</View> : null}
       </View>
     </View>
   );
